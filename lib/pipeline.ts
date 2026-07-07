@@ -11,17 +11,19 @@ export async function processarSubmissao(params: {
   alunoNome: string;
   alunoEmail?: string;
   alunoNumero?: string;
+  studentId?: string;
   ficheiros: FicheiroSubmissao[];
 }): Promise<{ submissionId: string; evaluationId: string }> {
   const assignment = await db.assignment.findUniqueOrThrow({
     where: { id: params.assignmentId },
   });
 
-  const conteudoExtraido = await extrairConteudo(params.ficheiros);
+  const { texto: conteudoExtraido, imagens } = await extrairConteudo(params.ficheiros);
 
   const submission = await db.submission.create({
     data: {
       assignmentId: assignment.id,
+      studentId: params.studentId,
       alunoNome: params.alunoNome,
       alunoEmail: params.alunoEmail,
       alunoNumero: params.alunoNumero,
@@ -46,6 +48,7 @@ export async function processarSubmissao(params: {
       solucaoModelo: assignment.solucaoModelo,
       rubrica: assignment.rubrica as unknown as Criterio[],
       conteudoExtraido,
+      imagens,
     });
 
     await db.evaluation.update({

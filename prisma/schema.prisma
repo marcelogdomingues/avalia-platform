@@ -54,9 +54,21 @@ model Assignment {
   @@index([courseId])
 }
 
+model Student {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  nome      String
+  numero    String?
+  password  String // scrypt: "salt:hash"
+  createdAt DateTime @default(now())
+
+  submissions Submission[]
+}
+
 model Submission {
   id               String   @id @default(cuid())
   assignmentId     String
+  studentId        String?
   alunoNome        String
   alunoEmail       String?
   alunoNumero      String? // para casar com o Moodle no export
@@ -65,9 +77,11 @@ model Submission {
   createdAt        DateTime @default(now())
 
   assignment Assignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student    Student?    @relation(fields: [studentId], references: [id], onDelete: SetNull)
   evaluation Evaluation?
 
   @@index([assignmentId])
+  @@index([studentId])
 }
 
 // estado: PENDENTE | RASCUNHO | APROVADO | ERRO

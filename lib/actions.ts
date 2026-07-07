@@ -11,6 +11,10 @@ import {
   setSession,
   clearSession,
   requireProfessor,
+  setStudentSession,
+  clearStudentSession,
+  getCurrentStudent,
+  requireStudent,
 } from "./auth";
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -42,6 +46,39 @@ export async function entrar(formData: FormData) {
 export async function sair() {
   await clearSession();
   redirect("/login");
+}
+
+// ── Auth do aluno ────────────────────────────────────────────────────────────
+export async function registarAluno(formData: FormData) {
+  const nome = String(formData.get("nome") ?? "").trim();
+  const numero = String(formData.get("numero") ?? "").trim() || undefined;
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  const next = String(formData.get("next") ?? "/aluno");
+  if (!nome || !email || password.length < 6) redirect(`/aluno/registo?erro=campos&next=${encodeURIComponent(next)}`);
+  if (await db.student.findUnique({ where: { email } }))
+    redirect(`/aluno/registo?erro=email&next=${encodeURIComponent(next)}`);
+  const aluno = await db.student.create({
+    data: { nome, numero, email, password: hashPassword(password) },
+  });
+  await setStudentSession(aluno.id);
+  redirect(next);
+}
+
+export async function entrarAluno(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  const next = String(formData.get("next") ?? "/aluno");
+  const aluno = await db.student.findUnique({ where: { email } });
+  if (!aluno || !verifyPassword(password, aluno.password))
+    redirect(`/aluno/login?erro=1&next=${encodeURIComponent(next)}`);
+  await setStudentSession(aluno.id);
+  redirect(next);
+}
+
+export async function sairAluno() {
+  await clearStudentSession();
+  redirect("/aluno/login");
 }
 
 // ── Cadeiras ─────────────────────────────────────────────────────────────────
@@ -133,16 +170,76 @@ export async function submeterTrabalho(token: string, formData: FormData) {
   const file = formData.get("ficheiro") as File | null;
   if (!file || file.size === 0) throw new Error("Nenhum ficheiro submetido.");
 
+  // se houver aluno autenticado, associa a submissão à conta dele
+  const aluno = await getCurrentStudent();
+
   const buffer = Buffer.from(await file.arrayBuffer());
   const { submissionId } = await processarSubmissao({
     assignmentId: assignment.id,
-    alunoNome,
-    alunoNumero,
+    studentId: aluno?.id,
+    alunoNome: aluno?.nome ?? alunoNome,
+    alunoEmail: aluno?.email,
+    alunoNumero: aluno?.numero ?? alunoNumero,
     ficheiros: [{ nome: file.name, mime: file.type, buffer }],
   });
 
   revalidatePath(`/professor/trabalho/${assignment.id}`);
   return submissionId;
+}
+
+// ── Editar trabalho ──────────────────────────────────────────────────────────
+export async function editarTrabalho(formData: FormData) {
+  const prof = await requireProfessor();
+  const id = String(formData.get("assignmentId"));
+  const a = await db.assignment.findUnique({ where: { id }, include: { course: true } });
+  if (!a || a.course.professorId !== prof.id) redirect("/professor");
+
+  const titulo = String(formData.get("titulo") ?? "").trim();
+  const enunciado = String(formData.get("enunciado") ?? "").trim();
+  const instrucoes = String(formData.get("instrucoes") ?? "").trim() || null;
+  const solucaoModelo = String(formData.get("solucaoModelo") ?? "").trim() || null;
+  const feedbackImediato = formData.get("feedbackImediato") === "on";
+  const tiposFicheiro = formData.getAll("tiposFicheiro").map(String);
+
+  let rubrica: Criterio[] = [];
+  try { rubrica = JSON.parse(String(formData.get("rubrica") ?? "[]")); } catch { rubrica = []; }
+  rubrica = rubrica
+    .filter((c) => c.nome?.trim())
+    .map((c, i) => ({
+      id: `c${i + 1}`,
+      nome: String(c.nome).trim(),
+      descricao: String(c.descricao ?? "").trim(),
+      peso: Number(c.peso) || 0,
+      pontosMax: Number(c.pontosMax) || 20,
+    }));
+  if (!titulo || !enunciado || rubrica.length === 0)
+    redirect(`/professor/trabalho/${id}/editar?erro=campos`);
+
+  await db.assignment.update({
+    where: { id },
+    data: {
+      titulo, enunciado, instrucoes, solucaoModelo, feedbackImediato,
+      tiposFicheiro: tiposFicheiro.length ? tiposFicheiro : ["pdf", "docx", "txt"],
+      rubrica: rubrica as any,
+    },
+  });
+  redirect(`/professor/trabalho/${id}`);
+}
+
+// ── Ações em lote ────────────────────────────────────────────────────────────
+export async function aprovarTodas(formData: FormData) {
+  await requireProfessor();
+  const assignmentId = String(formData.get("assignmentId"));
+  const evals = await db.evaluation.findMany({
+    where: { estado: "RASCUNHO", submission: { assignmentId } },
+  });
+  for (const ev of evals) {
+    await db.evaluation.update({
+      where: { id: ev.id },
+      data: { estado: "APROVADO", notaFinal: ev.notaIA, aprovadoEm: new Date() },
+    });
+  }
+  revalidatePath(`/professor/trabalho/${assignmentId}`);
 }
 
 // ── Professor valida / re-avalia ─────────────────────────────────────────────
