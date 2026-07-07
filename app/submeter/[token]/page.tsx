@@ -6,17 +6,26 @@ export const dynamic = "force-dynamic";
 
 export default async function SubmeterPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ ok?: string }>;
 }) {
   const { token } = await params;
+  const { ok } = await searchParams;
   const assignment = await db.assignment.findUnique({
     where: { submitToken: token },
     include: { course: true },
   });
 
   if (!assignment) {
-    return <main style={wrap}><p>Link de submissão inválido.</p></main>;
+    return (
+      <main className="container">
+        <div className="card" style={{ marginTop: 40 }}>
+          <p className="empty">Link de submissão inválido.</p>
+        </div>
+      </main>
+    );
   }
 
   const tipos = (assignment.tiposFicheiro as string[]) ?? [];
@@ -28,24 +37,30 @@ export default async function SubmeterPage({
   }
 
   return (
-    <main style={wrap}>
-      <h1>{assignment.titulo}</h1>
-      <p style={{ color: "#666" }}>{assignment.course.nome}</p>
-      <p>{assignment.enunciado}</p>
+    <main className="container">
+      <span className="eyebrow" style={{ display: "block", marginTop: 40 }}>{assignment.course.nome}</span>
+      <h1 className="page-title" style={{ marginTop: 4 }}>{assignment.titulo}</h1>
+      <p className="page-sub">{assignment.enunciado}</p>
 
-      <form action={acao} style={{ display: "grid", gap: 12, marginTop: "1.5rem", maxWidth: 420 }}>
-        <label>Nome<br /><input name="alunoNome" required style={inp} /></label>
-        <label>Número de aluno<br /><input name="alunoNumero" style={inp} /></label>
-        <label>
-          Ficheiro ({tipos.join(", ") || "pdf, docx, txt, zip"})<br />
-          <input name="ficheiro" type="file" required
-            accept=".pdf,.docx,.txt,.md,.zip" />
-        </label>
-        <button type="submit">Submeter</button>
-      </form>
+      {ok && <div className="ok-banner">✓ Trabalho submetido e avaliado. Podes submeter outro se quiseres.</div>}
+
+      <div className="card" style={{ maxWidth: 460 }}>
+        <form action={acao}>
+          <div className="field">
+            <label>Nome</label>
+            <input className="input" name="alunoNome" required />
+          </div>
+          <div className="field">
+            <label>Número de aluno</label>
+            <input className="input" name="alunoNumero" />
+          </div>
+          <div className="field">
+            <label>Ficheiro <span className="hint">({tipos.join(", ") || "pdf, docx, txt, zip"})</span></label>
+            <input name="ficheiro" type="file" required accept=".pdf,.docx,.txt,.md,.zip" />
+          </div>
+          <button className="btn" type="submit">Submeter trabalho</button>
+        </form>
+      </div>
     </main>
   );
 }
-
-const wrap = { maxWidth: 640, margin: "3rem auto", fontFamily: "system-ui", padding: "0 1rem" } as const;
-const inp = { width: "100%", padding: 6 } as const;
