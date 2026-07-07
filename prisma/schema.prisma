@@ -1,4 +1,6 @@
-// Avalia — schema de dados (Prisma + Postgres)
+// Avalia — schema de dados (Prisma).
+// POC: SQLite (zero configuração). Migrar para Postgres = trocar provider + url;
+// os tipos usados (String, Json, Float, DateTime) são portáveis para ambos.
 // Multi-tenant: tudo pende de Professor. Isolamento por professorId/courseId.
 
 generator client {
@@ -6,7 +8,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -16,14 +18,14 @@ model Professor {
   nome      String
   createdAt DateTime @default(now())
 
-  courses   Course[]
+  courses Course[]
 }
 
 model Course {
   id          String   @id @default(cuid())
   professorId String
   nome        String
-  ano         String?  // ex: "2025/2026"
+  ano         String?
   createdAt   DateTime @default(now())
 
   professor   Professor    @relation(fields: [professorId], references: [id], onDelete: Cascade)
@@ -33,22 +35,17 @@ model Course {
 }
 
 model Assignment {
-  id             String   @id @default(cuid())
-  courseId       String
-  titulo         String
-  enunciado      String   @db.Text // markdown/texto do enunciado
-  // Tipos de ficheiro aceites, ex: ["pdf","docx","zip"]
-  tiposFicheiro  String[]
-  // Rubrica semi-estruturada. Cada critério: { id, nome, descricao, peso, pontosMax }
-  // Guardado como JSON para flexibilidade total sem migrações por cadeira.
-  rubrica        Json
-  instrucoes     String?  @db.Text // instruções extra de avaliação em linguagem natural
-  solucaoModelo  String?  @db.Text // opcional: resposta-modelo para comparar
-  // Se true, o aluno vê feedback logo; se false, só depois de o professor aprovar.
-  feedbackImediato Boolean @default(false)
-  // Token público para o link de submissão do aluno.
-  submitToken    String   @unique @default(cuid())
-  createdAt      DateTime @default(now())
+  id               String   @id @default(cuid())
+  courseId         String
+  titulo           String
+  enunciado        String
+  tiposFicheiro    Json // ex: ["pdf","docx","zip"]
+  rubrica          Json // [{ id, nome, descricao, peso, pontosMax }]
+  instrucoes       String?
+  solucaoModelo    String?
+  feedbackImediato Boolean  @default(false)
+  submitToken      String   @unique @default(cuid())
+  createdAt        DateTime @default(now())
 
   course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
   submissions Submission[]
@@ -57,44 +54,35 @@ model Assignment {
 }
 
 model Submission {
-  id            String   @id @default(cuid())
-  assignmentId  String
-  alunoNome     String
-  alunoEmail    String?
-  alunoNumero   String?  // número de aluno, para casar com o Moodle no export
-  // Ficheiros: [{ nome, storageKey, mime, tamanho }]
-  ficheiros     Json
-  // Conteúdo extraído e normalizado para o avaliador (texto, árvore de código, etc.)
-  conteudoExtraido String? @db.Text
-  createdAt     DateTime @default(now())
+  id               String   @id @default(cuid())
+  assignmentId     String
+  alunoNome        String
+  alunoEmail       String?
+  alunoNumero      String? // para casar com o Moodle no export
+  ficheiros        Json // [{ nome, storageKey, mime, tamanho }]
+  conteudoExtraido String?
+  createdAt        DateTime @default(now())
 
-  assignment  Assignment   @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  evaluation  Evaluation?
+  assignment Assignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  evaluation Evaluation?
 
   @@index([assignmentId])
 }
 
-enum EvaluationEstado {
-  PENDENTE   // em fila / a correr
-  RASCUNHO   // IA terminou, à espera de validação do professor
-  APROVADO   // professor aprovou; nota final
-  ERRO       // falha na extração/avaliação
-}
-
+// estado: PENDENTE | RASCUNHO | APROVADO | ERRO
 model Evaluation {
-  id            String   @id @default(cuid())
-  submissionId  String   @unique
-  estado        EvaluationEstado @default(PENDENTE)
-  // Notas por critério: [{ criterioId, nome, pontos, pontosMax, justificacao }]
-  porCriterio   Json?
-  feedbackGlobal String? @db.Text
-  notaIA        Float?   // nota calculada pela IA (soma ponderada)
-  notaFinal     Float?   // nota após ajuste/aprovação do professor
-  modelo        String?  // model id usado, ex: "claude-opus-4-8"
-  tokensInput   Int?
-  tokensOutput  Int?
-  avaliadoEm    DateTime?
-  aprovadoEm    DateTime?
+  id             String    @id @default(cuid())
+  submissionId   String    @unique
+  estado         String    @default("PENDENTE")
+  porCriterio    Json? // [{ criterioId, nome, pontos, pontosMax, justificacao }]
+  feedbackGlobal String?
+  notaIA         Float?
+  notaFinal      Float?
+  modelo         String?
+  tokensInput    Int?
+  tokensOutput   Int?
+  avaliadoEm     DateTime?
+  aprovadoEm     DateTime?
 
-  submission  Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 }
