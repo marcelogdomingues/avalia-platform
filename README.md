@@ -18,19 +18,30 @@ npm run db:push && npm run seed   # BD SQLite + dados de exemplo
 npm run dev                       # http://localhost:3000
 ```
 
-Login de exemplo criado pelo seed: **prof@exemplo.pt** / **demo1234**
-(ou cria a tua conta em `/registo`).
+Logins de exemplo criados pelo seed:
+- Professor: **prof@exemplo.pt** / **demo1234**
+- Aluno: **aluno@exemplo.pt** / **demo1234**
 
 ## Funcionalidades
 
-- **Auth de professores** — registo, login, logout (sessão por cookie assinado, password com scrypt).
+**Professor**
+- **Auth** — registo, login, logout (sessão por cookie assinado, password com scrypt).
 - **Cadeiras** — criar/apagar, isoladas por professor (multi-tenant).
-- **Trabalhos com rubric builder** — enunciado, tipos de ficheiro aceites, critérios com
-  peso e escala, instruções extra e solução-modelo opcionais, feedback imediato ao aluno.
-- **Submissão do aluno** por link público — PDF, DOCX, TXT ou ZIP de código (extração real).
+- **Trabalhos com rubric builder** — enunciado, tipos de ficheiro, critérios com peso e
+  escala, instruções extra e solução-modelo, feedback imediato ao aluno. **Editável.**
+- **Validação** — rever, ajustar nota final, **aprovar**, **re-avaliar**, **aprovar todas** (lote).
+- **Estatísticas** por trabalho — média, min/máx, aprovadas, histograma de notas.
+- **Deteção de similaridade/plágio** entre submissões (offline, Jaccard de shingles).
+- **Export CSV** das notas (formato para o gradebook do Moodle).
+
+**Aluno**
+- **Contas de aluno** — registo/login; submissões associadas à conta.
+- **Dashboard** — "as minhas submissões" com estado e nota.
+- **Recibo** por link (`/recibo/[id]`) — vê o resultado quando publicado.
+
+**Motor**
 - **Pré-avaliação IA** — nota e justificação por critério (modelo demo OU LLM real).
-- **Validação** — rever, ajustar a nota final, **aprovar**; **re-avaliar** quando quiser.
-- **Export CSV** das notas (formato para importar no gradebook do Moodle).
+- **Extração real** — PDF, DOCX, TXT, ZIP de código; **imagens** (visão) no caminho LLM.
 
 ## Avaliação real (opcional)
 
