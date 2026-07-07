@@ -1,13 +1,32 @@
-// Cria dados de exemplo: um professor, uma cadeira e um trabalho com rubrica.
-// Corre com: npm run seed
+// Cria dados de exemplo: professor (com login), cadeira, trabalho e 2 submissões
+// já avaliadas. Corre com: npm run seed
+//
+// Login criado:  prof@exemplo.pt  /  demo1234
 
+import { randomBytes, scryptSync } from "crypto";
 import { db } from "../lib/db";
+import { processarSubmissao } from "../lib/pipeline";
+
+function hashPassword(pw: string): string {
+  const salt = randomBytes(16).toString("hex");
+  return `${salt}:${scryptSync(pw, salt, 64).toString("hex")}`;
+}
+
+const BOM = `Merge Sort — Relatório
+O merge sort é um algoritmo de ordenação por divisão e conquista: divide o array ao meio
+recursivamente até subarrays de tamanho 1 e depois combina (merge) de forma ordenada.
+Complexidade: altura da recursão log2(n); cada nível percorre n elementos no merge; logo
+O(n log n) no pior e no caso médio. Espaço O(n).
+Exemplo: [5,2,4,1] → [5,2] e [4,1] → [2,5] e [1,4] → merge → [1,2,4,5].`;
+
+const FRACO = `o merge sort ordena coisas. é rápido. acho que é O(n). divide e junta.`;
 
 async function main() {
+  const password = hashPassword("demo1234");
   const professor = await db.professor.upsert({
     where: { email: "prof@exemplo.pt" },
-    update: {},
-    create: { email: "prof@exemplo.pt", nome: "Prof. Exemplo" },
+    update: { password },
+    create: { email: "prof@exemplo.pt", nome: "Prof. Exemplo", password },
   });
 
   const course = await db.course.create({
@@ -19,24 +38,32 @@ async function main() {
       courseId: course.id,
       titulo: "Relatório: Ordenação em O(n log n)",
       enunciado:
-        "Escreve um relatório curto que explique um algoritmo de ordenação com " +
-        "complexidade O(n log n) (ex: merge sort ou heap sort), incluindo a ideia " +
+        "Explica um algoritmo de ordenação O(n log n) (ex: merge sort), com a ideia " +
         "central, a análise de complexidade e um exemplo.",
       tiposFicheiro: ["pdf", "docx", "txt"],
       rubrica: [
-        { id: "c1", nome: "Correção técnica", descricao: "O algoritmo e a análise de complexidade estão corretos.", peso: 50, pontosMax: 20 },
-        { id: "c2", nome: "Clareza e estrutura", descricao: "O texto é claro, organizado e fácil de seguir.", peso: 30, pontosMax: 20 },
-        { id: "c3", nome: "Exemplo", descricao: "Inclui um exemplo concreto que ilustra o funcionamento.", peso: 20, pontosMax: 20 },
+        { id: "c1", nome: "Correção técnica", descricao: "Algoritmo e análise de complexidade corretos.", peso: 50, pontosMax: 20 },
+        { id: "c2", nome: "Clareza e estrutura", descricao: "Texto claro e organizado.", peso: 30, pontosMax: 20 },
+        { id: "c3", nome: "Exemplo", descricao: "Inclui um exemplo concreto.", peso: 20, pontosMax: 20 },
       ],
-      instrucoes: "Penaliza afirmações incorretas sobre a complexidade. Valoriza exemplos concretos.",
+      instrucoes: "Penaliza afirmações incorretas sobre a complexidade.",
     },
   });
 
-  console.log("Seed criado:");
-  console.log("  professor:", professor.id, professor.email);
-  console.log("  cadeira:  ", course.id, course.nome);
-  console.log("  trabalho: ", assignment.id, assignment.titulo);
-  console.log("  submitToken (link do aluno):", assignment.submitToken);
+  for (const s of [
+    { alunoNome: "Ana Silva", alunoNumero: "20211234", texto: BOM },
+    { alunoNome: "Rui Costa", alunoNumero: "20215678", texto: FRACO },
+  ]) {
+    await processarSubmissao({
+      assignmentId: assignment.id,
+      alunoNome: s.alunoNome,
+      alunoNumero: s.alunoNumero,
+      ficheiros: [{ nome: "relatorio.txt", buffer: Buffer.from(s.texto, "utf-8") }],
+    });
+  }
+
+  console.log("Seed criado. Login: prof@exemplo.pt / demo1234");
+  console.log("Cadeira:", course.nome, "| Trabalho:", assignment.titulo);
 }
 
 main()

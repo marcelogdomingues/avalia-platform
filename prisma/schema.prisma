@@ -16,6 +16,7 @@ model Professor {
   id        String   @id @default(cuid())
   email     String   @unique
   nome      String
+  password  String // scrypt: "salt:hash"
   createdAt DateTime @default(now())
 
   courses Course[]
