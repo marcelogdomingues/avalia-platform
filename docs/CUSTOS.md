@@ -1,61 +1,46 @@
 # Custos e escolha de modelo
 
-Preços Claude (por 1M de tokens, à data 2026-06):
+**Direção do projeto:** o motor é **agnóstico de fornecedor** (API compatível com OpenAI).
+Para a POC usamos um **modelo open-source num tier gratuito hospedado**; mais tarde migra-se
+para um **servidor da faculdade** (on-prem) sem mudar código — só variáveis de ambiente.
 
-| Modelo | Model ID | Input | Output | Contexto | Visão | Structured output |
-|---|---|---|---|---|---|---|
-| **Claude Opus 4.8** | `claude-opus-4-8` | $5 | $25 | 1M | ✅ | ✅ |
-| **Claude Sonnet 4.6** | `claude-sonnet-4-6` | $3 | $15 | 1M | ✅ | ✅ |
-| **Claude Haiku 4.5** | `claude-haiku-4-5` | $1 | $5 | 200K | ✅ | ✅ |
+## POC: open-source gratuito (escolha atual)
 
-Os três suportam **visão** (para slides/imagens na Fase 2) e **structured output**
-(`output_config.format`) — essencial para receber nota+justificação por critério de forma fiável.
+| Fornecedor | Modelo | Licença | Custo | Notas |
+|---|---|---|---|---|
+| **Groq** (default) | Llama 3.3 70B | Llama Community | **Grátis** (tier) | Muito rápido, chave grátis, ótimo para POC |
+| **OpenRouter** | Qwen2.5 72B | **Apache 2.0** | **Grátis** (tier free) | Mais estritamente open-source; bom PT e JSON |
+| Google AI Studio | Gemini | proprietário | Grátis (tier) | *Não* open-source — evitar se o objetivo é FOSS |
 
-## Pressupostos de estimativa
+Trade-offs do tier gratuito hospedado:
+- ✅ Sem hardware, sem custo, arranca em minutos.
+- ⚠️ Os dados dos alunos **saem para o fornecedor** e há **limites de uso** (rate limits).
+  Aceitável para uma POC; para produção real com dados de alunos, migrar para on-prem (RGPD).
 
-Avaliação típica de um **relatório de ~4 páginas**:
-- Prefixo partilhado (enunciado + rubrica + instruções): ~2.000 tokens input
-- Submissão do aluno: ~3.000 tokens input
-- Output (nota por critério + justificações + feedback): ~1.000 tokens output
-- **Total: ~5.000 input + ~1.000 output**
+## Produção: on-prem no servidor da faculdade
 
-## Custo por trabalho (tempo real, sem otimizações)
-
-| Modelo | Por trabalho | Turma de 40 | Semestre (5 trab × 40 = 200) |
+| Runtime | Modelo | Hardware típico | Custo por avaliação |
 |---|---|---|---|
-| Opus 4.8 | **~$0.05** | ~$2.00 | ~$10.00 |
-| Sonnet 4.6 | **~$0.03** | ~$1.20 | ~$6.00 |
-| Haiku 4.5 | **~$0.01** | ~$0.40 | ~$2.00 |
+| vLLM | Qwen2.5-72B-Instruct | GPU ~40GB+ (A100 80GB, 2×A6000) | **€0** (só eletricidade) |
+| vLLM | Qwen2.5-32B | GPU 24–48GB | €0 |
+| Ollama | qwen2.5:14b / :32b | RTX 4090 24GB ou Mac 64GB+ | €0 |
 
-Trabalho **grande (zip de código, ~15k input)**: Opus ~$0.11, Sonnet ~$0.07, Haiku ~$0.02.
-Turma de 40 zips com Opus ≈ **$4.50**.
+- ✅ **Dados 100% on-prem** (RGPD), **custo zero por token**, stack toda livre.
+- Recomendado: **Qwen2.5** (Apache 2.0, forte em JSON estruturado e português; família
+  `Qwen2.5-VL` cobre a visão da Fase 2).
 
-**Conclusão:** o custo é praticamente irrelevante face ao tempo de docente poupado.
-Uma cadeira inteira num semestre custa entre **$2 e $10** em IA.
+## Qualidade — o que esperar
 
-## Duas alavancas que cortam custo (grátis de implementar)
+Ordem aproximada de qualidade nas justificações: Opus 4.8 (proprietário) >
+Llama 3.3 70B ≈ Qwen2.5 72B > modelos 14–32B. Os melhores open-source ficam **um degrau
+abaixo** do topo proprietário, mas como a tool tem **validação humana obrigatória**, o
+trade-off é muito aceitável — e ganha-se custo zero + on-prem.
 
-1. **Batch API (−50%)**: avaliar a turma toda de uma vez não é sensível a latência →
-   usar a Batches API corta metade do custo. Turma de 40 com Opus passa de ~$2.00 → **~$1.00**.
-2. **Prompt caching (~−90% no prefixo)**: o enunciado/rubrica/solução-modelo é igual para
-   todos os alunos. Cacheado uma vez, os restantes N-1 alunos pagam ~0.1× nesse prefixo.
-   Ganho cresce com enunciados/soluções-modelo grandes.
+Se em algum momento quiseres máxima qualidade num caso difícil, o motor agnóstico permite
+apontar a um modelo proprietário (ex: Claude) só para esses casos — sem reescrever nada.
 
-## Recomendação de modelo
+## Onde controlar no código
 
-- **Default do MVP: `claude-opus-4-8`.** Máxima qualidade de avaliação e de justificações —
-  é o que dá mais confiança ao professor na fase de validação, que é o objetivo do produto.
-  1M de contexto aguenta zips grandes; suporta visão e structured output.
-- **`claude-sonnet-4-6` como alavanca de custo** se o volume crescer muito e a qualidade
-  se mostrar equivalente na tua cadeira — corta ~40% do custo. Decisão a validar com dados reais.
-- **`claude-haiku-4-5` para pré-verificações baratas**: validar formato, quizzes de resposta
-  curta, triagem antes de uma avaliação mais cara.
-- **Escalonamento**: começar em Opus 4.8; opcionalmente usar Haiku para uma primeira passagem
-  e Opus só nos casos-limite/fronteira.
-
-## Onde controlar custo no código
-
-- `lib/evaluate.ts` centraliza o `model` — trocar num sítio só.
-- Ativar Batch API para avaliação em lote da turma.
-- Ativar `cache_control` no bloco do enunciado/rubrica (prefixo estável).
-- Guardar `tokensInput`/`tokensOutput` por avaliação (já no schema) para medir custo real.
+- `lib/llm.ts` — 3 variáveis (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`) trocam o fornecedor.
+- `lib/evaluate.ts` — `temperature: 0.2` para notas consistentes; JSON mode para output parseável.
+- `Evaluation.tokensInput/Output` (schema) — medir uso real para dimensionar hardware on-prem.

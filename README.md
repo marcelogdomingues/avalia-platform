@@ -1,6 +1,8 @@
 # Avalia — Plataforma de Avaliação Automática
 
-Pré-avaliação de trabalhos académicos com IA (Claude) e validação humana obrigatória.
+Pré-avaliação de trabalhos académicos com IA e validação humana obrigatória.
+Motor **agnóstico de fornecedor** (API compatível com OpenAI): POC com modelo
+open-source gratuito (Groq/OpenRouter), produção on-prem (vLLM/Ollama) sem mudar código.
 Genérica e multi-tenant: qualquer professor faz onboarding da sua cadeira, define trabalhos
 e rubricas, os alunos submetem, e a IA pré-avalia para o professor só rever e aprovar.
 
@@ -17,8 +19,8 @@ app/
   api/evaluate/route.ts   # endpoint que dispara a avaliação IA
   page.tsx, layout.tsx    # shell mínimo
 lib/
-  anthropic.ts            # cliente Claude + modelo default
-  evaluate.ts             # NÚCLEO: avalia submissão vs rubrica (structured output)
+  llm.ts                  # cliente LLM agnóstico (OpenAI-compatible) + modelo default
+  evaluate.ts             # NÚCLEO: avalia submissão vs rubrica (JSON mode)
   extract.ts              # extração de conteúdo (PDF/DOCX/ZIP) — stub MVP
 prisma/
   schema.prisma           # Professor, Course, Assignment, Submission, Evaluation
@@ -29,7 +31,7 @@ docs/                     # os 3 documentos acima
 
 ```bash
 npm install
-cp .env.example .env       # preencher ANTHROPIC_API_KEY e DATABASE_URL
+cp .env.example .env       # preencher LLM_* (chave grátis Groq) e DATABASE_URL
 npm run db:push            # cria as tabelas no Postgres
 npm run dev
 ```
