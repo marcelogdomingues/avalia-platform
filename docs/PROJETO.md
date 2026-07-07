@@ -49,8 +49,10 @@ grandes nem com múltiplas entregas por semestre.
 2. **Plataforma separada primeiro** (não integração Moodle no MVP). Export CSV compatível
    com o gradebook do Moodle. LTI/API do Moodle fica para a Fase 3.
 3. **Auto-registo aberto** (SaaS multi-tenant) desde o início.
-4. **Motor de avaliação = modelos Claude** com _structured output_ (nota+justificação por
-   critério, de forma fiável). Ver `docs/CUSTOS.md` para modelo e custos.
+4. **Motor de avaliação = agnóstico de fornecedor** (API compatível com OpenAI), com
+   _JSON mode_ (nota+justificação por critério, parseável). POC com modelo **open-source
+   gratuito**; migração para **on-prem** (servidor da faculdade) sem mudar código — só
+   variáveis de ambiente. Ver `docs/CUSTOS.md`.
 
 ## 6. Fluxos principais
 
@@ -98,7 +100,9 @@ Fora do MVP (mas desenhado para caber):
 - **Base de dados:** Postgres (multi-tenant por `professor_id`/`course_id`) via Prisma.
 - **Storage de ficheiros:** S3 / object storage (UE, RGPD).
 - **Auth:** provider com auto-registo (email institucional).
-- **IA:** SDK Anthropic (`@anthropic-ai/sdk`), modelo Claude com structured output + visão.
+- **IA:** motor agnóstico de fornecedor via SDK `openai` (API compatível com OpenAI).
+  POC com modelo open-source gratuito (Groq/OpenRouter); produção on-prem (vLLM/Ollama).
+  Ver `docs/CUSTOS.md`.
 
 ## 10. Riscos e mitigações
 
