@@ -1,8 +1,10 @@
 import { requireProfessor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { aprovar, reavaliar, apagarTrabalho } from "@/lib/actions";
+import { aprovar, reavaliar, apagarTrabalho, aprovarTodas } from "@/lib/actions";
 import { temLLM } from "@/lib/evaluate";
+import { calcularStats } from "@/lib/stats";
+import { calcularSimilaridades } from "@/lib/similaridade";
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +31,12 @@ export default async function TrabalhoPage({
   });
   if (!a) notFound();
 
-  const rubrica = a.rubrica as any[];
-  const aprovadas = a.submissions.filter((s) => s.evaluation?.estado === "APROVADO").length;
+  const stats = calcularStats(a.submissions.map((s) => s.evaluation ?? { estado: "PENDENTE", notaIA: null, notaFinal: null }));
+  const sims = calcularSimilaridades(
+    a.submissions.map((s) => ({ id: s.id, alunoNome: s.alunoNome, conteudoExtraido: s.conteudoExtraido })),
+  );
+  const maxDist = Math.max(1, ...stats.distribuicao.map((d) => d.n));
+  const pendentes = a.submissions.filter((s) => s.evaluation?.estado === "RASCUNHO").length;
 
   return (
     <>
@@ -42,10 +48,13 @@ export default async function TrabalhoPage({
 
       <div className="row-between">
         <h1 className="page-title" style={{ margin: 0 }}>{a.titulo}</h1>
-        <form action={apagarTrabalho}>
-          <input type="hidden" name="assignmentId" value={a.id} />
-          <button className="btn danger sm" type="submit">Apagar trabalho</button>
-        </form>
+        <div className="btn-row">
+          <a className="btn secondary sm" href={`/professor/trabalho/${a.id}/editar`}>Editar</a>
+          <form action={apagarTrabalho}>
+            <input type="hidden" name="assignmentId" value={a.id} />
+            <button className="btn danger sm" type="submit">Apagar</button>
+          </form>
+        </div>
       </div>
       <p className="page-sub">{a.enunciado}</p>
 
@@ -56,30 +65,55 @@ export default async function TrabalhoPage({
         </div>
       )}
 
+      {/* Estatísticas */}
+      {stats.total > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <span className="eyebrow">Estatísticas</span>
+          <div className="row-between" style={{ marginTop: 12, flexWrap: "wrap", gap: 20 }}>
+            <div className="statgrid">
+              <div className="stat"><div className="stat-n">{stats.total}</div><div className="stat-l">submissões</div></div>
+              <div className="stat"><div className="stat-n">{stats.media ?? "—"}</div><div className="stat-l">média /20</div></div>
+              <div className="stat"><div className="stat-n">{stats.min ?? "—"}–{stats.max ?? "—"}</div><div className="stat-l">min–máx</div></div>
+              <div className="stat"><div className="stat-n">{stats.aprovadas}/{stats.total}</div><div className="stat-l">aprovadas</div></div>
+            </div>
+            <div className="histo">
+              {stats.distribuicao.map((d) => (
+                <div key={d.faixa} className="histo-col">
+                  <div className="histo-bar" style={{ height: `${(d.n / maxDist) * 60 + 2}px` }} title={`${d.n}`} />
+                  <div className="histo-lbl">{d.faixa}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Link do aluno + ações */}
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="row-between" style={{ flexWrap: "wrap", gap: 12 }}>
           <div>
             <span className="eyebrow">Link de submissão do aluno</span>
-            <div style={{ marginTop: 6 }}>
-              <span className="submit-link">🔗 <code>/submeter/{a.submitToken}</code></span>
-            </div>
+            <div style={{ marginTop: 6 }}><span className="submit-link">🔗 <code>/submeter/{a.submitToken}</code></span></div>
           </div>
           <div className="btn-row">
             <a className="btn secondary sm" href={`/submeter/${a.submitToken}`} target="_blank">Abrir página do aluno ↗</a>
-            <a className="btn sm" href={`/professor/trabalho/${a.id}/export`}>⬇ Exportar CSV ({aprovadas} aprovadas)</a>
+            <a className="btn sm" href={`/professor/trabalho/${a.id}/export`}>⬇ Exportar CSV</a>
           </div>
         </div>
       </div>
 
       <div className="row-between" style={{ marginBottom: 10 }}>
         <h2 className="section-title">Submissões ({a.submissions.length})</h2>
+        {pendentes > 0 && (
+          <form action={aprovarTodas}>
+            <input type="hidden" name="assignmentId" value={a.id} />
+            <button className="btn secondary sm" type="submit">✓ Aprovar {pendentes} pendente(s)</button>
+          </form>
+        )}
       </div>
 
       {a.submissions.length === 0 ? (
-        <div className="card empty-state">
-          <div className="big">📥</div>
-          <p>Ainda sem submissões. Partilha o link do aluno acima.</p>
-        </div>
+        <div className="card empty-state"><div className="big">📥</div><p>Ainda sem submissões. Partilha o link acima.</p></div>
       ) : (
         a.submissions.map((s) => {
           const ev = s.evaluation;
@@ -87,6 +121,8 @@ export default async function TrabalhoPage({
           const estado = (ev?.estado ?? "PENDENTE").toLowerCase();
           const aprovado = ev?.estado === "APROVADO";
           const nota = aprovado ? ev?.notaFinal ?? ev?.notaIA : ev?.notaIA;
+          const sim = sims.get(s.id);
+          const alta = sim && sim.score >= 0.35;
           return (
             <div key={s.id} className="card submission">
               <div className="submission-head">
@@ -94,14 +130,26 @@ export default async function TrabalhoPage({
                   <div className="student">
                     {s.alunoNome}
                     {s.alunoNumero ? <span className="num"> · nº {s.alunoNumero}</span> : null}
+                    {s.studentId ? <span className="num" title="Conta de aluno"> · ✓ conta</span> : null}
                   </div>
                   <span className="model-tag">{ev?.modelo ?? "—"}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {sim && sim.score >= 0.15 && (
+                    <span className={`badge ${alta ? "s-erro" : "s-rascunho"}`} title={`Parecido com ${sim.outroNome}`}>
+                      ⚠ {Math.round(sim.score * 100)}% similar
+                    </span>
+                  )}
                   <span className={`badge s-${estado}`}>{ev?.estado ?? "PENDENTE"}</span>
                   <span className={`grade ${gradeClass(nota)}`}>{nota ?? "—"}<span className="max">/20</span></span>
                 </div>
               </div>
+
+              {alta && (
+                <div className="err-banner" style={{ margin: "12px 0 0" }}>
+                  Alta similaridade ({Math.round(sim!.score * 100)}%) com a submissão de <b>{sim!.outroNome}</b> — possível cópia.
+                </div>
+              )}
 
               <ul className="criteria">
                 {criterios.map((c) => {
@@ -137,10 +185,13 @@ export default async function TrabalhoPage({
                     {aprovado ? `✓ Aprovado — nota final ${ev?.notaFinal ?? ev?.notaIA}/20` : "Sem avaliação"}
                   </span>
                 )}
-                <form action={reavaliar}>
-                  <input type="hidden" name="submissionId" value={s.id} />
-                  <button className="btn ghost sm" type="submit">↻ Re-avaliar</button>
-                </form>
+                <div className="btn-row">
+                  <a className="btn ghost sm" href={`/recibo/${s.id}`} target="_blank">Ver recibo ↗</a>
+                  <form action={reavaliar}>
+                    <input type="hidden" name="submissionId" value={s.id} />
+                    <button className="btn ghost sm" type="submit">↻ Re-avaliar</button>
+                  </form>
+                </div>
               </div>
             </div>
           );

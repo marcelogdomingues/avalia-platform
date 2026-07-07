@@ -14,8 +14,9 @@ export default async function Home() {
               <a className="btn" href="/professor">O meu painel</a>
             ) : (
               <>
+                <a className="nav-link" href="/aluno">Área do aluno</a>
                 <a className="btn ghost sm" href="/login">Entrar</a>
-                <a className="btn" href="/registo">Criar conta</a>
+                <a className="btn" href="/registo">Sou professor</a>
               </>
             )}
           </div>

@@ -50,20 +50,30 @@ async function main() {
     },
   });
 
+  // conta de aluno de exemplo (Ana), à qual associamos a submissão dela
+  const aluno = await db.student.upsert({
+    where: { email: "aluno@exemplo.pt" },
+    update: { password: hashPassword("demo1234") },
+    create: { email: "aluno@exemplo.pt", nome: "Ana Silva", numero: "20211234", password: hashPassword("demo1234") },
+  });
+
   for (const s of [
-    { alunoNome: "Ana Silva", alunoNumero: "20211234", texto: BOM },
-    { alunoNome: "Rui Costa", alunoNumero: "20215678", texto: FRACO },
+    { alunoNome: "Ana Silva", alunoNumero: "20211234", texto: BOM, studentId: aluno.id },
+    { alunoNome: "Rui Costa", alunoNumero: "20215678", texto: FRACO, studentId: undefined as string | undefined },
   ]) {
     await processarSubmissao({
       assignmentId: assignment.id,
       alunoNome: s.alunoNome,
       alunoNumero: s.alunoNumero,
+      studentId: s.studentId,
       ficheiros: [{ nome: "relatorio.txt", buffer: Buffer.from(s.texto, "utf-8") }],
     });
   }
 
-  console.log("Seed criado. Login: prof@exemplo.pt / demo1234");
-  console.log("Cadeira:", course.nome, "| Trabalho:", assignment.titulo);
+  console.log("Seed criado.");
+  console.log("  Professor: prof@exemplo.pt / demo1234");
+  console.log("  Aluno:     aluno@exemplo.pt / demo1234");
+  console.log("  Cadeira:", course.nome, "| Trabalho:", assignment.titulo);
 }
 
 main()
