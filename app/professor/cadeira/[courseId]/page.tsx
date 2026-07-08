@@ -20,7 +20,11 @@ export default async function CadeiraPage({
         orderBy: { createdAt: "desc" },
         include: {
           submissions: {
-            select: { evaluation: { select: { estado: true, notaIA: true, notaFinal: true } } },
+            orderBy: { createdAt: "desc" },
+            select: {
+              studentId: true, alunoNome: true, alunoNumero: true, createdAt: true,
+              evaluation: { select: { estado: true, notaIA: true, notaFinal: true, deteccaoIA: true } },
+            },
           },
         },
       },
@@ -52,6 +56,37 @@ export default async function CadeiraPage({
 
   const temTrabalhos = course.assignments.length > 0;
 
+  // ── Analytics ao nível da cadeira: matriz aluno × trabalho ──────────────────
+  // Colunas = trabalhos por ordem cronológica (mais antigo → mais recente).
+  const cols = [...course.assignments].sort((x, y) => x.createdAt.getTime() - y.createdAt.getTime());
+  const notaDe = (ev: { estado: string; notaIA: number | null; notaFinal: number | null } | null) =>
+    ev == null ? null : ev.estado === "APROVADO" ? ev.notaFinal ?? ev.notaIA ?? null : ev.notaIA ?? null;
+
+  type Cel = { nota: number | null; sinalIA: boolean };
+  const alunos = new Map<string, { nome: string; numero: string | null; cel: Map<string, Cel> }>();
+  for (const a of cols) {
+    const vistos = new Set<string>(); // 1ª submissão (mais recente) por aluno neste trabalho
+    for (const s of a.submissions) {
+      const chave = s.studentId ?? s.alunoNumero ?? s.alunoNome;
+      if (vistos.has(chave)) continue;
+      vistos.add(chave);
+      const reg = alunos.get(chave) ?? { nome: s.alunoNome, numero: s.alunoNumero, cel: new Map() };
+      reg.cel.set(a.id, { nota: notaDe(s.evaluation), sinalIA: ((s.evaluation?.deteccaoIA as { probabilidade?: number } | null)?.probabilidade ?? 0) >= 60 });
+      alunos.set(chave, reg);
+    }
+  }
+  const linhasAluno = [...alunos.values()].map((al) => {
+    const notas = [...al.cel.values()].map((c) => c.nota).filter((n): n is number => n != null);
+    const media = notas.length ? notas.reduce((x, y) => x + y, 0) / notas.length : null;
+    // tendência: última nota vs primeira (na ordem dos trabalhos)
+    const ordenadas = cols.map((a) => al.cel.get(a.id)?.nota).filter((n): n is number => n != null);
+    const tendencia = ordenadas.length >= 2 ? ordenadas[ordenadas.length - 1] - ordenadas[0] : 0;
+    const risco = (media != null && media < 9.5) || [...al.cel.values()].some((c) => c.sinalIA);
+    return { ...al, media, tendencia, risco };
+  }).sort((a, b) => (a.media ?? 99) - (b.media ?? 99));
+
+  const corNota = (n: number | null) => (n == null ? "rgba(29,26,19,0.28)" : n < 9.5 ? "#9f1d1d" : n < 14 ? "#b45309" : "#0f766e");
+
   return (
     <ProfShell>
       <div className="breadcrumb">
@@ -82,6 +117,59 @@ export default async function CadeiraPage({
               <div className="stat-n">{mediaCurso != null ? mediaCurso.toFixed(1) : "—"}</div>
               <div className="stat-l">Média /20</div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {linhasAluno.length > 0 && cols.length > 0 && (
+        <div className="card" style={{ marginBottom: 24 }}>
+          <span className="eyebrow">Progresso dos alunos · {linhasAluno.length} alunos × {cols.length} trabalhos</span>
+          <div style={{ overflowX: "auto", marginTop: 16 }}>
+            <table style={{ borderCollapse: "separate", borderSpacing: 3, fontSize: 13, width: "100%" }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left", padding: "4px 10px 8px 0", color: "var(--muted)", fontWeight: 500, fontSize: 11.5 }}>Aluno</th>
+                  {cols.map((a, i) => (
+                    <th key={a.id} title={a.titulo} style={{ padding: "0 4px 8px", color: "var(--muted)", fontWeight: 500, fontSize: 11.5, textAlign: "center", minWidth: 38 }}>T{i + 1}</th>
+                  ))}
+                  <th style={{ padding: "0 6px 8px 12px", color: "var(--muted)", fontWeight: 600, fontSize: 11.5, textAlign: "right" }}>Média</th>
+                  <th style={{ padding: "0 0 8px 6px", color: "var(--muted)", fontWeight: 500, fontSize: 11.5, textAlign: "center" }}>Tend.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {linhasAluno.map((al, r) => (
+                  <tr key={r}>
+                    <td style={{ padding: "0 10px 0 0", whiteSpace: "nowrap" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+                        {al.risco && <span title="Em risco (média baixa ou sinal de IA)" style={{ width: 7, height: 7, borderRadius: "50%", background: "#9f1d1d", flex: "none" }} />}
+                        <span style={{ fontWeight: al.risco ? 600 : 400 }}>{al.nome}</span>
+                      </span>
+                    </td>
+                    {cols.map((a) => {
+                      const c = al.cel.get(a.id);
+                      const n = c?.nota ?? null;
+                      const cor = corNota(n);
+                      const alpha = n == null ? 0 : 0.22 + (n / 20) * 0.5;
+                      return (
+                        <td key={a.id} title={c ? `${al.nome} · ${a.titulo}: ${n != null ? n.toFixed(1) : "s/nota"}` : "sem submissão"}
+                          style={{ textAlign: "center", padding: "7px 4px", borderRadius: 6, fontWeight: 600, minWidth: 34,
+                            background: !c ? "transparent" : n == null ? "rgba(29,26,19,0.05)" : cor === "#0f766e" ? `rgba(15,118,110,${alpha})` : cor === "#b45309" ? `rgba(180,83,9,${alpha})` : `rgba(159,29,29,${alpha})`,
+                            color: !c ? "rgba(29,26,19,0.2)" : n == null ? "rgba(29,26,19,0.4)" : n >= 14 ? "#fff" : n >= 9.5 ? "#3d2a06" : "#fff" }}>
+                          {!c ? "·" : n == null ? "—" : n.toFixed(0)}
+                        </td>
+                      );
+                    })}
+                    <td style={{ textAlign: "right", padding: "0 6px 0 12px", fontWeight: 700, color: corNota(al.media) }}>{al.media != null ? al.media.toFixed(1) : "—"}</td>
+                    <td style={{ textAlign: "center", padding: "0 0 0 6px", color: al.tendencia > 0.3 ? "#0f766e" : al.tendencia < -0.3 ? "#9f1d1d" : "rgba(29,26,19,0.4)", fontWeight: 600 }}>
+                      {al.tendencia > 0.3 ? "↑" : al.tendencia < -0.3 ? "↓" : "→"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ marginTop: 12, fontSize: 11.5, color: "var(--muted)", display: "flex", gap: 16, flexWrap: "wrap" }}>
+            {cols.map((a, i) => <span key={a.id}><strong style={{ fontWeight: 600 }}>T{i + 1}</strong> {a.titulo}</span>)}
           </div>
         </div>
       )}

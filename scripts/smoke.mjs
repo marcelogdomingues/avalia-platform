@@ -39,7 +39,8 @@ async function check(nome, url, { cookie, marcadores = [], status = 200 } = {}) 
 async function main() {
   const prof = await db.professor.findFirst();
   const aluno = await db.student.findFirst({ where: { submissions: { some: { evaluation: { estado: "APROVADO" } } } } });
-  const assignment = await db.assignment.findFirst({ where: prof ? { course: { professorId: prof.id } } : {} });
+  const assignment = await db.assignment.findFirst({ where: prof ? { course: { professorId: prof.id } } : {}, include: { submissions: { take: 2, select: { id: true } } } });
+  const course = await db.course.findFirst({ where: prof ? { professorId: prof.id } : {} });
   if (!prof || !assignment) {
     console.log("!! Sem dados de seed — corre `npx tsx scripts/seed.ts` primeiro.");
     process.exit(1);
@@ -60,6 +61,11 @@ async function main() {
   await check("trabalho (fila de revisão)", `/professor/trabalho/${assignment.id}`, { cookie: cookieProf, marcadores: ["Fila de revisão", "Integridade"] });
   await check("relatório imprimível", `/professor/trabalho/${assignment.id}/relatorio`, { cookie: cookieProf, marcadores: ["Relatório de avaliação", "Resumo"] });
   await check("export CSV", `/professor/trabalho/${assignment.id}/export`, { cookie: cookieProf });
+  if (course) await check("cadeira (progresso dos alunos)", `/professor/cadeira/${course.id}`, { cookie: cookieProf, marcadores: ["Trabalhos"] });
+  if (assignment.submissions.length >= 2) {
+    const [s1, s2] = assignment.submissions;
+    await check("comparar submissões", `/professor/trabalho/${assignment.id}/comparar?a=${s1.id}&b=${s2.id}`, { cookie: cookieProf, marcadores: ["Comparar"] });
+  }
   await check("redireciona sem sessão", "/professor", { status: 307 });
 
   if (cookieAluno) {
