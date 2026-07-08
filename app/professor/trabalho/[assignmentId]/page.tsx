@@ -17,11 +17,14 @@ function gradeClass(n: number | null | undefined) {
 
 export default async function TrabalhoPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ assignmentId: string }>;
+  searchParams: Promise<{ filtro?: string; ordenar?: string }>;
 }) {
   const prof = await requireProfessor();
   const { assignmentId } = await params;
+  const { filtro = "todas", ordenar = "recentes" } = await searchParams;
   const a = await db.assignment.findFirst({
     where: { id: assignmentId, course: { professorId: prof.id } },
     include: {
@@ -37,6 +40,47 @@ export default async function TrabalhoPage({
   );
   const maxDist = Math.max(1, ...stats.distribuicao.map((d) => d.n));
   const pendentes = a.submissions.filter((s) => s.evaluation?.estado === "RASCUNHO").length;
+
+  // Deriva campos por submissão (para filtrar/ordenar), preservando a ordem por data.
+  const items = a.submissions.map((s) => {
+    const ev = s.evaluation;
+    const aprovado = ev?.estado === "APROVADO";
+    const nota = aprovado ? ev?.notaFinal ?? ev?.notaIA ?? null : ev?.notaIA ?? null;
+    const sim = sims.get(s.id);
+    return { s, ev, aprovado, nota, sim, estado: ev?.estado ?? "PENDENTE" };
+  });
+
+  const contagens = {
+    todas: items.length,
+    pendentes: items.filter((i) => i.estado === "RASCUNHO").length,
+    aprovadas: items.filter((i) => i.aprovado).length,
+    suspeitas: items.filter((i) => i.sim && i.sim.score >= 0.15).length,
+  };
+
+  let lista = items;
+  if (filtro === "pendentes") lista = items.filter((i) => i.estado === "RASCUNHO");
+  else if (filtro === "aprovadas") lista = items.filter((i) => i.aprovado);
+  else if (filtro === "suspeitas") lista = items.filter((i) => i.sim && i.sim.score >= 0.15);
+
+  if (ordenar === "nota_desc") lista = [...lista].sort((x, y) => (y.nota ?? -1) - (x.nota ?? -1));
+  else if (ordenar === "nota_asc") lista = [...lista].sort((x, y) => (x.nota ?? 99) - (y.nota ?? 99));
+  else if (ordenar === "nome") lista = [...lista].sort((x, y) => x.s.alunoNome.localeCompare(y.s.alunoNome, "pt"));
+
+  const base = `/professor/trabalho/${a.id}`;
+  const qs = (o: { filtro?: string; ordenar?: string }) =>
+    `${base}?filtro=${o.filtro ?? filtro}&ordenar=${o.ordenar ?? ordenar}`;
+  const filtros: { key: string; label: string; n: number }[] = [
+    { key: "todas", label: "Todas", n: contagens.todas },
+    { key: "pendentes", label: "Por aprovar", n: contagens.pendentes },
+    { key: "aprovadas", label: "Aprovadas", n: contagens.aprovadas },
+    { key: "suspeitas", label: "Suspeitas", n: contagens.suspeitas },
+  ];
+  const ordens: { key: string; label: string }[] = [
+    { key: "recentes", label: "Recentes" },
+    { key: "nota_desc", label: "Nota ↓" },
+    { key: "nota_asc", label: "Nota ↑" },
+    { key: "nome", label: "Nome" },
+  ];
 
   return (
     <>
@@ -102,7 +146,7 @@ export default async function TrabalhoPage({
         </div>
       </div>
 
-      <div className="row-between" style={{ marginBottom: 10 }}>
+      <div className="row-between" style={{ marginBottom: 12 }}>
         <h2 className="section-title">Submissões ({a.submissions.length})</h2>
         {pendentes > 0 && (
           <form action={aprovarTodas}>
@@ -112,16 +156,36 @@ export default async function TrabalhoPage({
         )}
       </div>
 
+      {a.submissions.length > 0 && (
+        <div className="toolbar">
+          <div className="seg">
+            {filtros.map((f) => (
+              <a key={f.key} href={qs({ filtro: f.key })} className={filtro === f.key ? "active" : ""}>
+                {f.label}<span className="n">{f.n}</span>
+              </a>
+            ))}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span className="seg-label">Ordenar</span>
+            <div className="seg">
+              {ordens.map((o) => (
+                <a key={o.key} href={qs({ ordenar: o.key })} className={ordenar === o.key ? "active" : ""}>
+                  {o.label}
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {a.submissions.length === 0 ? (
         <div className="card empty-state"><div className="big">📥</div><p>Ainda sem submissões. Partilha o link acima.</p></div>
+      ) : lista.length === 0 ? (
+        <div className="card empty-state"><div className="big">🔍</div><p>Nenhuma submissão neste filtro.</p></div>
       ) : (
-        a.submissions.map((s) => {
-          const ev = s.evaluation;
+        lista.map(({ s, ev, aprovado, nota, sim }) => {
           const criterios = (ev?.porCriterio as any[]) ?? [];
           const estado = (ev?.estado ?? "PENDENTE").toLowerCase();
-          const aprovado = ev?.estado === "APROVADO";
-          const nota = aprovado ? ev?.notaFinal ?? ev?.notaIA : ev?.notaIA;
-          const sim = sims.get(s.id);
           const alta = sim && sim.score >= 0.35;
           return (
             <div key={s.id} className="card submission">
