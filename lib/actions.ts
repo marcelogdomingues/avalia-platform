@@ -9,8 +9,11 @@ import {
   avaliarSubmissao,
   gerarRespostaIA,
   analisarResistenciaIA,
+  gerarRubrica,
+  gerarEnunciado,
   type Criterio,
   type AnaliseEnunciado,
+  type CriterioSugerido,
 } from "./evaluate";
 import {
   hashPassword,
@@ -179,6 +182,20 @@ export async function analisarEnunciadoAction(
   await requireProfessor();
   if (!enunciado.trim()) return null;
   return analisarResistenciaIA({ enunciado, instrucoes: instrucoes || null });
+}
+
+// Gera uma rubrica sugerida a partir do enunciado (chamada pelo builder).
+export async function gerarRubricaAction(enunciado: string, instrucoes?: string): Promise<CriterioSugerido[] | null> {
+  await requireProfessor();
+  if (!enunciado.trim()) return null;
+  return gerarRubrica({ enunciado, instrucoes: instrucoes || null });
+}
+
+// Sugere um enunciado a partir de um título (chamada pelo builder).
+export async function gerarEnunciadoAction(titulo: string, cadeira?: string): Promise<string | null> {
+  await requireProfessor();
+  if (!titulo.trim()) return null;
+  return gerarEnunciado({ titulo, cadeira });
 }
 
 // (Re)gera a linha-base de IA de um trabalho existente.

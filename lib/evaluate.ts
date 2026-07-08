@@ -219,6 +219,49 @@ export async function analisarResistenciaIA(p: {
   };
 }
 
+// ── Gerar rubrica com IA (a partir do enunciado) ─────────────────────────────
+export interface CriterioSugerido { nome: string; descricao: string; peso: number; pontosMax: number }
+
+export async function gerarRubrica(p: { enunciado: string; instrucoes?: string | null }): Promise<CriterioSugerido[] | null> {
+  if (!temLLM) return null;
+  const formato = `{ "criterios": [ { "nome": "<critério>", "descricao": "<o que avaliar neste critério>", "peso": <inteiro; os pesos somam 100>, "pontosMax": 20 } ] }`;
+  const system = [
+    "És especialista em desenho de rubricas de avaliação no ensino superior.",
+    "Dado um enunciado, propões 3 a 5 critérios de avaliação, cada um com um peso (%) e a escala.",
+    "Os pesos DEVEM somar exatamente 100. Usa pontosMax = 20. Quando fizer sentido, inclui um",
+    "critério que exija autoria autêntica (reflexão pessoal, defesa de escolhas) — mais difícil de fabricar por IA.",
+    "Responde SEMPRE com um único JSON válido nesta forma:",
+    formato,
+  ].join("\n");
+  const completion = await llm.chat.completions.create({
+    model: AVALIADOR_MODEL, temperature: 0.4, response_format: { type: "json_object" },
+    messages: [{ role: "system", content: system }, { role: "user", content: `Enunciado:\n${p.enunciado}${p.instrucoes ? `\n\nInstruções: ${p.instrucoes}` : ""}` }],
+  });
+  const raw = completion.choices[0]?.message?.content;
+  if (!raw) return null;
+  const parsed = JSON.parse(raw) as { criterios?: { nome?: string; descricao?: string; peso?: number; pontosMax?: number }[] };
+  const crits = Array.isArray(parsed.criterios) ? parsed.criterios : [];
+  return crits
+    .map((c) => ({ nome: String(c.nome ?? "").trim(), descricao: String(c.descricao ?? "").trim(), peso: Math.max(0, Math.min(100, Math.round(Number(c.peso) || 0))), pontosMax: Number(c.pontosMax) || 20 }))
+    .filter((c) => c.nome);
+}
+
+// ── Gerar enunciado com IA (a partir de um título) ───────────────────────────
+export async function gerarEnunciado(p: { titulo: string; cadeira?: string }): Promise<string | null> {
+  if (!temLLM) return null;
+  const system = [
+    "És professor do ensino superior a preparar um enunciado de trabalho.",
+    "Dado um título, escreve um enunciado claro e conciso (3-5 frases): o que o aluno deve fazer,",
+    "o que deve entregar e qual o foco. Torna-o resistente a IA quando possível — pedindo reflexão",
+    "pessoal, exemplos próprios ou defesa de escolhas. Responde SÓ com o enunciado, sem preâmbulos.",
+  ].join("\n");
+  const completion = await llm.chat.completions.create({
+    model: AVALIADOR_MODEL, temperature: 0.5,
+    messages: [{ role: "system", content: system }, { role: "user", content: `Título: ${p.titulo}${p.cadeira ? `\nCadeira: ${p.cadeira}` : ""}` }],
+  });
+  return completion.choices[0]?.message?.content?.trim() || null;
+}
+
 // ── Linha-base de IA: o que uma IA genérica produz para este enunciado ───────
 // Guardada no Assignment; cada submissão é comparada com ela (sinal de uso de IA).
 

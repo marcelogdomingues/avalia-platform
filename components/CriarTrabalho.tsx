@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { criarTrabalho, analisarEnunciadoAction } from "@/lib/actions";
+import { criarTrabalho, analisarEnunciadoAction, gerarRubricaAction, gerarEnunciadoAction } from "@/lib/actions";
 import type { AnaliseEnunciado } from "@/lib/evaluate";
 
 interface Crit {
@@ -27,11 +27,48 @@ export default function CriarTrabalho({ courseId }: { courseId: string }) {
     { nome: "Exemplo / aplicação", descricao: "", peso: 20, pontosMax: 20 },
   ]);
 
-  // Análise de resistência do enunciado à IA
+  // Refs para as features de IA (título + enunciado)
+  const tituloRef = useRef<HTMLInputElement>(null);
   const enunciadoRef = useRef<HTMLTextAreaElement>(null);
+
+  // Análise de resistência do enunciado à IA
   const [analise, setAnalise] = useState<AnaliseEnunciado | null>(null);
   const [aLoading, setALoading] = useState(false);
   const [aTentou, setATentou] = useState(false);
+
+  // Gerar enunciado / rubrica com IA
+  const [enunLoading, setEnunLoading] = useState(false);
+  const [rubLoading, setRubLoading] = useState(false);
+
+  async function gerarEnun() {
+    const titulo = tituloRef.current?.value?.trim() ?? "";
+    if (!titulo || enunLoading) return;
+    setEnunLoading(true);
+    try {
+      const texto = await gerarEnunciadoAction(titulo);
+      if (texto && enunciadoRef.current) {
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")!.set!;
+        setter.call(enunciadoRef.current, texto);
+        enunciadoRef.current.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    } finally {
+      setEnunLoading(false);
+    }
+  }
+
+  async function gerarRub() {
+    const enun = enunciadoRef.current?.value?.trim() ?? "";
+    if (!enun || rubLoading) return;
+    setRubLoading(true);
+    try {
+      const crits = await gerarRubricaAction(enun);
+      if (crits && crits.length) {
+        setCriterios(crits.map((c) => ({ nome: c.nome, descricao: c.descricao, peso: c.peso, pontosMax: c.pontosMax })));
+      }
+    } finally {
+      setRubLoading(false);
+    }
+  }
 
   async function analisar() {
     const enun = enunciadoRef.current?.value?.trim() ?? "";
@@ -77,12 +114,17 @@ export default function CriarTrabalho({ courseId }: { courseId: string }) {
 
       <div className="field">
         <label>Título do trabalho</label>
-        <input name="titulo" placeholder="ex: Relatório sobre ordenação O(n log n)" required />
+        <input ref={tituloRef} name="titulo" placeholder="ex: Relatório sobre ordenação O(n log n)" required />
       </div>
 
       <div className="field">
-        <label>Enunciado</label>
-        <textarea ref={enunciadoRef} name="enunciado" required placeholder="O que os alunos têm de fazer..." />
+        <div className="row-between" style={{ alignItems: "baseline" }}>
+          <label>Enunciado</label>
+          <button type="button" className="btn ghost sm" onClick={gerarEnun} disabled={enunLoading} title="Sugere um enunciado a partir do título">
+            {enunLoading ? "✨ A gerar…" : "✨ Sugerir enunciado (IA)"}
+          </button>
+        </div>
+        <textarea ref={enunciadoRef} name="enunciado" required placeholder="O que os alunos têm de fazer... (ou usa 'Sugerir enunciado')" />
         <div className="btn-row" style={{ marginTop: 8 }}>
           <button type="button" className="btn secondary sm" onClick={analisar} disabled={aLoading}>
             {aLoading ? "A analisar…" : "🛡️ Analisar resistência à IA"}
@@ -180,9 +222,12 @@ export default function CriarTrabalho({ courseId }: { courseId: string }) {
         ))}
         <div className="row-between" style={{ flexWrap: "wrap", gap: 10 }}>
           <div className="btn-row">
+            <button type="button" className="btn secondary sm" onClick={gerarRub} disabled={rubLoading} title="Gera uma rubrica a partir do enunciado">
+              {rubLoading ? "✨ A gerar…" : "✨ Gerar rubrica (IA)"}
+            </button>
             <button type="button" className="btn secondary sm" onClick={add}>+ Adicionar critério</button>
             <button type="button" className="btn secondary sm" onClick={addIAHard} title="Critérios que a IA faz mal">
-              🛡️ + Critérios resistentes a IA
+              🛡️ + Resistentes a IA
             </button>
           </div>
           <span className={`weight-note ${somaPesos === 100 ? "ok" : "warn"}`}>
