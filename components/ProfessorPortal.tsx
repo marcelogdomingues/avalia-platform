@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, type Snippet } from "@/lib/actions";
+import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, avaliarDefesaAction, type Snippet } from "@/lib/actions";
+import type { DefesaAvaliacao } from "@/lib/evaluate";
 import type { InsightsTurma, TomFeedback } from "@/lib/evaluate";
 import type { AnaliseIntegridade } from "@/lib/similaridade";
 
@@ -27,6 +28,8 @@ export type Sub = {
   criterios: Crit[];
   feedback: string | null;
   perguntas: string[];
+  respostasDefesa: { pergunta: string; resposta: string }[];
+  defesaAvaliacao: { consistencia: number; veredicto: string; observacoes: string[] } | null;
   deteccaoIA: { probabilidade: number; indicadores: string[] } | null;
   testResult: {
     total: number; passed: number; obrigatoriosTotal: number; obrigatoriosPassed: number; gateMet: boolean;
@@ -92,6 +95,20 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
   const [insightsLoading, setInsightsLoading] = useState(false);
   const feedbackRef = useRef<HTMLTextAreaElement>(null);
   const [melhorarLoading, setMelhorarLoading] = useState(false);
+
+  // Avaliação da defesa (por submissão; sobrepõe a que veio do servidor)
+  const [defesaLocal, setDefesaLocal] = useState<Record<string, DefesaAvaliacao>>({});
+  const [defesaLoading, setDefesaLoading] = useState(false);
+  async function avaliarDefesa(id: string) {
+    if (defesaLoading) return;
+    setDefesaLoading(true);
+    try {
+      const r = await avaliarDefesaAction(id);
+      if (r) setDefesaLocal((m) => ({ ...m, [id]: r }));
+    } finally {
+      setDefesaLoading(false);
+    }
+  }
 
   async function gerarInsights() {
     if (insightsLoading) return;
@@ -414,15 +431,62 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                         </div>
                       )}
 
-                      {/* Perguntas de defesa */}
-                      {sel.perguntas.length > 0 && (
-                        <details className="disclosure" style={{ marginBottom: 20 }}>
-                          <summary>🎤 Perguntas de defesa ({sel.perguntas.length})</summary>
-                          <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 14, lineHeight: 1.5, color: "rgba(29,26,19,0.72)" }}>
-                            {sel.perguntas.map((q, i) => <li key={i} style={{ marginBottom: 5 }}>{q}</li>)}
-                          </ul>
-                        </details>
-                      )}
+                      {/* Perguntas de defesa + respostas do aluno + veredicto da IA */}
+                      {sel.perguntas.length > 0 && (() => {
+                        const respMap = new Map(sel.respostasDefesa.map((r) => [r.pergunta, r.resposta]));
+                        const respondeu = sel.respostasDefesa.some((r) => r.resposta.trim());
+                        const defesa = defesaLocal[sel.id] ?? sel.defesaAvaliacao;
+                        return (
+                          <details className="disclosure" style={{ marginBottom: 20 }} open={respondeu}>
+                            <summary>🎤 Defesa ({sel.perguntas.length} perguntas{respondeu ? " · respondida" : " · sem resposta"})</summary>
+                            <div style={{ marginTop: 10 }}>
+                              {sel.perguntas.map((q, i) => {
+                                const r = respMap.get(q);
+                                return (
+                                  <div key={i} style={{ marginBottom: 12 }}>
+                                    <div style={{ fontSize: 13.5, fontWeight: 500, color: "rgba(29,26,19,0.8)" }}>{i + 1}. {q}</div>
+                                    {r?.trim() ? (
+                                      <div style={{ fontSize: 13.5, lineHeight: 1.55, color: "rgba(29,26,19,0.7)", marginTop: 3, paddingLeft: 12, borderLeft: `2px solid ${TEAL}55` }}>{r}</div>
+                                    ) : (
+                                      <div style={{ fontSize: 12.5, color: "rgba(29,26,19,0.4)", marginTop: 3, paddingLeft: 12 }}>— sem resposta —</div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+
+                              {respondeu && temLLM && (
+                                <div style={{ marginTop: 12 }}>
+                                  {defesa ? (
+                                    (() => {
+                                      const cor = defesa.consistencia >= 66 ? TEAL : defesa.consistencia >= 40 ? AMBER : "#9f1d1d";
+                                      return (
+                                        <div style={{ background: `${cor}0f`, border: `1px solid ${cor}33`, borderRadius: 12, padding: "14px 16px" }}>
+                                          <div className="row-between" style={{ marginBottom: 8 }}>
+                                            <span style={{ fontSize: 13, fontWeight: 600, color: cor }}>Consistência da defesa</span>
+                                            <span className="mono" style={{ fontSize: 14, fontWeight: 700, color: cor }}>{defesa.consistencia}%</span>
+                                          </div>
+                                          <div className="bar" style={{ marginBottom: 10 }}><span style={{ width: `${defesa.consistencia}%`, background: cor }} /></div>
+                                          <div style={{ fontSize: 13.5, color: "rgba(29,26,19,0.8)", marginBottom: defesa.observacoes.length ? 8 : 0 }}>{defesa.veredicto}</div>
+                                          {defesa.observacoes.length > 0 && (
+                                            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.55, color: "rgba(29,26,19,0.68)" }}>
+                                              {defesa.observacoes.map((o, i) => <li key={i} style={{ marginBottom: 3 }}>{o}</li>)}
+                                            </ul>
+                                          )}
+                                          <div className="mono" style={{ fontSize: 10.5, color: "rgba(29,26,19,0.4)", marginTop: 10 }}>Sinal da IA sobre as respostas — não substitui o teu juízo.</div>
+                                        </div>
+                                      );
+                                    })()
+                                  ) : (
+                                    <button type="button" className="btn secondary sm" onClick={() => avaliarDefesa(sel.id)} disabled={defesaLoading}>
+                                      {defesaLoading ? "A avaliar a defesa…" : "🔎 Avaliar consistência das respostas"}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </details>
+                        );
+                      })()}
 
                       {/* Ressubmissão: o que mudou desde a versão anterior */}
                       {sel.ressubmissao && (

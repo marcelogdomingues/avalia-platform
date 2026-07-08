@@ -92,6 +92,7 @@ model Submission {
   ficheiros        Json // [{ nome, storageKey, mime, tamanho }]
   conteudoExtraido String?
   testResult       Json? // autograder: { total, passed, obrigatoriosTotal, obrigatoriosPassed, gateMet, tests:[{nome,ok,obrigatorio}] }
+  respostasDefesa  Json? // [{ pergunta, resposta }] — respostas do aluno à entrevista de defesa
   createdAt        DateTime @default(now())
 
   assignment Assignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
@@ -109,6 +110,7 @@ model Evaluation {
   estado         String    @default("PENDENTE")
   porCriterio    Json? // [{ criterioId, nome, pontos, pontosMax, justificacao }]
   perguntasDefesa Json? // [string] perguntas de verificação oral, específicas à submissão
+  defesaAvaliacao Json? // { consistencia: 0-100, veredicto, observacoes:[string] } — a IA avalia as respostas de defesa
   deteccaoIA     Json? // { probabilidade: 0-100, indicadores: [string] } — sinal de uso de IA
   feedbackGlobal String?
   notaIA         Float?

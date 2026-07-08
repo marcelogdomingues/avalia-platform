@@ -312,6 +312,49 @@ export async function tutorSocratico(p: {
   return completion.choices[0]?.message?.content?.trim() || null;
 }
 
+// ── Avaliar a entrevista de defesa ───────────────────────────────────────────
+// A IA gerou perguntas específicas à submissão; o aluno respondeu. Aqui a IA
+// avalia se as respostas demonstram autoria/entendimento reais do trabalho.
+export interface DefesaAvaliacao { consistencia: number; veredicto: string; observacoes: string[] }
+
+export async function avaliarDefesa(p: {
+  enunciado: string;
+  trabalho: string | null;
+  qa: { pergunta: string; resposta: string }[];
+}): Promise<DefesaAvaliacao | null> {
+  if (!temLLM || p.qa.length === 0) return null;
+  const respondidas = p.qa.filter((x) => x.resposta.trim());
+  if (respondidas.length === 0) return null;
+  const formato = `{ "consistencia": <0-100, quão bem as respostas demonstram entendimento e autoria reais do trabalho>, "veredicto": "<uma frase: apoia a autoria / levanta dúvidas / inconclusivo>", "observacoes": ["<ponto específico por pergunta ou global>"] }`;
+  const system = [
+    "És um docente a conduzir uma defesa oral. Avalias se as RESPOSTAS do aluno às perguntas de defesa",
+    "demonstram que ele entende e escreveu o próprio trabalho — ou se são vagas, evasivas, contraditórias",
+    "ou desligadas do conteúdo (indício de que não domina o trabalho que submeteu).",
+    "Sê justo: respostas curtas mas corretas e específicas são um bom sinal; respostas genéricas, que fogem",
+    "à pergunta ou que contradizem o trabalho são um mau sinal. Não acuses — descreve o que observas.",
+    "Responde SEMPRE com um único JSON válido nesta forma:",
+    formato,
+    `\nEnunciado:\n${p.enunciado.slice(0, 800)}`,
+    p.trabalho ? `\nExcerto do trabalho submetido:\n${p.trabalho.slice(0, 1200)}` : "",
+    "\nPerguntas e respostas:\n" + respondidas.map((x, i) => `${i + 1}. P: ${x.pergunta}\n   R: ${x.resposta.slice(0, 600)}`).join("\n"),
+  ].join("\n");
+  const completion = await llm.chat.completions.create({
+    model: AVALIADOR_MODEL, temperature: 0.3, response_format: { type: "json_object" },
+    messages: [{ role: "system", content: system }, { role: "user", content: "Avalia a defesa." }],
+  });
+  try {
+    const j = JSON.parse(completion.choices[0]?.message?.content ?? "{}");
+    const consistencia = Math.max(0, Math.min(100, Math.round(Number(j.consistencia) || 0)));
+    return {
+      consistencia,
+      veredicto: String(j.veredicto ?? "").slice(0, 200) || "Inconclusivo.",
+      observacoes: Array.isArray(j.observacoes) ? j.observacoes.map((s: unknown) => String(s).slice(0, 300)).slice(0, 6) : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ── Gerar rubrica com IA (a partir do enunciado) ─────────────────────────────
 export interface CriterioSugerido { nome: string; descricao: string; peso: number; pontosMax: number }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { sairAluno, tutorAction } from "@/lib/actions";
+import { sairAluno, tutorAction, responderDefesa } from "@/lib/actions";
 import type { MensagemTutor } from "@/lib/evaluate";
 
 type Bar = { label: string; v: number; max: number };
@@ -18,6 +18,8 @@ export type Work = {
   bars: Bar[];
   feedback: string | null;
   approvedBy: string | null;
+  defesaPerguntas: string[];
+  defesaRespostas: { pergunta: string; resposta: string }[];
 };
 
 const TEAL = "#0f766e";
@@ -71,6 +73,24 @@ export default function StudentPortal({
       setTutorMsgs((m) => ({ ...m, [sel.id]: [...historico, { role: "assistant", content: resp ?? "Não consegui responder agora. Tenta reformular a tua dúvida." }] }));
     } finally {
       setTutorLoading(false);
+    }
+  }
+
+  // Entrevista de defesa — respostas do aluno às perguntas geradas pela IA
+  const [defRascunho, setDefRascunho] = useState<Record<string, string[]>>({});
+  const [defLoading, setDefLoading] = useState(false);
+  const [defEnviada, setDefEnviada] = useState<Record<string, boolean>>({});
+
+  async function enviarDefesa(w: Work) {
+    if (defLoading) return;
+    const respostas = defRascunho[w.id] ?? w.defesaPerguntas.map(() => "");
+    if (!respostas.some((r) => r.trim())) return;
+    setDefLoading(true);
+    try {
+      const r = await responderDefesa(w.id, respostas);
+      if (r.ok) setDefEnviada((m) => ({ ...m, [w.id]: true }));
+    } finally {
+      setDefLoading(false);
     }
   }
 
@@ -187,6 +207,48 @@ export default function StudentPortal({
                     <div style={{ maxWidth: 640 }}>
                       <div className="mono" style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 6 }}>{sel.course} · {sel.date}</div>
                       <h2 className="serif" style={{ fontWeight: 500, fontSize: 32, margin: "0 0 22px", color: INK }}>{sel.name}</h2>
+
+                      {/* Entrevista de defesa */}
+                      {sel.defesaPerguntas.length > 0 && (() => {
+                        const jaRespondeu = defEnviada[sel.id] || sel.defesaRespostas.some((r) => r.resposta.trim());
+                        const respMap = new Map(sel.defesaRespostas.map((r) => [r.pergunta, r.resposta]));
+                        const rascunho = defRascunho[sel.id] ?? sel.defesaPerguntas.map(() => "");
+                        return (
+                          <div style={{ background: jaRespondeu ? "rgba(15,118,110,0.06)" : "#fff", border: `1px solid ${jaRespondeu ? "rgba(15,118,110,0.22)" : "rgba(29,26,19,0.12)"}`, borderRadius: 16, padding: "20px 22px", marginBottom: 26 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 6 }}>
+                              <span style={{ fontSize: 16 }}>🎤</span>
+                              <span style={{ fontSize: 14.5, fontWeight: 600 }}>Defesa do trabalho</span>
+                              {jaRespondeu && <span style={{ fontSize: 12, color: TEAL, fontWeight: 600 }}>· entregue ✓</span>}
+                            </div>
+                            <div style={{ fontSize: 13.5, lineHeight: 1.55, color: "rgba(29,26,19,0.65)", marginBottom: 16 }}>
+                              {jaRespondeu
+                                ? "Já respondeste. As tuas respostas ajudam o professor a confirmar a autoria do teu trabalho."
+                                : "Responde por palavras tuas — mostra que dominas o que entregaste. Ajuda o professor a confirmar a autoria."}
+                            </div>
+                            {sel.defesaPerguntas.map((q, i) => (
+                              <div key={i} style={{ marginBottom: 16 }}>
+                                <div style={{ fontSize: 13.5, fontWeight: 500, marginBottom: 6 }}>{i + 1}. {q}</div>
+                                {jaRespondeu ? (
+                                  <div style={{ fontSize: 13.5, lineHeight: 1.55, color: "rgba(29,26,19,0.72)", paddingLeft: 12, borderLeft: `2px solid ${TEAL}55` }}>{respMap.get(q) || rascunho[i] || "—"}</div>
+                                ) : (
+                                  <textarea
+                                    value={rascunho[i]}
+                                    onChange={(e) => setDefRascunho((m) => { const arr = [...(m[sel.id] ?? sel.defesaPerguntas.map(() => ""))]; arr[i] = e.target.value; return { ...m, [sel.id]: arr }; })}
+                                    placeholder="A tua resposta…" style={{ width: "100%", minHeight: 60 }} />
+                                )}
+                              </div>
+                            ))}
+                            {!jaRespondeu && (
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                                <span className="mono" style={{ fontSize: 11.5, color: "rgba(29,26,19,0.45)" }}>Escreve por palavras tuas · sem copiar</span>
+                                <button type="button" className="btn" onClick={() => enviarDefesa(sel)} disabled={defLoading || !(rascunho.some((r) => r.trim()))} style={{ padding: "11px 20px" }}>
+                                  {defLoading ? "A enviar…" : "Entregar defesa"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {sel.released ? (
                         <>

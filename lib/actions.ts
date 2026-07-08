@@ -15,7 +15,9 @@ import {
   gerarInsightsTurma,
   melhorarFeedback,
   tutorSocratico,
+  avaliarDefesa,
   type MensagemTutor,
+  type DefesaAvaliacao,
   type Criterio,
   type AnaliseEnunciado,
   type CriterioSugerido,
@@ -257,6 +259,42 @@ export async function tutorAction(submissionId: string, historico: MensagemTutor
     criterios: released ? ((sub.evaluation?.porCriterio as { nome: string; pontos: number; pontosMax: number }[] | null) ?? []) : [],
     historico: historico.slice(-8).map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: String(m.content).slice(0, 1500) })),
   });
+}
+
+// ── Entrevista de defesa ──────────────────────────────────────────────────────
+// Aluno responde às perguntas de defesa geradas pela IA para a sua submissão.
+export async function responderDefesa(submissionId: string, respostas: string[]): Promise<{ ok: boolean }> {
+  const aluno = await getCurrentStudent();
+  if (!aluno) return { ok: false };
+  const sub = await db.submission.findFirst({
+    where: { id: submissionId, studentId: aluno.id },
+    include: { evaluation: true },
+  });
+  if (!sub) return { ok: false };
+  const perguntas = (sub.evaluation?.perguntasDefesa as string[] | null) ?? [];
+  if (perguntas.length === 0) return { ok: false };
+  const qa = perguntas.map((pergunta, i) => ({ pergunta, resposta: String(respostas[i] ?? "").slice(0, 2000) }));
+  await db.submission.update({ where: { id: sub.id }, data: { respostasDefesa: qa as object } });
+  revalidatePath("/aluno");
+  return { ok: true };
+}
+
+// Professor pede à IA para avaliar a consistência das respostas de defesa.
+export async function avaliarDefesaAction(submissionId: string): Promise<DefesaAvaliacao | null> {
+  const prof = await requireProfessor();
+  const sub = await db.submission.findFirst({
+    where: { id: submissionId, assignment: { course: { professorId: prof.id } } },
+    include: { assignment: true, evaluation: true },
+  });
+  if (!sub || !sub.evaluation) return null;
+  const qa = (sub.respostasDefesa as { pergunta: string; resposta: string }[] | null) ?? [];
+  if (qa.length === 0) return null;
+  const res = await avaliarDefesa({ enunciado: sub.assignment.enunciado, trabalho: sub.conteudoExtraido, qa });
+  if (res) {
+    await db.evaluation.update({ where: { id: sub.evaluation.id }, data: { defesaAvaliacao: res as object } });
+    revalidatePath(`/professor/trabalho/${sub.assignmentId}`);
+  }
+  return res;
 }
 
 // ── Banco de comentários (snippets reutilizáveis do professor) ────────────────

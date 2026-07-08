@@ -99,9 +99,14 @@ async function main() {
     texto: string,
     ev?: ReturnType<typeof mkEval>,
     testResult?: object,
-    quando?: Date
+    quando?: Date,
+    respostasDefesa?: string[]
   ) {
     const al = alunos[nome];
+    const perguntas = (ev?.perguntasDefesa as string[] | undefined) ?? [];
+    const qa = respostasDefesa && perguntas.length
+      ? perguntas.map((pergunta, i) => ({ pergunta, resposta: respostasDefesa[i] ?? "" }))
+      : undefined;
     const sub = await db.submission.create({
       data: {
         assignmentId,
@@ -111,6 +116,7 @@ async function main() {
         ficheiros: [{ nome: "trabalho.txt", mime: "text/plain", tamanho: texto.length }] as unknown as object,
         conteudoExtraido: texto,
         testResult: testResult as object | undefined,
+        respostasDefesa: qa as object | undefined,
         ...(quando ? { createdAt: quando } : {}),
       },
     });
@@ -190,7 +196,10 @@ async function main() {
       perguntas: ["Dá um exemplo teu, passo a passo, de merge sort numa lista de 4 elementos.", "Onde é que este algoritmo seria uma má escolha, e porquê?"],
       det: { probabilidade: 88, indicadores: ["Fraseado genérico e uniforme", "Ausência total de voz pessoal ou exemplo próprio", "Estrutura de resposta típica de IA", "Sem hesitações ou erros humanos"] },
       just: ["Correto mas sem originalidade.", "Muito bem escrito (uniforme demais).", "Sem exemplo concreto próprio."],
-    })
+    }),
+    undefined, undefined,
+    // Respostas evasivas/genéricas — não demonstram domínio (mau sinal na defesa)
+    ["Basicamente divide a lista e depois junta tudo ordenado, como está no meu relatório.", "Em geral é sempre uma boa escolha para ordenar dados."],
   );
 
   // par de plágio: Diana e Eduardo com texto quase idêntico
@@ -203,7 +212,10 @@ async function main() {
       fb: "Explicação correta na sua essência. Aprofunda a operação de merge e melhora o exemplo.",
       perguntas: ["Explica por palavras tuas o passo de merge.", "Quantas comparações faz o merge de duas listas de tamanho n/2?"],
       det: { probabilidade: 35, indicadores: ["Fraseado moderadamente genérico"] },
-    })
+    }),
+    undefined, undefined,
+    // Respostas específicas e corretas — demonstram domínio (bom sinal na defesa)
+    ["Comparo o primeiro elemento de cada metade e coloco o menor no resultado, avançando nessa metade; repito até esvaziar as duas.", "No pior caso n-1 comparações, porque cada comparação coloca pelo menos um elemento e o último entra sem comparar."],
   );
   await submeter(
     merge.id,

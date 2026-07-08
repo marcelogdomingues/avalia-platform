@@ -75,6 +75,8 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
       })),
       feedback: ev?.feedbackGlobal ?? null,
       perguntas: (ev?.perguntasDefesa as string[] | null) ?? [],
+      respostasDefesa: (s.respostasDefesa as { pergunta: string; resposta: string }[] | null) ?? [],
+      defesaAvaliacao: (ev?.defesaAvaliacao as { consistencia: number; veredicto: string; observacoes: string[] } | null) ?? null,
       deteccaoIA: (ev?.deteccaoIA as { probabilidade: number; indicadores: string[] } | null) ?? null,
       testResult: (s.testResult as Sub["testResult"]) ?? null,
       simIA: similaridadeComTexto(s.conteudoExtraido, a.respostaIA),
