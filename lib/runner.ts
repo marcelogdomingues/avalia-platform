@@ -140,6 +140,96 @@ async function runDocker(lang: Lang, studentFiles: TestFile[], testFiles: TestFi
   }
 }
 
+// ── Deteção exata: pergunta ao runner os nomes reais dos testes ───────────────
+// Melhor que a heurística por regex do editor: apanha parametrização, classes,
+// e nomes que o regex não vê. Corre a coleção do framework sem executar nada.
+export interface CollectResult { nomes: string[]; erro?: string }
+
+// conftest que faz stub de qualquer módulo em falta (ex.: `from solution import ...`)
+// para a *coleção* não falhar por o código do aluno ainda não existir. Como é um
+// finder de último recurso, pytest/stdlib carregam normalmente; só os que faltam
+// recebem um módulo-fantasma. Nada é executado — só coletado.
+const PY_CONFTEST = `import sys, types, importlib.abc, importlib.machinery
+def _noop(*a, **k): return _Dummy("_")
+class _Dummy(types.ModuleType):
+    def __getattr__(self, n): return _noop
+class _Loader(importlib.abc.Loader):
+    def create_module(self, spec): return _Dummy(spec.name)
+    def exec_module(self, m): pass
+class _Finder(importlib.abc.MetaPathFinder):
+    def find_spec(self, name, path, target=None):
+        return importlib.machinery.ModuleSpec(name, _Loader())
+sys.meta_path.append(_Finder())
+`;
+
+export async function collectTests(lang: Lang, testFiles: TestFile[]): Promise<CollectResult> {
+  if (MODE === "off") return { nomes: [], erro: "Runner desativado (RUNNER_MODE=off)." };
+  if (MODE === "remote") return collectRemote(lang, testFiles);
+  return comLimite(() => collectDocker(lang, testFiles));
+}
+
+async function collectRemote(lang: Lang, testFiles: TestFile[]): Promise<CollectResult> {
+  const url = process.env.RUNNER_URL;
+  if (!url) return { nomes: [], erro: "RUNNER_URL não configurado." };
+  try {
+    const res = await fetch(url.replace(/\/run$/, "") + "/collect", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(process.env.RUNNER_TOKEN ? { authorization: `Bearer ${process.env.RUNNER_TOKEN}` } : {}) },
+      body: JSON.stringify({ lang, testFiles }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) return { nomes: [], erro: `O grader respondeu ${res.status}.` };
+    const j = (await res.json()) as { nomes?: string[]; erro?: string };
+    return { nomes: Array.isArray(j.nomes) ? j.nomes.map(String) : [], erro: j.erro };
+  } catch (e) {
+    return { nomes: [], erro: `Grader inacessível: ${(e as Error).message.slice(0, 120)}` };
+  }
+}
+
+async function collectDocker(lang: Lang, testFiles: TestFile[]): Promise<CollectResult> {
+  if (!LANGS_PRONTAS.includes(lang)) {
+    return { nomes: [], erro: `Runner de ${LANG_LABELS[lang]} ainda não está configurado.` };
+  }
+  const dir = await mkdtemp(join(tmpdir(), "avalia-collect-"));
+  const tests = join(dir, "tests");
+  await mkdir(tests);
+  for (const f of testFiles) await writeFile(join(tests, safeName(f.path)), f.content);
+  try {
+    if (lang === "python") {
+      await writeFile(join(tests, "conftest.py"), PY_CONFTEST);
+      const { stdout } = await execFileP(
+        "docker",
+        [
+          "run", "--rm", "--network", "none", "--memory", "512m", "--cpus", "1", "--pids-limit", "128",
+          "-v", `${tests}:/tests:ro`, "-w", "/tests", "avalia-runner-python",
+          "sh", "-c", "timeout 20 pytest /tests --collect-only -q 2>/dev/null || true",
+        ],
+        { timeout: 30000, maxBuffer: 4 * 1024 * 1024 }
+      );
+      return { nomes: parsePyCollect(stdout) };
+    }
+    return { nomes: [], erro: `Coleção de ${LANG_LABELS[lang]} ainda não suportada.` };
+  } catch (e) {
+    const msg = (e as Error).message ?? "";
+    return { nomes: [], erro: /docker/i.test(msg) && /not found|ENOENT/i.test(msg) ? "Docker não está disponível." : `Falha na deteção: ${msg.slice(0, 140)}` };
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+// pytest --collect-only -q imprime node ids (um por linha): "ficheiro.py::test_x[param]".
+export function parsePyCollect(stdout: string): string[] {
+  const nomes = new Set<string>();
+  for (const linha of stdout.split("\n")) {
+    const l = linha.trim();
+    if (!l.includes("::")) continue;
+    const ult = l.split("::").pop()!;      // último segmento = nome do teste
+    const nome = ult.replace(/\[.*\]$/, "").trim(); // tira parametrização [ ... ]
+    if (nome) nomes.add(nome);
+  }
+  return [...nomes];
+}
+
 // ── Gate: quais testes são obrigatórios e se a submissão passa ────────────────
 export interface GateResult {
   total: number;

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "./db";
 import { processarSubmissao, aprovarAvaliacao } from "./pipeline";
-import { runTests, avaliarGate, extrairCodigo, runnerAtivo, LANG_LABELS, EXT, type Lang, type TestFile, type GateResult } from "./runner";
+import { runTests, avaliarGate, extrairCodigo, collectTests, runnerAtivo, LANG_LABELS, EXT, type Lang, type TestFile, type GateResult } from "./runner";
 import {
   avaliarSubmissao,
   gerarRespostaIA,
@@ -235,6 +235,15 @@ export async function melhorarFeedbackAction(feedback: string, tom: TomFeedback)
   await requireProfessor();
   if (!feedback.trim()) return null;
   return melhorarFeedback({ feedback, tom });
+}
+
+// Deteção exata dos nomes de teste — corre a coleção do runner (ex.: pytest
+// --collect-only). Devolve os nomes reais; o editor usa-os em vez do regex.
+export async function detetarTestesAction(lang: Lang, conteudo: string): Promise<{ nomes: string[]; erro?: string }> {
+  await requireProfessor();
+  if (!conteudo.trim()) return { nomes: [] };
+  const path = lang === "python" ? "test_trabalho.py" : lang === "dart" ? "trabalho_test.dart" : lang === "kotlin" ? "TrabalhoTest.kt" : "TrabalhoTest.java";
+  return collectTests(lang, [{ path, content: conteudo }]);
 }
 
 // (Re)gera a linha-base de IA de um trabalho existente.

@@ -4,8 +4,10 @@
 // limite de concorrência. É o backend do modo RUNNER_MODE=remote do web app.
 //
 // Contrato:
-//   POST /run   { lang, studentFiles:[{path,content}], testFiles:[{path,content}] }
+//   POST /run     { lang, studentFiles:[{path,content}], testFiles:[{path,content}] }
 //        -> 200 { tests:[{nome,ok}], erro? }
+//   POST /collect { lang, testFiles:[{path,content}] }
+//        -> 200 { nomes:[...], erro? }   (nomes exatos dos testes, sem os correr)
 //   GET  /health -> { ok, langs, ativos }
 //
 // Correr:  node grader/server.mjs     (precisa de Docker + as imagens de runner)
@@ -23,6 +25,22 @@ const PORT = Number(process.env.PORT) || 4000;
 const TOKEN = process.env.RUNNER_TOKEN || "";
 const CONC = Math.max(1, Number(process.env.RUNNER_CONCURRENCY) || 2);
 
+// conftest que faz stub de imports em falta para a *coleção* não falhar (o código
+// do aluno ainda não existe). Finder de último recurso — pytest/stdlib carregam
+// normalmente; nada é executado, só coletado.
+const PY_CONFTEST = `import sys, types, importlib.abc, importlib.machinery
+def _noop(*a, **k): return _Dummy("_")
+class _Dummy(types.ModuleType):
+    def __getattr__(self, n): return _noop
+class _Loader(importlib.abc.Loader):
+    def create_module(self, spec): return _Dummy(spec.name)
+    def exec_module(self, m): pass
+class _Finder(importlib.abc.MetaPathFinder):
+    def find_spec(self, name, path, target=None):
+        return importlib.machinery.ModuleSpec(name, _Loader())
+sys.meta_path.append(_Finder())
+`;
+
 // Registo de linguagens — juntar uma = juntar a imagem Docker + o comando + o parser.
 const LANGS = {
   python: {
@@ -31,6 +49,18 @@ const LANGS = {
     parse: (raw) => {
       const j = JSON.parse(raw);
       return (j.tests || []).map((t) => ({ nome: String(t.nodeid).split("::").pop(), ok: t.outcome === "passed" }));
+    },
+    conftest: PY_CONFTEST,
+    collectCmd: "timeout 20 pytest /tests --collect-only -q 2>/dev/null || true",
+    collectParse: (raw) => {
+      const nomes = new Set();
+      for (const linha of String(raw).split("\n")) {
+        const l = linha.trim();
+        if (!l.includes("::")) continue;
+        const nome = l.split("::").pop().replace(/\[.*\]$/, "").trim();
+        if (nome) nomes.add(nome);
+      }
+      return [...nomes];
     },
   },
 };
@@ -80,13 +110,39 @@ async function run(lang, studentFiles, testFiles) {
   }
 }
 
+async function collect(lang, testFiles) {
+  const cfg = LANGS[lang];
+  if (!cfg || !cfg.collectCmd) return { nomes: [], erro: `Coleção não suportada para "${lang}".` };
+  const dir = await mkdtemp(join(tmpdir(), "grader-col-"));
+  const tests = join(dir, "tests");
+  await mkdir(tests);
+  for (const f of testFiles) await writeFile(join(tests, safe(f.path)), String(f.content ?? ""));
+  if (cfg.conftest) await writeFile(join(tests, "conftest.py"), cfg.conftest);
+  try {
+    const { stdout } = await execFileP(
+      "docker",
+      [
+        "run", "--rm", "--network", "none", "--memory", "512m", "--cpus", "1", "--pids-limit", "128",
+        "-v", `${tests}:/tests:ro`, "-w", "/tests", cfg.image, "sh", "-c", cfg.collectCmd,
+      ],
+      { timeout: 30000, maxBuffer: 4 * 1024 * 1024 }
+    );
+    return { nomes: cfg.collectParse(stdout) };
+  } catch (e) {
+    return { nomes: [], erro: `Falha na deteção: ${String(e.message).slice(0, 140)}` };
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 const server = http.createServer((req, res) => {
   const json = (code, obj) => {
     res.writeHead(code, { "content-type": "application/json" });
     res.end(JSON.stringify(obj));
   };
   if (req.method === "GET" && req.url === "/health") return json(200, { ok: true, langs: Object.keys(LANGS), ativos, concorrencia: CONC });
-  if (req.method !== "POST" || req.url !== "/run") return json(404, { erro: "not found" });
+  const rota = req.url === "/run" ? "run" : req.url === "/collect" ? "collect" : null;
+  if (req.method !== "POST" || !rota) return json(404, { erro: "not found" });
   if (TOKEN && req.headers.authorization !== `Bearer ${TOKEN}`) return json(401, { erro: "unauthorized" });
 
   let body = "";
@@ -97,7 +153,12 @@ const server = http.createServer((req, res) => {
   req.on("end", async () => {
     try {
       const { lang, studentFiles, testFiles } = JSON.parse(body || "{}");
-      if (!lang || !Array.isArray(studentFiles) || !Array.isArray(testFiles)) return json(400, { erro: "body inválido: { lang, studentFiles[], testFiles[] }" });
+      if (!lang || !Array.isArray(testFiles)) return json(400, { erro: "body inválido: { lang, testFiles[] }" });
+      if (rota === "collect") {
+        const out = await comLimite(() => collect(lang, testFiles));
+        return json(200, out);
+      }
+      if (!Array.isArray(studentFiles)) return json(400, { erro: "body inválido: { lang, studentFiles[], testFiles[] }" });
       const out = await comLimite(() => run(lang, studentFiles, testFiles));
       json(200, out);
     } catch (e) {
