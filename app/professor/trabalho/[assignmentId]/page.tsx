@@ -84,6 +84,7 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
       simScore: sim?.score ?? 0,
       modelo: ev?.modelo ?? null,
       ressubmissao,
+      recurso: (s.recurso as Sub["recurso"]) ?? null,
     };
   });
 

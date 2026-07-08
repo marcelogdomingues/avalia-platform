@@ -44,6 +44,7 @@ export default async function AlunoDashboard() {
       approvedBy: aprovado ? s.assignment.course.professor?.nome ?? null : null,
       defesaPerguntas: (ev?.perguntasDefesa as string[] | null) ?? [],
       defesaRespostas: (s.respostasDefesa as { pergunta: string; resposta: string }[] | null) ?? [],
+      recurso: (s.recurso as { pedido: string; estado: "aberto" | "respondido"; resposta?: string } | null) ?? null,
     };
   });
 

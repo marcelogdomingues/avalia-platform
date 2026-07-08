@@ -93,6 +93,7 @@ model Submission {
   conteudoExtraido String?
   testResult       Json? // autograder: { total, passed, obrigatoriosTotal, obrigatoriosPassed, gateMet, tests:[{nome,ok,obrigatorio}] }
   respostasDefesa  Json? // [{ pergunta, resposta }] — respostas do aluno à entrevista de defesa
+  recurso          Json? // { pedido, criadoEm, estado:"aberto"|"respondido", resposta?, respondidoEm? }
   createdAt        DateTime @default(now())
 
   assignment Assignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)

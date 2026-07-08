@@ -184,6 +184,15 @@ async function main() {
       det: { probabilidade: 8, indicadores: ["Frases curtas e informais", "Erros conceptuais típicos de escrita humana apressada"] },
     })
   );
+  // Rui pede revisão da nota (recurso aberto — demo do fluxo aluno→professor)
+  {
+    const rui = alunos["Rui Costa"];
+    const sub = await db.submission.findFirst({ where: { assignmentId: merge.id, studentId: rui?.id }, orderBy: { createdAt: "desc" } });
+    if (sub) await db.submission.update({
+      where: { id: sub.id },
+      data: { recurso: { pedido: "Acho que a minha nota está baixa demais. Eu percebi a ideia do merge sort, só não tive tempo de escrever tudo. Podia rever, por favor?", criadoEm: new Date().toISOString(), estado: "aberto" } as object },
+    });
+  }
 
   // submissão claramente "gerada por IA": texto ≈ respostaIA + alta deteção
   await submeter(

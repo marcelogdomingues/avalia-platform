@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, avaliarDefesaAction, type Snippet } from "@/lib/actions";
+import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, avaliarDefesaAction, responderRecurso, type Snippet } from "@/lib/actions";
 import type { DefesaAvaliacao } from "@/lib/evaluate";
 import type { InsightsTurma, TomFeedback } from "@/lib/evaluate";
 import type { AnaliseIntegridade } from "@/lib/similaridade";
@@ -40,6 +40,7 @@ export type Sub = {
   simScore: number;
   modelo: string | null;
   ressubmissao: { anteriorData: string; adicionadas: number; removidas: number; segs: { tipo: "igual" | "add" | "rem"; texto: string }[] } | null;
+  recurso: { pedido: string; estado: "aberto" | "respondido"; resposta?: string } | null;
 };
 export type PortalProps = {
   prof: { nome: string; initials: string };
@@ -86,7 +87,7 @@ function statusOf(s: Sub): { label: string; color: string } {
 
 export default function ProfessorPortal({ prof, courses, assignment, subs, stats, integridade, snippets: snippetsIniciais, temLLM }: PortalProps) {
   const [view, setView] = useState<"queue" | "rubrics" | "analytics" | "integrity">("queue");
-  const [filtro, setFiltro] = useState<"todas" | "rever" | "publicadas">("todas");
+  const [filtro, setFiltro] = useState<"todas" | "rever" | "publicadas" | "recursos">("todas");
   const [selId, setSelId] = useState<string | null>(subs[0]?.id ?? null);
   const [diffOpen, setDiffOpen] = useState(false);
 
@@ -95,6 +96,21 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
   const [insightsLoading, setInsightsLoading] = useState(false);
   const feedbackRef = useRef<HTMLTextAreaElement>(null);
   const [melhorarLoading, setMelhorarLoading] = useState(false);
+
+  // Resposta a recurso (por submissão)
+  const [recursoTexto, setRecursoTexto] = useState("");
+  const [recursoLoading, setRecursoLoading] = useState(false);
+  const [recursoRespondido, setRecursoRespondido] = useState<Record<string, string>>({});
+  async function responder(id: string) {
+    if (recursoLoading || !recursoTexto.trim()) return;
+    setRecursoLoading(true);
+    try {
+      const r = await responderRecurso(id, recursoTexto);
+      if (r.ok) { setRecursoRespondido((m) => ({ ...m, [id]: recursoTexto })); setRecursoTexto(""); }
+    } finally {
+      setRecursoLoading(false);
+    }
+  }
 
   // Avaliação da defesa (por submissão; sobrepõe a que veio do servidor)
   const [defesaLocal, setDefesaLocal] = useState<Record<string, DefesaAvaliacao>>({});
@@ -174,8 +190,9 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
   }
 
   const visiveis = subs.filter((s) =>
-    filtro === "todas" ? true : filtro === "rever" ? !s.aprovado : s.aprovado
+    filtro === "todas" ? true : filtro === "rever" ? !s.aprovado : filtro === "recursos" ? s.recurso?.estado === "aberto" : s.aprovado
   );
+  const recursosAbertos = subs.filter((s) => s.recurso?.estado === "aberto").length;
   const sel = subs.find((s) => s.id === selId) ?? null;
 
   // ── Analytics profundos (computados dos subs) ──────────────────────────────
@@ -225,8 +242,8 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
     .sort((a, b) => b.motivos.length - a.motivos.length);
   const porRever = subs.filter((s) => s.estado === "RASCUNHO").length;
 
-  // fecha o diff ao trocar de submissão
-  useEffect(() => { setDiffOpen(false); }, [selId]);
+  // fecha o diff / limpa a resposta ao trocar de submissão
+  useEffect(() => { setDiffOpen(false); setRecursoTexto(""); }, [selId]);
 
   // teclado J/K na fila
   useEffect(() => {
@@ -316,7 +333,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                     <div className="mono" style={{ fontSize: 11, color: "rgba(29,26,19,0.45)" }}>J / K para navegar</div>
                   </div>
                   <div style={{ display: "flex", gap: 7 }}>
-                    {([["todas", "Todas"], ["rever", `Por rever ${porRever}`], ["publicadas", "Publicadas"]] as const).map(([k, label]) => {
+                    {([["todas", "Todas"], ["rever", `Por rever ${porRever}`], ["publicadas", "Publicadas"], ...(recursosAbertos > 0 ? [["recursos", `⚖️ Recursos ${recursosAbertos}`] as const] : [])] as const).map(([k, label]) => {
                       const on = filtro === k;
                       return (
                         <button key={k} onClick={() => setFiltro(k)} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 500, padding: "6px 11px", borderRadius: 99, border: `1px solid ${on ? TEAL : "rgba(29,26,19,0.18)"}`, background: on ? TEAL : "#fff", color: on ? CREAM : "rgba(29,26,19,0.7)", cursor: "pointer" }}>{label}</button>
@@ -336,6 +353,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                           <div style={{ fontSize: 14, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
                             {s.alunoNome}
                             {(s.simIA >= 0.12 || (s.deteccaoIA?.probabilidade ?? 0) >= 60) && <span title="Sinal de uso de IA" style={{ width: 6, height: 6, borderRadius: "50%", background: AMBER }} />}
+                            {s.recurso?.estado === "aberto" && <span title="Pedido de revisão por responder" style={{ fontSize: 11 }}>⚖️</span>}
                           </div>
                           <div style={{ fontSize: 12, color: "rgba(29,26,19,0.5)" }}>{s.date}</div>
                         </div>
@@ -361,6 +379,34 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                         <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: `${st.color}22`, color: st.color, fontSize: 12, fontWeight: 500, padding: "6px 12px", borderRadius: 999 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: st.color }} />{st.label}</div>
                       </div>
                       <h2 className="serif" style={{ fontWeight: 500, fontSize: 32, margin: "0 0 20px", color: INK }}>{sel.alunoNome}</h2>
+
+                      {/* Recurso / pedido de revisão do aluno */}
+                      {sel.recurso && (() => {
+                        const respondido = sel.recurso.estado === "respondido" || recursoRespondido[sel.id];
+                        const resposta = recursoRespondido[sel.id] ?? sel.recurso.resposta;
+                        return (
+                          <div style={{ marginBottom: 22, background: respondido ? "var(--surface-2)" : "rgba(180,83,9,0.08)", border: `1px solid ${respondido ? "rgba(29,26,19,0.12)" : "rgba(180,83,9,0.28)"}`, borderRadius: 14, padding: "16px 18px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                              <span style={{ fontSize: 15 }}>⚖️</span>
+                              <span style={{ fontSize: 14, fontWeight: 600, color: respondido ? INK : AMBER }}>Pedido de revisão do aluno{respondido ? " · respondido" : ""}</span>
+                            </div>
+                            <div style={{ fontSize: 14, lineHeight: 1.55, color: "rgba(29,26,19,0.8)", paddingLeft: 12, borderLeft: `2px solid ${AMBER}55`, marginBottom: respondido ? 12 : 14 }}>{sel.recurso.pedido}</div>
+                            {respondido ? (
+                              <div>
+                                <div className="mono" style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(29,26,19,0.45)", marginBottom: 4 }}>A tua resposta</div>
+                                <div style={{ fontSize: 13.5, color: "rgba(29,26,19,0.78)", lineHeight: 1.55 }}>{resposta}</div>
+                              </div>
+                            ) : (
+                              <div>
+                                <textarea value={recursoTexto} onChange={(e) => setRecursoTexto(e.target.value)} placeholder="Responde ao aluno (ou reavalia primeiro, e depois explica a alteração)…" style={{ width: "100%", minHeight: 70 }} />
+                                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                                  <button type="button" className="btn sm" onClick={() => responder(sel.id)} disabled={recursoLoading || !recursoTexto.trim()}>{recursoLoading ? "A enviar…" : "Responder ao aluno"}</button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       <div style={{ display: "flex", alignItems: "flex-end", gap: 28, marginBottom: 24, flexWrap: "wrap" }}>
                         <div>

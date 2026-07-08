@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { sairAluno, tutorAction, responderDefesa } from "@/lib/actions";
+import { sairAluno, tutorAction, responderDefesa, pedirRevisao } from "@/lib/actions";
 import type { MensagemTutor } from "@/lib/evaluate";
 
 type Bar = { label: string; v: number; max: number };
@@ -20,6 +20,7 @@ export type Work = {
   approvedBy: string | null;
   defesaPerguntas: string[];
   defesaRespostas: { pergunta: string; resposta: string }[];
+  recurso: { pedido: string; estado: "aberto" | "respondido"; resposta?: string } | null;
 };
 
 const TEAL = "#0f766e";
@@ -94,10 +95,27 @@ export default function StudentPortal({
     }
   }
 
+  // Recurso / pedido de revisão
+  const [askText, setAskText] = useState("");
+  const [askLoading, setAskLoading] = useState(false);
+  const [askEnviado, setAskEnviado] = useState<Record<string, boolean>>({});
+
+  async function enviarRecurso(w: Work) {
+    if (askLoading || !askText.trim()) return;
+    setAskLoading(true);
+    try {
+      const r = await pedirRevisao(w.id, askText);
+      if (r.ok) { setAskEnviado((m) => ({ ...m, [w.id]: true })); setAskOpen(false); setAskText(""); }
+    } finally {
+      setAskLoading(false);
+    }
+  }
+
   function pick(id: string) {
     setSelId(id);
     setAskOpen(false);
     setTutorInput("");
+    setAskText("");
   }
 
   const navBtn = (v: "work" | "grades", icon: string, label: string) => {
@@ -360,21 +378,42 @@ export default function StudentPortal({
                             </div>
                           )}
 
-                          {/* Pedir esclarecimento */}
+                          {/* Recurso / pedido de revisão */}
                           <div style={{ borderTop: "1px solid rgba(29,26,19,0.1)", paddingTop: 22 }}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-                              <div style={{ fontSize: 14, color: "rgba(29,26,19,0.7)", maxWidth: 380 }}>Tens uma dúvida sobre esta nota, ou achas que algo merece uma segunda vista? O teu professor responde.</div>
-                              <button onClick={() => setAskOpen((o) => !o)} className="btn" style={{ padding: "12px 20px" }}>
-                                {askOpen ? "Cancelar" : "Colocar uma questão"}
-                              </button>
-                            </div>
-                            <div className={`auth2-expand ${askOpen ? "open" : ""}`} style={{ maxHeight: askOpen ? 240 : 0 }}>
-                              <textarea placeholder="Pergunta ao teu professor sobre a nota ou pede uma re-avaliação…" style={{ marginTop: 16, minHeight: 90 }} />
-                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
-                                <span className="mono" style={{ fontSize: 11.5, color: "rgba(29,26,19,0.45)" }}>Vai para o teu professor · não para a IA</span>
-                                <button className="btn" onClick={() => setAskOpen(false)} style={{ padding: "11px 20px" }}>Enviar</button>
+                            {sel.recurso?.estado === "respondido" ? (
+                              <div>
+                                <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 10 }}>Pedido de revisão · respondido</div>
+                                <div style={{ background: "var(--surface-2)", borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
+                                  <div style={{ fontSize: 12, color: "rgba(29,26,19,0.5)", marginBottom: 4 }}>O teu pedido</div>
+                                  <div style={{ fontSize: 14, color: "rgba(29,26,19,0.8)" }}>{sel.recurso.pedido}</div>
+                                </div>
+                                <div style={{ background: "rgba(15,118,110,0.07)", border: "1px solid rgba(15,118,110,0.2)", borderRadius: 12, padding: "14px 16px" }}>
+                                  <div style={{ fontSize: 12, color: TEAL, fontWeight: 600, marginBottom: 4 }}>Resposta do professor</div>
+                                  <div style={{ fontSize: 14, color: "rgba(29,26,19,0.82)", lineHeight: 1.55 }}>{sel.recurso.resposta}</div>
+                                </div>
                               </div>
-                            </div>
+                            ) : sel.recurso?.estado === "aberto" || askEnviado[sel.id] ? (
+                              <div style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(180,83,9,0.08)", border: "1px solid rgba(180,83,9,0.2)", borderRadius: 12, padding: "14px 16px" }}>
+                                <span style={{ fontSize: 20 }}>⏳</span>
+                                <div style={{ fontSize: 13.5, color: "rgba(29,26,19,0.75)" }}>Pedido de revisão enviado ao professor. Recebes a resposta aqui quando ele responder.</div>
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                                  <div style={{ fontSize: 14, color: "rgba(29,26,19,0.7)", maxWidth: 380 }}>Tens uma dúvida sobre esta nota, ou achas que algo merece uma segunda vista? O teu professor responde.</div>
+                                  <button onClick={() => setAskOpen((o) => !o)} className="btn" style={{ padding: "12px 20px" }}>
+                                    {askOpen ? "Cancelar" : "Pedir revisão"}
+                                  </button>
+                                </div>
+                                <div className={`auth2-expand ${askOpen ? "open" : ""}`} style={{ maxHeight: askOpen ? 240 : 0 }}>
+                                  <textarea value={askText} onChange={(e) => setAskText(e.target.value)} placeholder="Explica porque achas que a nota deve ser revista…" style={{ marginTop: 16, minHeight: 90 }} />
+                                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
+                                    <span className="mono" style={{ fontSize: 11.5, color: "rgba(29,26,19,0.45)" }}>Vai para o teu professor · não para a IA</span>
+                                    <button className="btn" onClick={() => enviarRecurso(sel)} disabled={askLoading || !askText.trim()} style={{ padding: "11px 20px" }}>{askLoading ? "A enviar…" : "Enviar"}</button>
+                                  </div>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </>
                       ) : (

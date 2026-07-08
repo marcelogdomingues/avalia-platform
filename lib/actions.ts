@@ -261,6 +261,39 @@ export async function tutorAction(submissionId: string, historico: MensagemTutor
   });
 }
 
+// ── Recurso / pedido de revisão ───────────────────────────────────────────────
+export interface Recurso { pedido: string; criadoEm: string; estado: "aberto" | "respondido"; resposta?: string; respondidoEm?: string }
+
+// Aluno pede uma revisão da nota (vai para o professor, não para a IA).
+export async function pedirRevisao(submissionId: string, texto: string): Promise<{ ok: boolean }> {
+  const aluno = await getCurrentStudent();
+  if (!aluno) return { ok: false };
+  const t = texto.trim();
+  if (!t) return { ok: false };
+  const sub = await db.submission.findFirst({ where: { id: submissionId, studentId: aluno.id } });
+  if (!sub) return { ok: false };
+  const recurso: Recurso = { pedido: t.slice(0, 2000), criadoEm: new Date().toISOString(), estado: "aberto" };
+  await db.submission.update({ where: { id: sub.id }, data: { recurso: recurso as object } });
+  revalidatePath("/aluno");
+  return { ok: true };
+}
+
+// Professor responde a um recurso.
+export async function responderRecurso(submissionId: string, resposta: string): Promise<{ ok: boolean }> {
+  const prof = await requireProfessor();
+  const t = resposta.trim();
+  if (!t) return { ok: false };
+  const sub = await db.submission.findFirst({
+    where: { id: submissionId, assignment: { course: { professorId: prof.id } } },
+  });
+  const atual = sub?.recurso as Recurso | null;
+  if (!sub || !atual) return { ok: false };
+  const recurso: Recurso = { ...atual, estado: "respondido", resposta: t.slice(0, 2000), respondidoEm: new Date().toISOString() };
+  await db.submission.update({ where: { id: sub.id }, data: { recurso: recurso as object } });
+  revalidatePath(`/professor/trabalho/${sub.assignmentId}`);
+  return { ok: true };
+}
+
 // ── Entrevista de defesa ──────────────────────────────────────────────────────
 // Aluno responde às perguntas de defesa geradas pela IA para a sua submissão.
 export async function responderDefesa(submissionId: string, respostas: string[]): Promise<{ ok: boolean }> {
