@@ -9,6 +9,8 @@
 
 import { randomBytes, scryptSync } from "crypto";
 import { db } from "../lib/db";
+import { runTests, avaliarGate, runnerAtivo } from "../lib/runner";
+import { avaliarSubmissao, temLLM } from "../lib/evaluate";
 
 function hash(pw: string): string {
   const salt = randomBytes(16).toString("hex");
@@ -123,6 +125,55 @@ async function main() {
     await db.evaluation.create({
       data: ev ? { submissionId: sub.id, ...ev } : { submissionId: sub.id, estado: "PENDENTE" },
     });
+    return sub;
+  }
+
+  // Submissão de CÓDIGO com autograder + IA REAIS: corre os testes do professor
+  // contra o código do aluno e, se passar o gate, corre a avaliação LLM.
+  // Reflete o app: gate não cumprido = submissão bloqueada (não é criada).
+  type SuiteInfo = { lang: "python" | "java"; testFiles: { path: string; content: string }[]; obrigatorios: "todos" | string[] };
+  async function submeterCodigo(
+    assignment: { id: string; enunciado: string; instrucoes: string | null; solucaoModelo: string | null; rubrica: unknown; testSuite: unknown },
+    nome: string, codigo: string, filename: string,
+  ) {
+    const al = alunos[nome];
+    const suite = assignment.testSuite as SuiteInfo;
+    const run = await runTests(suite.lang, [{ path: filename, content: codigo }], suite.testFiles);
+    const gate = avaliarGate(run, suite.obrigatorios);
+    if (!gate.gateMet) {
+      console.log(`    ⛔ ${nome}: bloqueado — ${gate.obrigatoriosPassed}/${gate.obrigatoriosTotal} obrigatórios${run.erro ? ` (${run.erro.slice(0, 60)})` : ""}`);
+      return; // no app, a submissão nem seria criada
+    }
+    const sub = await db.submission.create({
+      data: {
+        assignmentId: assignment.id, studentId: al?.id, alunoNome: nome, alunoNumero: al?.numero,
+        ficheiros: [{ nome: filename, mime: "text/plain", tamanho: codigo.length }] as unknown as object,
+        conteudoExtraido: codigo,
+        testResult: gate as unknown as object,
+      },
+    });
+    let evData: Record<string, unknown> = { submissionId: sub.id, estado: "PENDENTE" };
+    if (temLLM) {
+      try {
+        const res = await avaliarSubmissao({
+          enunciado: assignment.enunciado, instrucoes: assignment.instrucoes, solucaoModelo: assignment.solucaoModelo,
+          rubrica: assignment.rubrica as Crit[], conteudoExtraido: codigo,
+        });
+        evData = {
+          submissionId: sub.id, estado: "RASCUNHO",
+          porCriterio: res.porCriterio as unknown as object,
+          perguntasDefesa: res.perguntasDefesa as unknown as object,
+          deteccaoIA: res.deteccaoIA as unknown as object,
+          feedbackGlobal: res.feedbackGlobal, notaIA: res.notaIA, modelo: res.modelo,
+          tokensInput: res.tokensInput, tokensOutput: res.tokensOutput, avaliadoEm: new Date(),
+        };
+      } catch (e) {
+        console.log(`    ! IA falhou para ${nome}: ${String((e as Error).message).slice(0, 60)}`);
+      }
+    }
+    await db.evaluation.create({ data: evData as never });
+    const passRate = `${gate.passed}/${gate.total} testes`;
+    console.log(`    ✓ ${nome}: ${passRate}${temLLM && evData.notaIA != null ? ` · IA ${evData.notaIA}/20` : ""}${(evData.deteccaoIA as { probabilidade?: number })?.probabilidade != null ? ` · IA-uso ${(evData.deteccaoIA as { probabilidade: number }).probabilidade}%` : ""}`);
     return sub;
   }
 
@@ -387,11 +438,212 @@ def test_media_vazia():
   });
   await submeter(soA.id, "Rui Costa", "Round Robin é justo mas pode ter tempo de espera maior; SJF minimiza o tempo médio de espera mas pode causar starvation dos processos longos. Com P1=8,P2=4,P3=2,P4=1, o SJF (ordem P4,P3,P2,P1) dá espera média menor que o RR com quantum 2.", mkEval(rubComplex, [0.85, 0.8], { estado: "APROVADO", fb: "Boa comparação e o exemplo com 4 processos está correto. Menção certeira à starvation.", perguntas: ["Calcula o tempo médio de espera do teu exemplo para RR com quantum 2."], det: { probabilidade: 20, indicadores: ["Exemplo numérico próprio"] } }));
 
-  const nSubs = await db.submission.count();
-  console.log("Seed rico criado.");
+  // ── Cadeira 6: Projetos de Código (autograder + IA REAIS) ──────────────────
+  // Corre os testes de verdade contra o código e avalia com o LLM, para ver o
+  // comportamento real. Requer Docker + imagens; se off, salta (dados restantes ok).
+  if (runnerAtivo) {
+    console.log("\n  Projetos de código (autograder + IA reais)…");
+    const proj = await db.course.create({ data: { professorId: professor.id, nome: "Projetos de Código", ano: "2025/2026" } });
+    const rubCod: Crit[] = [
+      { id: "c1", nome: "Correção (testes)", descricao: "Passa nos testes automáticos do professor.", peso: 55, pontosMax: 20 },
+      { id: "c2", nome: "Qualidade do código", descricao: "Legibilidade, nomes, simplicidade.", peso: 30, pontosMax: 20 },
+      { id: "c3", nome: "Robustez", descricao: "Trata casos-limite e erros.", peso: 15, pontosMax: 20 },
+    ];
+
+    // — Projeto 1: Pilha (Python) —
+    const pilhaTests = `from solution import Pilha
+def test_push_pop():
+    p = Pilha(); p.push(1); p.push(2)
+    assert p.pop() == 2 and p.pop() == 1
+def test_peek():
+    p = Pilha(); p.push(5); assert p.peek() == 5
+def test_is_empty():
+    p = Pilha(); assert p.is_empty(); p.push(1); assert not p.is_empty()
+def test_size():
+    p = Pilha(); p.push(1); p.push(2); assert p.size() == 2
+def test_pop_vazia_erro():
+    import pytest
+    with pytest.raises(Exception):
+        Pilha().pop()
+`;
+    const pilha = await db.assignment.create({ data: {
+      courseId: proj.id, titulo: "Pilha (Stack) em Python",
+      enunciado: "Implementa a classe Pilha em solution.py com push(x), pop() (LIFO), peek(), is_empty() e size(). pop() numa pilha vazia deve levantar um erro. Os testes obrigatórios têm de passar para submeteres.",
+      tiposFicheiro: ["py", "zip"], rubrica: rubCod as unknown as object,
+      instrucoes: "Valoriza tratamento do caso da pilha vazia.",
+      testSuite: { lang: "python", testFiles: [{ path: "test_pilha.py", content: pilhaTests }],
+        obrigatorios: ["test_push_pop", "test_peek", "test_is_empty"] } as unknown as object,
+    } });
+    // correta e limpa (passa tudo)
+    await submeterCodigo(pilha, "Ana Silva", `class Pilha:
+    def __init__(self): self._itens = []
+    def push(self, x): self._itens.append(x)
+    def pop(self):
+        if self.is_empty(): raise IndexError("pilha vazia")
+        return self._itens.pop()
+    def peek(self): return self._itens[-1]
+    def is_empty(self): return len(self._itens) == 0
+    def size(self): return len(self._itens)
+`, "solution.py");
+    // passa obrigatórios mas falha opcional (size existe, mas pop vazio não levanta)
+    await submeterCodigo(pilha, "Rui Costa", `class Pilha:
+    def __init__(self): self.d = []
+    def push(self, x): self.d.append(x)
+    def pop(self): return self.d.pop() if self.d else None
+    def peek(self): return self.d[-1]
+    def is_empty(self): return not self.d
+    def size(self): return len(self.d)
+`, "solution.py");
+    // "gerada por IA": correta, muito polida, docstrings/typing uniformes
+    await submeterCodigo(pilha, "Carlos Mendes", `from typing import Any, List
+
+class Pilha:
+    """Implementação de uma estrutura de dados Pilha (LIFO).
+
+    Esta classe fornece as operações fundamentais de uma pilha, garantindo
+    a integridade dos dados e o tratamento adequado de casos excecionais.
+    """
+    def __init__(self) -> None:
+        self._elementos: List[Any] = []
+    def push(self, elemento: Any) -> None:
+        """Adiciona um elemento ao topo da pilha."""
+        self._elementos.append(elemento)
+    def pop(self) -> Any:
+        """Remove e devolve o elemento do topo da pilha."""
+        if self.is_empty():
+            raise IndexError("Não é possível remover de uma pilha vazia.")
+        return self._elementos.pop()
+    def peek(self) -> Any:
+        """Devolve o elemento do topo sem o remover."""
+        return self._elementos[-1]
+    def is_empty(self) -> bool:
+        """Verifica se a pilha está vazia."""
+        return len(self._elementos) == 0
+    def size(self) -> int:
+        """Devolve o número de elementos na pilha."""
+        return len(self._elementos)
+`, "solution.py");
+    // BLOQUEADA: pop devolve o fundo (FIFO) → falha o obrigatório test_push_pop
+    await submeterCodigo(pilha, "Diana Faria", `class Pilha:
+    def __init__(self): self.d = []
+    def push(self, x): self.d.append(x)
+    def pop(self): return self.d.pop(0)
+    def peek(self): return self.d[0]
+    def is_empty(self): return len(self.d) == 0
+    def size(self): return len(self.d)
+`, "solution.py");
+
+    // — Projeto 2: Números primos (Python) —
+    const primoTests = `from solution import eh_primo, primos_ate
+def test_eh_primo_basico():
+    assert eh_primo(2) and eh_primo(13) and not eh_primo(1) and not eh_primo(9)
+def test_eh_primo_negativos():
+    assert not eh_primo(-7) and not eh_primo(0)
+def test_primos_ate():
+    assert primos_ate(10) == [2, 3, 5, 7]
+def test_primos_ate_limite():
+    assert primos_ate(2) == [2] and primos_ate(1) == []
+`;
+    const primos = await db.assignment.create({ data: {
+      courseId: proj.id, titulo: "Números primos (Python)",
+      enunciado: "Em solution.py, implementa eh_primo(n) (bool) e primos_ate(n) (lista de primos ≤ n, crescente). Cuidado com 0, 1 e negativos.",
+      tiposFicheiro: ["py"], rubrica: rubCod as unknown as object,
+      testSuite: { lang: "python", testFiles: [{ path: "test_primos.py", content: primoTests }],
+        obrigatorios: ["test_eh_primo_basico", "test_primos_ate"] } as unknown as object,
+    } });
+    // correta
+    await submeterCodigo(primos, "Beatriz Nunes", `def eh_primo(n):
+    if n < 2: return False
+    i = 2
+    while i * i <= n:
+        if n % i == 0: return False
+        i += 1
+    return True
+
+def primos_ate(n):
+    return [x for x in range(2, n + 1) if eh_primo(x)]
+`, "solution.py");
+    // passa obrigatórios, falha o dos negativos (opcional) — não trata < 2 em eh_primo? trata; mas falha limite?
+    await submeterCodigo(primos, "Eduardo Pinto", `def eh_primo(n):
+    if n < 2: return False
+    for i in range(2, n):
+        if n % i == 0: return False
+    return True
+def primos_ate(n):
+    r = []
+    for x in range(2, n + 1):
+        if eh_primo(x): r.append(x)
+    return r
+`, "solution.py");
+
+    // — Projeto 3: StringUtils (Java, JUnit) —
+    const javaTests = `import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+public class StringUtilsTest {
+    @Test void testReverse() { assertEquals("ola", StringUtils.reverse("alo")); }
+    @Test void testReverseVazio() { assertEquals("", StringUtils.reverse("")); }
+    @Test void testPalindromo() {
+        assertTrue(StringUtils.isPalindrome("ana"));
+        assertFalse(StringUtils.isPalindrome("casa"));
+    }
+    @Test void testContarVogais() { assertEquals(3, StringUtils.countVowels("banana")); }
+}
+`;
+    const javaA = await db.assignment.create({ data: {
+      courseId: proj.id, titulo: "StringUtils (Java, JUnit)",
+      enunciado: "Cria StringUtils.java com métodos estáticos: String reverse(String s), boolean isPalindrome(String s) e int countVowels(String s). Os testes JUnit obrigatórios têm de passar.",
+      tiposFicheiro: ["java", "zip"], rubrica: rubCod as unknown as object,
+      testSuite: { lang: "java", testFiles: [{ path: "StringUtilsTest.java", content: javaTests }],
+        obrigatorios: ["testReverse", "testPalindromo"] } as unknown as object,
+    } });
+    // correta
+    await submeterCodigo(javaA, "Ana Silva", `public class StringUtils {
+    public static String reverse(String s) {
+        return new StringBuilder(s).reverse().toString();
+    }
+    public static boolean isPalindrome(String s) {
+        return s.equals(reverse(s));
+    }
+    public static int countVowels(String s) {
+        int c = 0;
+        for (char ch : s.toLowerCase().toCharArray())
+            if ("aeiou".indexOf(ch) >= 0) c++;
+        return c;
+    }
+}
+`, "StringUtils.java");
+    // passa obrigatórios, countVowels com bug (conta só 'a') → falha opcional
+    await submeterCodigo(javaA, "Carlos Mendes", `public class StringUtils {
+    public static String reverse(String s) {
+        String r = "";
+        for (int i = s.length() - 1; i >= 0; i--) r += s.charAt(i);
+        return r;
+    }
+    public static boolean isPalindrome(String s) { return s.equals(reverse(s)); }
+    public static int countVowels(String s) {
+        int c = 0;
+        for (char ch : s.toCharArray()) if (ch == 'a') c++;
+        return c;
+    }
+}
+`, "StringUtils.java");
+    // BLOQUEADA: reverse não inverte (devolve igual) → falha testReverse obrigatório
+    await submeterCodigo(javaA, "Rui Costa", `public class StringUtils {
+    public static String reverse(String s) { return s; }
+    public static boolean isPalindrome(String s) { return true; }
+    public static int countVowels(String s) { return 0; }
+}
+`, "StringUtils.java");
+  } else {
+    console.log("  (Projetos de código saltados — RUNNER_MODE=off ou Docker indisponível)");
+  }
+
+  const [nSubs, nCad, nTrab] = await Promise.all([db.submission.count(), db.course.count(), db.assignment.count()]);
+  console.log("\nSeed rico criado.");
   console.log(`  Professor: prof@exemplo.pt / demo1234 (${professor.nome})`);
   console.log("  Alunos:", alunosDef.map((a) => a.email).join(", "), "(password: demo1234)");
-  console.log(`  5 cadeiras, 6 trabalhos, ${nSubs} submissões (com plágio, alta deteção de IA, aprovados e pendentes).`);
+  console.log(`  ${nCad} cadeiras, ${nTrab} trabalhos, ${nSubs} submissões (com plágio, deteção de IA, autograder real, aprovados e pendentes).`);
 }
 
 main()
