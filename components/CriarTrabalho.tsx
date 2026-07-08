@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { criarTrabalho, analisarEnunciadoAction, gerarRubricaAction, gerarEnunciadoAction } from "@/lib/actions";
+import TestSuiteEditor from "./TestSuiteEditor";
 import type { AnaliseEnunciado } from "@/lib/evaluate";
 
 interface Crit {
@@ -235,6 +236,8 @@ export default function CriarTrabalho({ courseId }: { courseId: string }) {
           </span>
         </div>
       </div>
+
+      <TestSuiteEditor />
 
       <details className="disclosure">
         <summary>Opções avançadas</summary>

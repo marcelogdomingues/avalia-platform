@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { editarTrabalho } from "@/lib/actions";
+import TestSuiteEditor, { type TestSuiteValor } from "./TestSuiteEditor";
 
 interface Crit { nome: string; descricao: string; peso: number; pontosMax: number; }
 const TIPOS = ["pdf", "docx", "txt", "zip"];
 
 export default function EditarTrabalho({
-  assignmentId, titulo, enunciado, tipos, instrucoes, solucaoModelo, feedbackImediato, rubrica,
+  assignmentId, titulo, enunciado, tipos, instrucoes, solucaoModelo, feedbackImediato, rubrica, testSuite,
 }: {
   assignmentId: string;
   titulo: string;
@@ -17,6 +18,7 @@ export default function EditarTrabalho({
   solucaoModelo: string;
   feedbackImediato: boolean;
   rubrica: Crit[];
+  testSuite: TestSuiteValor | null;
 }) {
   const [criterios, setCriterios] = useState<Crit[]>(rubrica.length ? rubrica : [{ nome: "", descricao: "", peso: 100, pontosMax: 20 }]);
   const soma = criterios.reduce((s, c) => s + (Number(c.peso) || 0), 0);
@@ -61,6 +63,8 @@ export default function EditarTrabalho({
           <span className={`weight-note ${soma === 100 ? "ok" : "warn"}`}>Soma dos pesos: {soma}%</span>
         </div>
       </div>
+
+      <TestSuiteEditor inicial={testSuite} />
 
       <details className="disclosure">
         <summary>Opções avançadas</summary>

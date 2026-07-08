@@ -117,6 +117,18 @@ export async function apagarCadeira(formData: FormData) {
 }
 
 // ── Trabalhos (com rubric builder) ───────────────────────────────────────────
+function parseTestSuite(formData: FormData): object | null {
+  const raw = String(formData.get("testSuite") ?? "").trim();
+  if (!raw) return null;
+  try {
+    const ts = JSON.parse(raw) as { lang?: string; testFiles?: { content?: string }[] };
+    if (ts?.lang && Array.isArray(ts.testFiles) && ts.testFiles.length && ts.testFiles.every((f) => f.content?.trim())) return ts as object;
+  } catch {
+    /* ignora suite inválida */
+  }
+  return null;
+}
+
 export async function criarTrabalho(formData: FormData) {
   const prof = await requireProfessor();
   const courseId = String(formData.get("courseId"));
@@ -161,6 +173,7 @@ export async function criarTrabalho(formData: FormData) {
       feedbackImediato,
       tiposFicheiro: tiposFicheiro.length ? tiposFicheiro : ["pdf", "docx", "txt"],
       rubrica: rubrica as any,
+      testSuite: parseTestSuite(formData) as any,
     },
   });
 
@@ -307,6 +320,7 @@ export async function editarTrabalho(formData: FormData) {
       titulo, enunciado, instrucoes, solucaoModelo, feedbackImediato,
       tiposFicheiro: tiposFicheiro.length ? tiposFicheiro : ["pdf", "docx", "txt"],
       rubrica: rubrica as any,
+      testSuite: parseTestSuite(formData) as any,
     },
   });
   redirect(`/professor/trabalho/${id}`);

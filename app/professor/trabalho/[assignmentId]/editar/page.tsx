@@ -40,6 +40,7 @@ export default async function EditarPage({
           solucaoModelo={a.solucaoModelo ?? ""}
           feedbackImediato={a.feedbackImediato}
           rubrica={a.rubrica as any}
+          testSuite={(a.testSuite as any) ?? null}
         />
       </div>
     </ProfShell>
