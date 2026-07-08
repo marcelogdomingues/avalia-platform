@@ -56,3 +56,63 @@ export function calcularSimilaridades(
   }
   return out;
 }
+
+// ── Análise de integridade da turma (grafo + clusters) ────────────────────────
+
+export interface SubInfo { id: string; alunoNome: string; conteudoExtraido: string | null }
+export interface Par { aId: string; aNome: string; bId: string; bNome: string; score: number }
+export interface Cluster { ids: string[]; nomes: string[]; scoreMedio: number; scoreMax: number }
+export interface AnaliseIntegridade {
+  pares: Par[];              // todos os pares acima do limiar, do mais parecido ao menos
+  clusters: Cluster[];       // grupos de 2+ submissões ligadas por semelhança
+  proximidadeIA: { id: string; nome: string; score: number }[]; // proximidade à linha-base de IA, desc
+  limiar: number;
+}
+
+// Calcula todos os pares acima de `limiar`, agrupa em clusters (componentes ligados)
+// e ordena a proximidade à resposta-tipo de IA. Base da vista "Integridade".
+export function analisarIntegridade(subs: SubInfo[], respostaIA: string | null, limiar = 0.25): AnaliseIntegridade {
+  const shings = subs.map((s) => ({ ...s, sh: shingles(s.conteudoExtraido ?? "") }));
+
+  const pares: Par[] = [];
+  for (let i = 0; i < shings.length; i++) {
+    for (let j = i + 1; j < shings.length; j++) {
+      const score = jaccard(shings[i].sh, shings[j].sh);
+      if (score >= limiar) {
+        pares.push({ aId: shings[i].id, aNome: shings[i].alunoNome, bId: shings[j].id, bNome: shings[j].alunoNome, score });
+      }
+    }
+  }
+  pares.sort((x, y) => y.score - x.score);
+
+  // Union-find: componentes ligados pelos pares acima do limiar = clusters de cópia.
+  const pai = new Map<string, string>(subs.map((s) => [s.id, s.id]));
+  const find = (x: string): string => (pai.get(x) === x ? x : (pai.set(x, find(pai.get(x)!)), pai.get(x)!));
+  const une = (a: string, b: string) => { const ra = find(a), rb = find(b); if (ra !== rb) pai.set(ra, rb); };
+  for (const p of pares) une(p.aId, p.bId);
+
+  const grupos = new Map<string, string[]>();
+  for (const s of subs) { const r = find(s.id); (grupos.get(r) ?? grupos.set(r, []).get(r)!).push(s.id); }
+  const nomeDe = new Map(subs.map((s) => [s.id, s.alunoNome]));
+
+  const clusters: Cluster[] = [];
+  for (const ids of grupos.values()) {
+    if (ids.length < 2) continue;
+    const dentro = pares.filter((p) => ids.includes(p.aId) && ids.includes(p.bId));
+    const scores = dentro.map((p) => p.score);
+    clusters.push({
+      ids,
+      nomes: ids.map((id) => nomeDe.get(id) ?? "—"),
+      scoreMedio: scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+      scoreMax: scores.length ? Math.max(...scores) : 0,
+    });
+  }
+  clusters.sort((a, b) => b.scoreMax - a.scoreMax);
+
+  const proximidadeIA = subs
+    .map((s) => ({ id: s.id, nome: s.alunoNome, score: similaridadeComTexto(s.conteudoExtraido, respostaIA) }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return { pares, clusters, proximidadeIA, limiar };
+}

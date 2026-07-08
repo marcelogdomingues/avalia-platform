@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { temLLM } from "@/lib/evaluate";
 import { calcularStats } from "@/lib/stats";
-import { calcularSimilaridades, similaridadeComTexto } from "@/lib/similaridade";
+import { calcularSimilaridades, similaridadeComTexto, analisarIntegridade } from "@/lib/similaridade";
 import ProfessorPortal, { type Sub } from "@/components/ProfessorPortal";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +25,9 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
   if (!a) notFound();
 
   const stats = calcularStats(a.submissions.map((s) => s.evaluation ?? { estado: "PENDENTE", notaIA: null, notaFinal: null }));
-  const sims = calcularSimilaridades(a.submissions.map((s) => ({ id: s.id, alunoNome: s.alunoNome, conteudoExtraido: s.conteudoExtraido })));
+  const infoSubs = a.submissions.map((s) => ({ id: s.id, alunoNome: s.alunoNome, conteudoExtraido: s.conteudoExtraido }));
+  const sims = calcularSimilaridades(infoSubs);
+  const integridade = analisarIntegridade(infoSubs, a.respostaIA);
 
   const subs: Sub[] = a.submissions.map((s) => {
     const ev = s.evaluation;
@@ -71,6 +73,7 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
       }}
       subs={subs}
       stats={stats}
+      integridade={integridade}
       temLLM={temLLM}
     />
   );

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction } from "@/lib/actions";
 import type { InsightsTurma, TomFeedback } from "@/lib/evaluate";
+import type { AnaliseIntegridade } from "@/lib/similaridade";
 
 const TEAL = "#0f766e";
 const INK = "#1d1a13";
@@ -46,6 +47,7 @@ export type PortalProps = {
   };
   subs: Sub[];
   stats: { total: number; media: number | null; min: number | null; max: number | null; aprovadas: number; distribuicao: { faixa: string; n: number }[] };
+  integridade: AnaliseIntegridade;
   temLLM: boolean;
 };
 
@@ -77,8 +79,8 @@ function statusOf(s: Sub): { label: string; color: string } {
   return { label: "Pendente", color: "rgba(29,26,19,0.55)" };
 }
 
-export default function ProfessorPortal({ prof, courses, assignment, subs, stats, temLLM }: PortalProps) {
-  const [view, setView] = useState<"queue" | "rubrics" | "analytics">("queue");
+export default function ProfessorPortal({ prof, courses, assignment, subs, stats, integridade, temLLM }: PortalProps) {
+  const [view, setView] = useState<"queue" | "rubrics" | "analytics" | "integrity">("queue");
   const [filtro, setFiltro] = useState<"todas" | "rever" | "publicadas">("todas");
   const [selId, setSelId] = useState<string | null>(subs[0]?.id ?? null);
 
@@ -143,7 +145,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
     );
   };
 
-  const crumb = view === "rubrics" ? "Rubrica" : view === "analytics" ? "Análises" : "Fila de revisão";
+  const crumb = view === "rubrics" ? "Rubrica" : view === "analytics" ? "Análises" : view === "integrity" ? "Integridade" : "Fila de revisão";
 
   return (
     <div className="portal">
@@ -157,6 +159,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
           {navBtn("queue", "≡", "Fila de revisão")}
           {navBtn("rubrics", "§", "Rubrica")}
           {navBtn("analytics", "▤", "Análises")}
+          {navBtn("integrity", "◈", "Integridade")}
         </nav>
         <div className="mono portal-sec" style={{ paddingTop: 22 }}>Cadeiras</div>
         <nav style={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -454,6 +457,103 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                           </ul>
                         </div>
                       )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {view === "integrity" && (
+            <div style={{ padding: "34px 40px 48px", maxWidth: 1000 }}>
+              <h2 className="serif" style={{ fontWeight: 500, fontSize: 26, margin: "0 0 4px", color: INK }}>Integridade da turma</h2>
+              <div style={{ fontSize: 13.5, color: "rgba(29,26,19,0.55)", marginBottom: 22 }}>
+                Semelhança entre submissões (indício de cópia) e proximidade à resposta-tipo de uma IA. Sinal, não veredicto — confirma com as perguntas de defesa.
+              </div>
+
+              {/* resumo */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18, marginBottom: 28 }}>
+                {[
+                  ["Pares suspeitos", `${integridade.pares.length}`, `≥ ${Math.round(integridade.limiar * 100)}% semelhança`],
+                  ["Grupos de cópia", `${integridade.clusters.length}`, "submissões ligadas entre si"],
+                  ["Perto da IA", `${integridade.proximidadeIA.filter((p) => p.score >= 0.12).length}`, "acima do limiar de alerta"],
+                ].map(([l, n, sub]) => (
+                  <div key={l} style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 14, padding: 22 }}>
+                    <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 12 }}>{l}</div>
+                    <div className="serif" style={{ fontSize: 38, fontWeight: 500, lineHeight: 1 }}>{n}</div>
+                    <div style={{ fontSize: 12, color: "rgba(29,26,19,0.5)", marginTop: 6 }}>{sub}</div>
+                  </div>
+                ))}
+              </div>
+
+              {integridade.pares.length === 0 && integridade.clusters.length === 0 && integridade.proximidadeIA.filter((p) => p.score >= 0.12).length === 0 ? (
+                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "40px 28px", textAlign: "center", color: "rgba(29,26,19,0.6)" }}>
+                  <div style={{ fontSize: 30, marginBottom: 8 }}>✓</div>
+                  Sem sinais de cópia ou de proximidade à IA nesta turma.
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: 24 }}>
+                  {/* grupos de cópia */}
+                  {integridade.clusters.length > 0 && (
+                    <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "24px 26px" }}>
+                      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>◈ Grupos de submissões parecidas</div>
+                      <div style={{ fontSize: 12.5, color: "rgba(29,26,19,0.5)", marginBottom: 18 }}>Cada grupo liga alunos cujas submissões se parecem acima do limiar — bom ponto de partida para investigar.</div>
+                      <div style={{ display: "grid", gap: 12 }}>
+                        {integridade.clusters.map((c, i) => {
+                          const cor = c.scoreMax >= 0.6 ? "#9f1d1d" : c.scoreMax >= 0.4 ? AMBER : TEAL;
+                          return (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: 12, background: "var(--surface-2)", border: `1px solid ${cor}22` }}>
+                              <span style={{ width: 10, height: 10, borderRadius: "50%", background: cor, flexShrink: 0 }} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 14, fontWeight: 500 }}>{c.nomes.join(" · ")}</div>
+                                <div style={{ fontSize: 12, color: "rgba(29,26,19,0.5)", marginTop: 2 }}>{c.ids.length} submissões · semelhança média {Math.round(c.scoreMedio * 100)}%</div>
+                              </div>
+                              <span className="badge" style={{ background: `${cor}18`, color: cor, fontWeight: 600 }}>máx {Math.round(c.scoreMax * 100)}%</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ranking de pares */}
+                  {integridade.pares.length > 0 && (
+                    <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "24px 26px" }}>
+                      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 18 }}>Pares mais parecidos</div>
+                      <div style={{ display: "grid", gap: 12 }}>
+                        {integridade.pares.slice(0, 12).map((p, i) => {
+                          const cor = p.score >= 0.6 ? "#9f1d1d" : p.score >= 0.4 ? AMBER : TEAL;
+                          return (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                              <div style={{ width: 260, fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.aNome} <span style={{ color: "rgba(29,26,19,0.4)" }}>↔</span> {p.bNome}</div>
+                              <div className="bar" style={{ flex: 1 }}><span style={{ width: `${Math.round(p.score * 100)}%`, background: cor }} /></div>
+                              <div className="mono" style={{ width: 44, textAlign: "right", fontSize: 13, color: cor, fontWeight: 600 }}>{Math.round(p.score * 100)}%</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* proximidade à IA */}
+                  {integridade.proximidadeIA.filter((p) => p.score >= 0.08).length > 0 && (
+                    <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "24px 26px" }}>
+                      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Proximidade à resposta-tipo de IA</div>
+                      <div style={{ fontSize: 12.5, color: "rgba(29,26,19,0.5)", marginBottom: 18 }}>
+                        {assignment.temBaseline ? "Comparado com a linha-base de IA gerada para este enunciado." : "Gera a linha-base de IA (botão ↻ Linha-base) para ativar esta comparação."}
+                      </div>
+                      <div style={{ display: "grid", gap: 12 }}>
+                        {integridade.proximidadeIA.filter((p) => p.score >= 0.08).slice(0, 12).map((p) => {
+                          const cor = p.score >= 0.25 ? "#9f1d1d" : p.score >= 0.12 ? AMBER : "rgba(29,26,19,0.5)";
+                          return (
+                            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                              <div style={{ width: 200, fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.nome}</div>
+                              <div className="bar" style={{ flex: 1 }}><span style={{ width: `${Math.min(100, Math.round(p.score * 100))}%`, background: cor }} /></div>
+                              <div className="mono" style={{ width: 44, textAlign: "right", fontSize: 13, color: cor, fontWeight: 600 }}>{Math.round(p.score * 100)}%</div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
