@@ -31,6 +31,28 @@ export const EXT: Record<Lang, string[]> = {
   python: [".py"], java: [".java"], dart: [".dart"], kotlin: [".kt"],
 };
 
+// Modo de execução — resolve os problemas de memória e de deploy:
+//   docker (default): corre localmente, com limite de concorrência.
+//   remote:           delega a um grader por HTTP (VPS/Piston/Judge0) — para produção (ex.: Vercel).
+//   off:              desativa a execução (autograder não bloqueia; ex.: preview sem grader).
+const MODE = (process.env.RUNNER_MODE ?? "docker") as "docker" | "remote" | "off";
+const CONCORRENCIA = Math.max(1, Number(process.env.RUNNER_CONCURRENCY) || 2);
+export const runnerAtivo = MODE !== "off";
+
+// Semáforo: nunca mais do que CONCORRENCIA execuções em paralelo (protege a RAM).
+let ativos = 0;
+const fila: Array<() => void> = [];
+async function comLimite<T>(fn: () => Promise<T>): Promise<T> {
+  if (ativos >= CONCORRENCIA) await new Promise<void>((r) => fila.push(r));
+  ativos++;
+  try {
+    return await fn();
+  } finally {
+    ativos--;
+    fila.shift()?.();
+  }
+}
+
 const safeName = (p: string) => basename(p).replace(/[^\w.\-]/g, "_") || "f";
 
 // Extrai os ficheiros de código do aluno de um upload (zip ou ficheiro único).
@@ -54,6 +76,33 @@ export function extrairCodigo(buffer: Buffer, filename: string, lang: Lang): Tes
 }
 
 export async function runTests(lang: Lang, studentFiles: TestFile[], testFiles: TestFile[]): Promise<RunResult> {
+  if (MODE === "off") return { tests: [], erro: "Execução de testes desativada (RUNNER_MODE=off)." };
+  if (MODE === "remote") return runRemote(lang, studentFiles, testFiles);
+  return comLimite(() => runDocker(lang, studentFiles, testFiles));
+}
+
+// Delega a um grader externo por HTTP (produção). Contrato JSON:
+//   req  { lang, studentFiles:[{path,content}], testFiles:[{path,content}] }
+//   resp { tests:[{nome,ok}], erro? }
+async function runRemote(lang: Lang, studentFiles: TestFile[], testFiles: TestFile[]): Promise<RunResult> {
+  const url = process.env.RUNNER_URL;
+  if (!url) return { tests: [], erro: "RUNNER_URL não configurado (grader externo)." };
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(process.env.RUNNER_TOKEN ? { authorization: `Bearer ${process.env.RUNNER_TOKEN}` } : {}) },
+      body: JSON.stringify({ lang, studentFiles, testFiles }),
+      signal: AbortSignal.timeout(60000),
+    });
+    if (!res.ok) return { tests: [], erro: `O grader respondeu ${res.status}.` };
+    const j = (await res.json()) as { tests?: { nome: string; ok: boolean }[]; erro?: string };
+    return { tests: Array.isArray(j.tests) ? j.tests.map((t) => ({ nome: String(t.nome), ok: !!t.ok })) : [], erro: j.erro };
+  } catch (e) {
+    return { tests: [], erro: `Grader inacessível: ${(e as Error).message.slice(0, 120)}` };
+  }
+}
+
+async function runDocker(lang: Lang, studentFiles: TestFile[], testFiles: TestFile[]): Promise<RunResult> {
   if (!LANGS_PRONTAS.includes(lang)) {
     return { tests: [], erro: `Runner de ${LANG_LABELS[lang]} ainda não está configurado (falta a imagem Docker). Já suportado: ${LANGS_PRONTAS.map((l) => LANG_LABELS[l]).join(", ")}.` };
   }

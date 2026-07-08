@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "./db";
 import { processarSubmissao, aprovarAvaliacao } from "./pipeline";
-import { runTests, avaliarGate, extrairCodigo, LANG_LABELS, EXT, type Lang, type TestFile, type GateResult } from "./runner";
+import { runTests, avaliarGate, extrairCodigo, runnerAtivo, LANG_LABELS, EXT, type Lang, type TestFile, type GateResult } from "./runner";
 import {
   avaliarSubmissao,
   gerarRespostaIA,
@@ -246,7 +246,7 @@ export async function submeterTrabalho(token: string, formData: FormData): Promi
   // Autograder: se o trabalho tem testes, correm ANTES de aceitar a submissão.
   let gate: GateResult | undefined;
   const suite = assignment.testSuite as { lang: Lang; testFiles: TestFile[]; obrigatorios: "todos" | string[] } | null;
-  if (suite && Array.isArray(suite.testFiles) && suite.testFiles.length) {
+  if (runnerAtivo && suite && Array.isArray(suite.testFiles) && suite.testFiles.length) {
     const codigo = extrairCodigo(buffer, file.name, suite.lang);
     if (!codigo.length) {
       return { ok: false, erro: `Não encontrei ficheiros de ${LANG_LABELS[suite.lang]} no upload — submete um .zip de código ou um ficheiro ${EXT[suite.lang].join("/")}.` };
