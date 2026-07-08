@@ -43,46 +43,53 @@ export default async function ReciboPage({
       <h1 className="page-title" style={{ marginTop: 4 }}>{s.assignment.titulo}</h1>
       <p className="page-sub">Submetido por {s.alunoNome}{s.alunoNumero ? ` · nº ${s.alunoNumero}` : ""}</p>
 
-      <div className="card">
-        <div className="row-between">
-          <span className={`badge ${aprovado ? "s-aprovado" : "s-rascunho"}`}>
-            {aprovado ? "Nota final" : "Pré-avaliação (provisória)"}
-          </span>
-          {mostrar ? (
-            <span className={`grade ${gradeClass(nota)}`}>{nota ?? "—"}<span className="max">/20</span></span>
-          ) : (
-            <span className="badge s-pendente">Aguarda validação do professor</span>
-          )}
-        </div>
-
-        {mostrar && (
+      {/* Herói de resultado */}
+      <div className="card result-hero">
+        {mostrar ? (
           <>
-            <ul className="criteria">
-              {criterios.map((c) => {
-                const pct = c.pontosMax > 0 ? Math.round((c.pontos / c.pontosMax) * 100) : 0;
-                return (
-                  <li key={c.criterioId} className="criterion">
-                    <div className="criterion-top">
-                      <span className="criterion-name">{c.nome}</span>
-                      <span className="criterion-score">{c.pontos}/{c.pontosMax}</span>
-                    </div>
-                    <div className="bar"><span style={{ width: `${pct}%` }} /></div>
-                    <p className="justif">{c.justificacao}</p>
-                  </li>
-                );
-              })}
-            </ul>
-            {ev?.feedbackGlobal && <div className="feedback">{ev.feedbackGlobal}</div>}
-            {!aprovado && <p className="hint" style={{ marginTop: 12 }}>Nota provisória, sujeita a validação do professor.</p>}
+            <span className={`badge ${aprovado ? "s-aprovado" : "s-rascunho"}`}>
+              {aprovado ? "Nota final" : "Pré-avaliação provisória"}
+            </span>
+            <div className={`result-grade ${gradeClass(nota)}`}>
+              {nota ?? "—"}<span className="max">/20</span>
+            </div>
+            <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+              {aprovado ? "Validada pelo professor" : "Ainda sujeita a validação do professor"}
+            </p>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 42, marginBottom: 8 }}>⏳</div>
+            <span className="badge s-pendente">Aguarda validação do professor</span>
+            <p className="muted" style={{ margin: "12px 0 0", fontSize: 14 }}>
+              O teu trabalho foi recebido e está a ser avaliado. Volta a este link para ver a nota quando o professor a publicar.
+            </p>
           </>
         )}
-
-        {!mostrar && (
-          <p className="muted" style={{ marginTop: 12 }}>
-            O teu trabalho foi recebido e está a ser avaliado. Volta a este link para ver a nota quando o professor a publicar.
-          </p>
-        )}
       </div>
+
+      {/* Detalhe por critério */}
+      {mostrar && criterios.length > 0 && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <span className="eyebrow">Por critério</span>
+          <ul className="criteria">
+            {criterios.map((c) => {
+              const pct = c.pontosMax > 0 ? Math.round((c.pontos / c.pontosMax) * 100) : 0;
+              return (
+                <li key={c.criterioId} className="criterion">
+                  <div className="criterion-top">
+                    <span className="criterion-name">{c.nome}</span>
+                    <span className="criterion-score">{c.pontos}/{c.pontosMax}</span>
+                  </div>
+                  <div className="bar"><span style={{ width: `${pct}%` }} /></div>
+                  <p className="justif">{c.justificacao}</p>
+                </li>
+              );
+            })}
+          </ul>
+          {ev?.feedbackGlobal && <div className="feedback">{ev.feedbackGlobal}</div>}
+        </div>
+      )}
     </>,
   );
 }
