@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { aprovar, reavaliar, gerarLinhaBase, sair } from "@/lib/actions";
+import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction } from "@/lib/actions";
+import type { InsightsTurma, TomFeedback } from "@/lib/evaluate";
 
 const TEAL = "#0f766e";
 const INK = "#1d1a13";
@@ -80,6 +81,37 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
   const [view, setView] = useState<"queue" | "rubrics" | "analytics">("queue");
   const [filtro, setFiltro] = useState<"todas" | "rever" | "publicadas">("todas");
   const [selId, setSelId] = useState<string | null>(subs[0]?.id ?? null);
+
+  // Features de IA no portal
+  const [insights, setInsights] = useState<InsightsTurma | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const feedbackRef = useRef<HTMLTextAreaElement>(null);
+  const [melhorarLoading, setMelhorarLoading] = useState(false);
+
+  async function gerarInsights() {
+    if (insightsLoading) return;
+    setInsightsLoading(true);
+    try {
+      setInsights(await gerarInsightsAction(assignment.id));
+    } finally {
+      setInsightsLoading(false);
+    }
+  }
+  async function melhorar(tom: TomFeedback) {
+    const ta = feedbackRef.current;
+    if (!ta || melhorarLoading || !ta.value.trim()) return;
+    setMelhorarLoading(true);
+    try {
+      const novo = await melhorarFeedbackAction(ta.value, tom);
+      if (novo) {
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")!.set!;
+        setter.call(ta, novo);
+        ta.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    } finally {
+      setMelhorarLoading(false);
+    }
+  }
 
   const visiveis = subs.filter((s) =>
     filtro === "todas" ? true : filtro === "rever" ? !s.aprovado : s.aprovado
@@ -318,8 +350,18 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                         <form action={aprovar}>
                           <input type="hidden" name="evaluationId" value={sel.evaluationId} />
                           <div style={{ marginBottom: 18 }}>
-                            <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 9 }}>Feedback rascunhado · editável</div>
-                            <textarea name="feedback" defaultValue={sel.feedback ?? ""} style={{ width: "100%", minHeight: 110 }} />
+                            <div className="row-between" style={{ alignItems: "baseline", marginBottom: 9 }}>
+                              <span className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)" }}>Feedback rascunhado · editável</span>
+                              {temLLM && (
+                                <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                  <span className="faint" style={{ fontSize: 11 }}>{melhorarLoading ? "✨ a melhorar…" : "✨ melhorar:"}</span>
+                                  {(["encorajador", "direto", "conciso"] as const).map((t) => (
+                                    <button key={t} type="button" className="btn ghost sm" disabled={melhorarLoading} onClick={() => melhorar(t)} style={{ padding: "3px 9px", fontSize: 11.5 }}>{t}</button>
+                                  ))}
+                                </span>
+                              )}
+                            </div>
+                            <textarea key={sel.id} ref={feedbackRef} name="feedback" defaultValue={sel.feedback ?? ""} style={{ width: "100%", minHeight: 110 }} />
                           </div>
                           <div style={{ display: "flex", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
                             <div className="field" style={{ margin: 0, width: 100 }}>
@@ -380,6 +422,42 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                   })}
                 </div>
               </div>
+
+              {/* Insights da turma (IA) */}
+              {temLLM && (
+                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
+                  <div className="row-between" style={{ marginBottom: insights ? 18 : 0 }}>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 600 }}>✨ Insights da turma</div>
+                      <div className="faint" style={{ fontSize: 13, marginTop: 2 }}>Resumo dos erros comuns e o que rever, a partir dos feedbacks.</div>
+                    </div>
+                    <button className="btn secondary sm" onClick={gerarInsights} disabled={insightsLoading}>
+                      {insightsLoading ? "A analisar a turma…" : insights ? "↻ Regenerar" : "Gerar insights"}
+                    </button>
+                  </div>
+                  {insights && (
+                    <div style={{ display: "grid", gap: 18 }}>
+                      <p style={{ margin: 0, fontSize: 15, lineHeight: 1.6, color: "var(--text)" }}>{insights.resumo}</p>
+                      {insights.errosComuns.length > 0 && (
+                        <div>
+                          <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 8 }}>Erros mais comuns</div>
+                          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, lineHeight: 1.6, color: "var(--muted)" }}>
+                            {insights.errosComuns.map((e, i) => <li key={i} style={{ marginBottom: 4 }}>{e}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                      {insights.sugestoes.length > 0 && (
+                        <div>
+                          <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "#0f766e", marginBottom: 8 }}>Sugestões de revisão</div>
+                          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, lineHeight: 1.6, color: "var(--muted)" }}>
+                            {insights.sugestoes.map((s, i) => <li key={i} style={{ marginBottom: 4 }}>{s}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

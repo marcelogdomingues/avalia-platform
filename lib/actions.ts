@@ -12,9 +12,13 @@ import {
   analisarResistenciaIA,
   gerarRubrica,
   gerarEnunciado,
+  gerarInsightsTurma,
+  melhorarFeedback,
   type Criterio,
   type AnaliseEnunciado,
   type CriterioSugerido,
+  type InsightsTurma,
+  type TomFeedback,
 } from "./evaluate";
 import {
   hashPassword,
@@ -210,6 +214,27 @@ export async function gerarEnunciadoAction(titulo: string, cadeira?: string): Pr
   await requireProfessor();
   if (!titulo.trim()) return null;
   return gerarEnunciado({ titulo, cadeira });
+}
+
+// Insights da turma: resumo IA dos erros comuns a partir dos feedbacks.
+export async function gerarInsightsAction(assignmentId: string): Promise<InsightsTurma | null> {
+  const prof = await requireProfessor();
+  const a = await db.assignment.findFirst({
+    where: { id: assignmentId, course: { professorId: prof.id } },
+    include: { submissions: { include: { evaluation: true } } },
+  });
+  if (!a) return null;
+  const submissoes = a.submissions
+    .map((s) => ({ nome: s.alunoNome, nota: s.evaluation?.notaFinal ?? s.evaluation?.notaIA ?? null, feedback: s.evaluation?.feedbackGlobal ?? null }))
+    .filter((s) => s.feedback);
+  return gerarInsightsTurma({ enunciado: a.enunciado, submissoes });
+}
+
+// Reescreve o feedback com outro tom (chamado no painel de revisão).
+export async function melhorarFeedbackAction(feedback: string, tom: TomFeedback): Promise<string | null> {
+  await requireProfessor();
+  if (!feedback.trim()) return null;
+  return melhorarFeedback({ feedback, tom });
 }
 
 // (Re)gera a linha-base de IA de um trabalho existente.

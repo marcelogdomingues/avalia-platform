@@ -219,6 +219,66 @@ export async function analisarResistenciaIA(p: {
   };
 }
 
+// ── Insights da turma (resumo dos erros comuns) ──────────────────────────────
+export interface InsightsTurma {
+  resumo: string;
+  errosComuns: string[];
+  sugestoes: string[];
+}
+export async function gerarInsightsTurma(p: {
+  enunciado: string;
+  submissoes: { nome: string; nota: number | null; feedback: string | null }[];
+}): Promise<InsightsTurma | null> {
+  if (!temLLM || p.submissoes.length === 0) return null;
+  const lista = p.submissoes
+    .slice(0, 30)
+    .map((s, i) => `#${i + 1} (${s.nota != null ? s.nota + "/20" : "s/nota"}): ${(s.feedback ?? "").slice(0, 400)}`)
+    .join("\n");
+  const formato = `{ "resumo": "<2-3 frases sobre o desempenho geral da turma>", "errosComuns": ["<erro 1>", "<erro 2>"], "sugestoes": ["<sugestão de revisão/aula 1>", "<2>"] }`;
+  const system = [
+    "És um assistente pedagógico. Dada a lista de feedbacks de avaliação de uma turma,",
+    "identifica os PADRÕES: erros/dificuldades mais comuns e o que o docente deve rever ou",
+    "reforçar numa aula. Sê concreto e acionável. Responde SEMPRE com um único JSON válido:",
+    formato,
+    "",
+    "## Enunciado",
+    p.enunciado,
+  ].join("\n");
+  const completion = await llm.chat.completions.create({
+    model: AVALIADOR_MODEL, temperature: 0.3, response_format: { type: "json_object" },
+    messages: [{ role: "system", content: system }, { role: "user", content: `Feedbacks da turma:\n${lista}` }],
+  });
+  const raw = completion.choices[0]?.message?.content;
+  if (!raw) return null;
+  const j = JSON.parse(raw) as { resumo?: string; errosComuns?: string[]; sugestoes?: string[] };
+  return {
+    resumo: String(j.resumo ?? ""),
+    errosComuns: Array.isArray(j.errosComuns) ? j.errosComuns.filter(Boolean).map(String) : [],
+    sugestoes: Array.isArray(j.sugestoes) ? j.sugestoes.filter(Boolean).map(String) : [],
+  };
+}
+
+// ── Melhorar/reescrever o feedback (ajuste de tom) ───────────────────────────
+export type TomFeedback = "encorajador" | "direto" | "conciso";
+export async function melhorarFeedback(p: { feedback: string; tom: TomFeedback; enunciado?: string }): Promise<string | null> {
+  if (!temLLM || !p.feedback.trim()) return null;
+  const guia: Record<TomFeedback, string> = {
+    encorajador: "mais encorajador e construtivo, reconhecendo o esforço, sem deixar de apontar o que melhorar",
+    direto: "mais direto e específico, claro sobre o que está errado e como corrigir",
+    conciso: "mais conciso — mantém o essencial em 2-3 frases",
+  };
+  const system = [
+    "Reescreves feedback de avaliação para o aluno, mantendo o SENTIDO e os factos, mudando só o tom.",
+    `Torna-o ${guia[p.tom]}. Escreve em português de Portugal. Responde SÓ com o feedback reescrito, sem preâmbulos.`,
+    p.enunciado ? `\nContexto (enunciado): ${p.enunciado.slice(0, 300)}` : "",
+  ].join("\n");
+  const completion = await llm.chat.completions.create({
+    model: AVALIADOR_MODEL, temperature: 0.5,
+    messages: [{ role: "system", content: system }, { role: "user", content: p.feedback }],
+  });
+  return completion.choices[0]?.message?.content?.trim() || null;
+}
+
 // ── Gerar rubrica com IA (a partir do enunciado) ─────────────────────────────
 export interface CriterioSugerido { nome: string; descricao: string; peso: number; pontosMax: number }
 
