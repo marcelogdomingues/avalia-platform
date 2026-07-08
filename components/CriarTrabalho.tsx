@@ -115,7 +115,19 @@ export default function CriarTrabalho({ courseId }: { courseId: string }) {
                 <span className="criterion-name">Resolubilidade por IA</span>
                 <span className="criterion-score">{analise.resolubilidade}%</span>
               </div>
-              <div className="bar"><span style={{ width: `${analise.resolubilidade}%` }} /></div>
+              <div className="bar">
+                <span
+                  style={{
+                    width: `${analise.resolubilidade}%`,
+                    background:
+                      analise.resolubilidade >= 70
+                        ? "var(--red)"
+                        : analise.resolubilidade >= 40
+                        ? "var(--amber)"
+                        : "var(--green)",
+                  }}
+                />
+              </div>
             </div>
             {analise.diagnostico && <p className="justif" style={{ marginTop: 10 }}>{analise.diagnostico}</p>}
             {analise.sugestoes.length > 0 && (
