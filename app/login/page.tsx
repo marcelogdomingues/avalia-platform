@@ -1,6 +1,7 @@
 import { getCurrentProfessor } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import AuthPanel from "@/components/AuthPanel";
+import { getLocale } from "@/lib/locale";
 
 export const dynamic = "force-dynamic";
 
@@ -11,5 +12,6 @@ export default async function LoginPage({
 }) {
   if (await getCurrentProfessor()) redirect("/professor");
   const { erro } = await searchParams;
-  return <AuthPanel initialMode="signin" erro={erro} />;
+  const locale = await getLocale();
+  return <AuthPanel initialMode="signin" erro={erro} locale={locale} />;
 }

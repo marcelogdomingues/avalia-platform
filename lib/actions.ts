@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { db } from "./db";
 import { processarSubmissao, aprovarAvaliacao } from "./pipeline";
 import {
@@ -22,6 +23,12 @@ import {
   getCurrentStudent,
   requireStudent,
 } from "./auth";
+
+// ── Idioma ───────────────────────────────────────────────────────────────────
+export async function setLocale(locale: string) {
+  const val = locale === "en" ? "en" : "pt";
+  (await cookies()).set("locale", val, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+}
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 export async function registar(formData: FormData) {

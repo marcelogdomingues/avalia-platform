@@ -529,6 +529,12 @@ details.disclosure > summary::-webkit-details-marker { display: none; }
 
 .theme-toggle { animation: fadeIn .4s ease both; }
 
+/* Entrada do portal (transição login → painel) */
+@keyframes portalSidebar { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+@keyframes portalContent { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.shell > .sidebar { animation: portalSidebar .5s cubic-bezier(.22,.61,.36,1) both; }
+.shell > .content { animation: portalContent .55s cubic-bezier(.22,.61,.36,1) both; animation-delay: .05s; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .particle-field { display: none; }
@@ -540,7 +546,7 @@ details.disclosure > summary::-webkit-details-marker { display: none; }
 @keyframes floatMark { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 @keyframes authIn { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
 
-.auth2 { min-height: 100vh; display: grid; grid-template-columns: 1.05fr 1fr; }
+.auth2 { min-height: 100vh; display: grid; grid-template-columns: 1.05fr 1fr; position: relative; }
 .auth2-brand {
   background: #0f766e; color: #faf7f1; padding: 56px 60px; position: relative; overflow: hidden;
   display: flex; flex-direction: column; justify-content: space-between;
@@ -568,6 +574,19 @@ details.disclosure > summary::-webkit-details-marker { display: none; }
 .auth2-sub { font-size: 15px; line-height: 1.55; color: var(--muted); margin: 0 0 28px; }
 .auth2-switch { text-align: center; font-size: 13.5px; color: var(--muted); margin: 22px 0 0; }
 .auth2-switch a { font-weight: 600; cursor: pointer; }
+
+/* Campo que expande/colapsa no toggle entrar↔criar (pop) */
+.auth2-expand {
+  max-height: 0; opacity: 0; overflow: hidden; transform: translateY(-8px) scale(0.98);
+  transition: max-height .45s cubic-bezier(.22,.61,.36,1), opacity .32s ease, transform .45s cubic-bezier(.22,.61,.36,1);
+}
+.auth2-expand.open { max-height: 120px; opacity: 1; transform: translateY(0) scale(1); }
+
+/* Seletor de idioma */
+.langsw { display: inline-flex; gap: 2px; padding: 3px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; }
+.langsw button { border: 0; background: none; font-family: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0.03em; padding: 4px 10px; border-radius: 999px; cursor: pointer; color: var(--muted); transition: background .15s, color .15s; }
+.langsw button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.auth2-lang { position: absolute; top: 24px; right: 28px; z-index: 2; }
 
 /* ═══════════════════════════════════════════════════════════
    Website — landing de marketing
