@@ -2,6 +2,7 @@ import { requireProfessor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import CriarTrabalho from "@/components/CriarTrabalho";
+import ProfShell from "@/components/ProfShell";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ export default async function CadeiraPage({
   const temTrabalhos = course.assignments.length > 0;
 
   return (
-    <>
+    <ProfShell>
       <div className="breadcrumb">
         <a href="/professor">Cadeiras</a> <span>/</span> <span>{course.nome}</span>
       </div>
@@ -123,6 +124,6 @@ export default async function CadeiraPage({
           <CriarTrabalho courseId={course.id} />
         </div>
       </details>
-    </>
+    </ProfShell>
   );
 }
