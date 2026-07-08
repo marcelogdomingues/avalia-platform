@@ -119,6 +119,38 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
     filtro === "todas" ? true : filtro === "rever" ? !s.aprovado : s.aprovado
   );
   const sel = subs.find((s) => s.id === selId) ?? null;
+
+  // ── Analytics profundos (computados dos subs) ──────────────────────────────
+  // Calibração: onde o professor publicou, quão longe estava a nota da IA.
+  const calibPares = subs.filter((s) => s.aprovado && s.notaIA != null && s.nota != null);
+  const calibDelta = calibPares.length ? calibPares.reduce((a, s) => a + (s.notaIA! - s.nota!), 0) / calibPares.length : null;
+  const calibAjustadas = calibPares.filter((s) => Math.abs(s.notaIA! - s.nota!) >= 0.1).length;
+
+  // Critérios mais fracos: média (em /20) de cada critério na turma.
+  const critAgg = new Map<string, { soma: number; n: number }>();
+  for (const s of subs) for (const c of s.criterios) {
+    if (!c.pontosMax) continue;
+    const v = (c.pontos / c.pontosMax) * 20;
+    const cur = critAgg.get(c.nome) ?? { soma: 0, n: 0 };
+    critAgg.set(c.nome, { soma: cur.soma + v, n: cur.n + 1 });
+  }
+  const criteriosFracos = [...critAgg.entries()]
+    .map(([nome, { soma, n }]) => ({ nome, media: soma / n, n }))
+    .sort((a, b) => a.media - b.media);
+
+  // Alunos em risco: motivos acumulados por submissão.
+  const emRisco = subs
+    .map((s) => {
+      const motivos: string[] = [];
+      if (s.nota != null && s.nota < 9.5) motivos.push("nota baixa");
+      if ((s.deteccaoIA?.probabilidade ?? 0) >= 60) motivos.push("sinal de IA");
+      if (s.simScore >= 0.35) motivos.push(`semelhante a ${s.simNome ?? "outro"}`);
+      if (s.simIA >= 0.12) motivos.push("perto da resposta-tipo IA");
+      if (s.testResult && !s.testResult.gateMet) motivos.push("chumbou nos testes");
+      return { s, motivos };
+    })
+    .filter((x) => x.motivos.length > 0)
+    .sort((a, b) => b.motivos.length - a.motivos.length);
   const porRever = subs.filter((s) => s.estado === "RASCUNHO").length;
 
   // teclado J/K na fila
@@ -425,6 +457,72 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                   })}
                 </div>
               </div>
+
+              {/* Calibração IA vs professor */}
+              {calibPares.length > 0 && calibDelta != null && (
+                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Calibração da IA</div>
+                  <div style={{ fontSize: 13, color: "rgba(29,26,19,0.5)", marginBottom: 18 }}>Diferença entre a nota da IA e a nota que publicaste, nas {calibPares.length} submissões já publicadas.</div>
+                  {(() => {
+                    const abs = Math.abs(calibDelta);
+                    const sentido = abs < 0.1 ? "alinhada com as tuas notas" : calibDelta > 0 ? "otimista (dá mais que tu)" : "pessimista (dá menos que tu)";
+                    const cor = abs < 0.3 ? TEAL : abs < 0.8 ? AMBER : "#9f1d1d";
+                    return (
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap" }}>
+                        <span className="serif" style={{ fontSize: 40, fontWeight: 500, color: cor, lineHeight: 1 }}>{calibDelta > 0 ? "+" : ""}{calibDelta.toFixed(1)}</span>
+                        <span style={{ fontSize: 14, color: "rgba(29,26,19,0.7)" }}>pontos em média — a IA está {sentido}.</span>
+                        <span style={{ marginLeft: "auto", fontSize: 12.5, color: "rgba(29,26,19,0.5)" }}>{calibAjustadas} de {calibPares.length} ajustadas por ti</span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* Critérios mais fracos */}
+              {criteriosFracos.length > 0 && (
+                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Critérios mais fracos da turma</div>
+                  <div style={{ fontSize: 13, color: "rgba(29,26,19,0.5)", marginBottom: 18 }}>Média por critério (em /20) — onde a turma precisa de mais apoio.</div>
+                  <div style={{ display: "grid", gap: 12 }}>
+                    {criteriosFracos.map((c) => {
+                      const cor = c.media < 9.5 ? "#9f1d1d" : c.media < 14 ? AMBER : TEAL;
+                      return (
+                        <div key={c.nome} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                          <div style={{ width: 220, fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.nome}</div>
+                          <div className="bar" style={{ flex: 1 }}><span style={{ width: `${(c.media / 20) * 100}%`, background: cor }} /></div>
+                          <div className="mono" style={{ width: 52, textAlign: "right", fontSize: 13, color: cor, fontWeight: 600 }}>{c.media.toFixed(1)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Alunos em risco */}
+              {emRisco.length > 0 && (
+                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Alunos a acompanhar</div>
+                  <div style={{ fontSize: 13, color: "rgba(29,26,19,0.5)", marginBottom: 18 }}>{emRisco.length} submissões com sinais de alerta — nota baixa, indício de IA, semelhança ou testes falhados.</div>
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {emRisco.map(({ s, motivos }) => (
+                      <button key={s.id} onClick={() => { setView("queue"); setSelId(s.id); }}
+                        style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", borderRadius: 12, background: "var(--surface-2)", border: "1px solid rgba(29,26,19,0.08)", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
+                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: SAND, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.5, fontWeight: 600, flexShrink: 0 }}>{s.initials}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 500 }}>{s.alunoNome}</div>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                            {motivos.map((m) => (
+                              <span key={m} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 999, background: "rgba(159,29,29,0.09)", color: "#9f1d1d" }}>{m}</span>
+                            ))}
+                          </div>
+                        </div>
+                        {s.nota != null && <span className="mono" style={{ fontSize: 14, fontWeight: 600, color: s.nota < 9.5 ? "#9f1d1d" : "rgba(29,26,19,0.6)" }}>{s.nota}</span>}
+                        <span style={{ color: "rgba(29,26,19,0.35)" }}>→</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Insights da turma (IA) */}
               {temLLM && (
