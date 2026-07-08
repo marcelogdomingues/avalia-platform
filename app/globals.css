@@ -189,16 +189,17 @@
   --grad-a: #0f766e; --grad-b: #0d9488;
 }
 :root[data-look="warm"] .particle-field { display: none; }
-:root[data-look="warm"] .logo { background: linear-gradient(135deg, #0f766e, #0d9488); box-shadow: none; }
+:root[data-look="warm"] .brand,
 :root[data-look="warm"] .page-title,
 :root[data-look="warm"] .section-title,
 :root[data-look="warm"] .tile h3,
 :root[data-look="warm"] .student,
 :root[data-look="warm"] .stat .stat-n,
 :root[data-look="warm"] .result-grade {
-  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  font-family: var(--font-newsreader), Georgia, "Times New Roman", serif;
   letter-spacing: 0;
 }
+:root[data-look="warm"] .brand { font-weight: 500; }
 
 /* ═══════════════════════════════════════════════════════════
    Estilos de INPUT alternativos (para comparação; data-inp)
@@ -296,11 +297,15 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   display: flex; align-items: center; gap: 9px; font-weight: 650;
   letter-spacing: -0.02em; font-size: 15px; padding: 6px 8px 16px; color: var(--heading);
 }
+/* Logo Avalia — "A" cuja travessa é um visto (✓), símbolo creme em quadrado teal.
+   O símbolo vem por background-image (data-URI), pelo que a mesma marca aparece
+   em todas as utilizações de <span class="logo"> sem tocar no markup. */
 .logo {
-  width: 28px; height: 28px; border-radius: 8px;
-  background: linear-gradient(140deg, #7c7cf7, #a855f7);
-  box-shadow: 0 2px 10px rgba(124, 124, 247, 0.4), inset 0 1px 0 rgba(255,255,255,0.3);
-  display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 14px;
+  width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+  background-color: #0f766e;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2096%2096'%20fill='none'%20stroke='%23FAF7F1'%20stroke-width='11'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M16%2084%20L48%2014%20L80%2084'/%3E%3Cpath%20d='M28%2054%20L42%2068%20L64%2040'/%3E%3C/svg%3E");
+  background-size: 58%; background-position: center; background-repeat: no-repeat;
+  color: transparent; font-size: 0; line-height: 0; display: inline-block;
 }
 .side-link {
   display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: var(--radius-sm);
