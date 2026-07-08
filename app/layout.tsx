@@ -1,7 +1,13 @@
 import "./globals.css";
-import { Inter } from "next/font/google";
+import { Inter, Newsreader } from "next/font/google";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const newsreader = Newsreader({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-newsreader",
+  display: "swap",
+});
 
 export const metadata = {
   title: "Avalia — Avaliação Automática",
@@ -10,7 +16,7 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt" className={inter.variable}>
+    <html lang="pt" className={`${inter.variable} ${newsreader.variable}`} data-theme="light" data-look="warm">
       <body>{children}</body>
     </html>
   );

@@ -2,9 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { db } from "./db";
 import { processarSubmissao, aprovarAvaliacao } from "./pipeline";
-import { avaliarSubmissao, type Criterio } from "./evaluate";
+import {
+  avaliarSubmissao,
+  gerarRespostaIA,
+  analisarResistenciaIA,
+  type Criterio,
+  type AnaliseEnunciado,
+} from "./evaluate";
 import {
   hashPassword,
   verifyPassword,
@@ -16,6 +23,12 @@ import {
   getCurrentStudent,
   requireStudent,
 } from "./auth";
+
+// ── Idioma ───────────────────────────────────────────────────────────────────
+export async function setLocale(locale: string) {
+  const val = locale === "en" ? "en" : "pt";
+  (await cookies()).set("locale", val, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+}
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 export async function registar(formData: FormData) {
@@ -146,7 +159,42 @@ export async function criarTrabalho(formData: FormData) {
       rubrica: rubrica as any,
     },
   });
+
+  // Linha-base de IA (best-effort: não bloqueia a criação se o LLM falhar).
+  try {
+    const respostaIA = await gerarRespostaIA({ enunciado, instrucoes, rubrica });
+    if (respostaIA) await db.assignment.update({ where: { id: a.id }, data: { respostaIA } });
+  } catch {
+    /* segue sem linha-base; pode gerar-se depois na página do trabalho */
+  }
+
   redirect(`/professor/trabalho/${a.id}`);
+}
+
+// Analisa a resistência do enunciado à IA (chamada pelo builder, antes de criar).
+export async function analisarEnunciadoAction(
+  enunciado: string,
+  instrucoes?: string,
+): Promise<AnaliseEnunciado | null> {
+  await requireProfessor();
+  if (!enunciado.trim()) return null;
+  return analisarResistenciaIA({ enunciado, instrucoes: instrucoes || null });
+}
+
+// (Re)gera a linha-base de IA de um trabalho existente.
+export async function gerarLinhaBase(formData: FormData) {
+  const prof = await requireProfessor();
+  const id = String(formData.get("assignmentId"));
+  const a = await db.assignment.findUnique({ where: { id }, include: { course: true } });
+  if (!a || a.course.professorId !== prof.id) redirect("/professor");
+
+  const respostaIA = await gerarRespostaIA({
+    enunciado: a.enunciado,
+    instrucoes: a.instrucoes,
+    rubrica: a.rubrica as unknown as Criterio[],
+  });
+  if (respostaIA) await db.assignment.update({ where: { id }, data: { respostaIA } });
+  revalidatePath(`/professor/trabalho/${id}`);
 }
 
 export async function apagarTrabalho(formData: FormData) {
@@ -282,6 +330,7 @@ export async function reavaliar(formData: FormData) {
     data: {
       estado: "RASCUNHO",
       porCriterio: r.porCriterio as any,
+      perguntasDefesa: r.perguntasDefesa as any,
       feedbackGlobal: r.feedbackGlobal,
       notaIA: r.notaIA,
       notaFinal: null,

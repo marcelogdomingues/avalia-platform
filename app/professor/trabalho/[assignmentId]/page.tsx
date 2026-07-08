@@ -1,202 +1,75 @@
 import { requireProfessor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { aprovar, reavaliar, apagarTrabalho, aprovarTodas } from "@/lib/actions";
 import { temLLM } from "@/lib/evaluate";
 import { calcularStats } from "@/lib/stats";
-import { calcularSimilaridades } from "@/lib/similaridade";
+import { calcularSimilaridades, similaridadeComTexto } from "@/lib/similaridade";
+import ProfessorPortal, { type Sub } from "@/components/ProfessorPortal";
 
 export const dynamic = "force-dynamic";
 
-function gradeClass(n: number | null | undefined) {
-  if (n == null) return "g-mid";
-  if (n >= 14) return "g-high";
-  if (n >= 9.5) return "g-mid";
-  return "g-low";
-}
+const iniciais = (nome: string) => nome.split(/\s+/).map((s) => s[0]).slice(0, 2).join("").toUpperCase();
+const round1 = (n: number | null | undefined) => (n != null ? Math.round(n * 10) / 10 : null);
 
-export default async function TrabalhoPage({
-  params,
-}: {
-  params: Promise<{ assignmentId: string }>;
-}) {
+export default async function TrabalhoPage({ params }: { params: Promise<{ assignmentId: string }> }) {
   const prof = await requireProfessor();
   const { assignmentId } = await params;
-  const a = await db.assignment.findFirst({
-    where: { id: assignmentId, course: { professorId: prof.id } },
-    include: {
-      course: true,
-      submissions: { include: { evaluation: true }, orderBy: { createdAt: "desc" } },
-    },
-  });
+
+  const [a, courses] = await Promise.all([
+    db.assignment.findFirst({
+      where: { id: assignmentId, course: { professorId: prof.id } },
+      include: { course: true, submissions: { include: { evaluation: true }, orderBy: { createdAt: "desc" } } },
+    }),
+    db.course.findMany({ where: { professorId: prof.id }, orderBy: { createdAt: "desc" }, select: { id: true, nome: true } }),
+  ]);
   if (!a) notFound();
 
   const stats = calcularStats(a.submissions.map((s) => s.evaluation ?? { estado: "PENDENTE", notaIA: null, notaFinal: null }));
-  const sims = calcularSimilaridades(
-    a.submissions.map((s) => ({ id: s.id, alunoNome: s.alunoNome, conteudoExtraido: s.conteudoExtraido })),
-  );
-  const maxDist = Math.max(1, ...stats.distribuicao.map((d) => d.n));
-  const pendentes = a.submissions.filter((s) => s.evaluation?.estado === "RASCUNHO").length;
+  const sims = calcularSimilaridades(a.submissions.map((s) => ({ id: s.id, alunoNome: s.alunoNome, conteudoExtraido: s.conteudoExtraido })));
+
+  const subs: Sub[] = a.submissions.map((s) => {
+    const ev = s.evaluation;
+    const aprovado = ev?.estado === "APROVADO";
+    const nota = aprovado ? ev?.notaFinal ?? ev?.notaIA ?? null : ev?.notaIA ?? null;
+    const sim = sims.get(s.id);
+    return {
+      id: s.id,
+      evaluationId: ev?.id ?? null,
+      alunoNome: s.alunoNome,
+      alunoNumero: s.alunoNumero,
+      initials: iniciais(s.alunoNome),
+      date: new Intl.DateTimeFormat("pt-PT", { day: "2-digit", month: "short" }).format(s.createdAt),
+      estado: ev?.estado ?? "PENDENTE",
+      aprovado,
+      nota: round1(nota),
+      notaIA: round1(ev?.notaIA),
+      criterios: ((ev?.porCriterio as { nome: string; pontos: number; pontosMax: number; justificacao: string }[] | null) ?? []).map((c) => ({
+        nome: c.nome, pontos: c.pontos, pontosMax: c.pontosMax, justificacao: c.justificacao,
+      })),
+      feedback: ev?.feedbackGlobal ?? null,
+      perguntas: (ev?.perguntasDefesa as string[] | null) ?? [],
+      simIA: similaridadeComTexto(s.conteudoExtraido, a.respostaIA),
+      simNome: sim?.outroNome ?? null,
+      simScore: sim?.score ?? 0,
+      modelo: ev?.modelo ?? null,
+    };
+  });
+
+  const rubrica = ((a.rubrica as { nome: string; peso: number; pontosMax: number; descricao: string }[]) ?? []).map((c) => ({
+    nome: c.nome, peso: c.peso, pontosMax: c.pontosMax, descricao: c.descricao,
+  }));
 
   return (
-    <>
-      <div className="breadcrumb">
-        <a href="/professor">Cadeiras</a> <span>/</span>
-        <a href={`/professor/cadeira/${a.courseId}`}>{a.course.nome}</a> <span>/</span>
-        <span>{a.titulo}</span>
-      </div>
-
-      <div className="row-between">
-        <h1 className="page-title" style={{ margin: 0 }}>{a.titulo}</h1>
-        <div className="btn-row">
-          <a className="btn secondary sm" href={`/professor/trabalho/${a.id}/editar`}>Editar</a>
-          <form action={apagarTrabalho}>
-            <input type="hidden" name="assignmentId" value={a.id} />
-            <button className="btn danger sm" type="submit">Apagar</button>
-          </form>
-        </div>
-      </div>
-      <p className="page-sub">{a.enunciado}</p>
-
-      {!temLLM && (
-        <div className="demo-banner">
-          <span>⚠️</span>
-          <span>Modo demo — notas por heurística. Define <code>LLM_API_KEY</code> no <code>.env</code> para avaliação real.</span>
-        </div>
-      )}
-
-      {/* Estatísticas */}
-      {stats.total > 0 && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <span className="eyebrow">Estatísticas</span>
-          <div className="row-between" style={{ marginTop: 12, flexWrap: "wrap", gap: 20 }}>
-            <div className="statgrid">
-              <div className="stat"><div className="stat-n">{stats.total}</div><div className="stat-l">submissões</div></div>
-              <div className="stat"><div className="stat-n">{stats.media ?? "—"}</div><div className="stat-l">média /20</div></div>
-              <div className="stat"><div className="stat-n">{stats.min ?? "—"}–{stats.max ?? "—"}</div><div className="stat-l">min–máx</div></div>
-              <div className="stat"><div className="stat-n">{stats.aprovadas}/{stats.total}</div><div className="stat-l">aprovadas</div></div>
-            </div>
-            <div className="histo">
-              {stats.distribuicao.map((d) => (
-                <div key={d.faixa} className="histo-col">
-                  <div className="histo-bar" style={{ height: `${(d.n / maxDist) * 60 + 2}px` }} title={`${d.n}`} />
-                  <div className="histo-lbl">{d.faixa}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Link do aluno + ações */}
-      <div className="card" style={{ marginBottom: 24 }}>
-        <div className="row-between" style={{ flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <span className="eyebrow">Link de submissão do aluno</span>
-            <div style={{ marginTop: 6 }}><span className="submit-link">🔗 <code>/submeter/{a.submitToken}</code></span></div>
-          </div>
-          <div className="btn-row">
-            <a className="btn secondary sm" href={`/submeter/${a.submitToken}`} target="_blank">Abrir página do aluno ↗</a>
-            <a className="btn sm" href={`/professor/trabalho/${a.id}/export`}>⬇ Exportar CSV</a>
-          </div>
-        </div>
-      </div>
-
-      <div className="row-between" style={{ marginBottom: 10 }}>
-        <h2 className="section-title">Submissões ({a.submissions.length})</h2>
-        {pendentes > 0 && (
-          <form action={aprovarTodas}>
-            <input type="hidden" name="assignmentId" value={a.id} />
-            <button className="btn secondary sm" type="submit">✓ Aprovar {pendentes} pendente(s)</button>
-          </form>
-        )}
-      </div>
-
-      {a.submissions.length === 0 ? (
-        <div className="card empty-state"><div className="big">📥</div><p>Ainda sem submissões. Partilha o link acima.</p></div>
-      ) : (
-        a.submissions.map((s) => {
-          const ev = s.evaluation;
-          const criterios = (ev?.porCriterio as any[]) ?? [];
-          const estado = (ev?.estado ?? "PENDENTE").toLowerCase();
-          const aprovado = ev?.estado === "APROVADO";
-          const nota = aprovado ? ev?.notaFinal ?? ev?.notaIA : ev?.notaIA;
-          const sim = sims.get(s.id);
-          const alta = sim && sim.score >= 0.35;
-          return (
-            <div key={s.id} className="card submission">
-              <div className="submission-head">
-                <div>
-                  <div className="student">
-                    {s.alunoNome}
-                    {s.alunoNumero ? <span className="num"> · nº {s.alunoNumero}</span> : null}
-                    {s.studentId ? <span className="num" title="Conta de aluno"> · ✓ conta</span> : null}
-                  </div>
-                  <span className="model-tag">{ev?.modelo ?? "—"}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  {sim && sim.score >= 0.15 && (
-                    <span className={`badge ${alta ? "s-erro" : "s-rascunho"}`} title={`Parecido com ${sim.outroNome}`}>
-                      ⚠ {Math.round(sim.score * 100)}% similar
-                    </span>
-                  )}
-                  <span className={`badge s-${estado}`}>{ev?.estado ?? "PENDENTE"}</span>
-                  <span className={`grade ${gradeClass(nota)}`}>{nota ?? "—"}<span className="max">/20</span></span>
-                </div>
-              </div>
-
-              {alta && (
-                <div className="err-banner" style={{ margin: "12px 0 0" }}>
-                  Alta similaridade ({Math.round(sim!.score * 100)}%) com a submissão de <b>{sim!.outroNome}</b> — possível cópia.
-                </div>
-              )}
-
-              <ul className="criteria">
-                {criterios.map((c) => {
-                  const pct = c.pontosMax > 0 ? Math.round((c.pontos / c.pontosMax) * 100) : 0;
-                  return (
-                    <li key={c.criterioId} className="criterion">
-                      <div className="criterion-top">
-                        <span className="criterion-name">{c.nome}</span>
-                        <span className="criterion-score">{c.pontos}/{c.pontosMax}</span>
-                      </div>
-                      <div className="bar"><span style={{ width: `${pct}%` }} /></div>
-                      <p className="justif">{c.justificacao}</p>
-                    </li>
-                  );
-                })}
-              </ul>
-
-              {ev?.feedbackGlobal && <div className="feedback">{ev.feedbackGlobal}</div>}
-
-              <hr className="hr" />
-              <div className="row-between" style={{ flexWrap: "wrap", gap: 12 }}>
-                {ev && !aprovado ? (
-                  <form action={aprovar} className="btn-row" style={{ alignItems: "end" }}>
-                    <input type="hidden" name="evaluationId" value={ev.id} />
-                    <div className="field" style={{ margin: 0, width: 96 }}>
-                      <label>Nota final</label>
-                      <input name="notaFinal" type="number" step="0.1" min="0" max="20" defaultValue={ev.notaIA ?? undefined} />
-                    </div>
-                    <button className="btn" type="submit">Aprovar</button>
-                  </form>
-                ) : (
-                  <span className="muted" style={{ fontSize: 14 }}>
-                    {aprovado ? `✓ Aprovado — nota final ${ev?.notaFinal ?? ev?.notaIA}/20` : "Sem avaliação"}
-                  </span>
-                )}
-                <div className="btn-row">
-                  <a className="btn ghost sm" href={`/recibo/${s.id}`} target="_blank">Ver recibo ↗</a>
-                  <form action={reavaliar}>
-                    <input type="hidden" name="submissionId" value={s.id} />
-                    <button className="btn ghost sm" type="submit">↻ Re-avaliar</button>
-                  </form>
-                </div>
-              </div>
-            </div>
-          );
-        })
-      )}
-    </>
+    <ProfessorPortal
+      prof={{ nome: prof.nome, initials: iniciais(prof.nome) }}
+      courses={courses}
+      assignment={{
+        id: a.id, titulo: a.titulo, courseId: a.courseId, courseNome: a.course.nome,
+        submitToken: a.submitToken, temBaseline: !!a.respostaIA, rubrica,
+      }}
+      subs={subs}
+      stats={stats}
+      temLLM={temLLM}
+    />
   );
 }

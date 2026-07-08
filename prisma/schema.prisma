@@ -44,6 +44,7 @@ model Assignment {
   rubrica          Json // [{ id, nome, descricao, peso, pontosMax }]
   instrucoes       String?
   solucaoModelo    String?
+  respostaIA       String? // linha-base: resposta que uma IA genérica produz para este enunciado
   feedbackImediato Boolean  @default(false)
   submitToken      String   @unique @default(cuid())
   createdAt        DateTime @default(now())
@@ -90,6 +91,7 @@ model Evaluation {
   submissionId   String    @unique
   estado         String    @default("PENDENTE")
   porCriterio    Json? // [{ criterioId, nome, pontos, pontosMax, justificacao }]
+  perguntasDefesa Json? // [string] perguntas de verificação oral, específicas à submissão
   feedbackGlobal String?
   notaIA         Float?
   notaFinal      Float?
