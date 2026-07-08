@@ -57,6 +57,7 @@ export async function processarSubmissao(params: {
         estado: "RASCUNHO", // à espera de validação do professor
         porCriterio: resultado.porCriterio as any,
         perguntasDefesa: resultado.perguntasDefesa as any,
+        deteccaoIA: resultado.deteccaoIA as any,
         feedbackGlobal: resultado.feedbackGlobal,
         notaIA: resultado.notaIA,
         modelo: resultado.modelo,

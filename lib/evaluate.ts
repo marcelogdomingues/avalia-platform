@@ -18,10 +18,16 @@ export interface NotaCriterio {
   justificacao: string;
 }
 
+export interface DeteccaoIA {
+  probabilidade: number; // 0–100: estimativa de o texto ter sido gerado por IA
+  indicadores: string[]; // marcadores observados (fraseado genérico, falta de voz própria…)
+}
+
 export interface ResultadoAvaliacao {
   porCriterio: NotaCriterio[];
   feedbackGlobal: string;
   perguntasDefesa: string[]; // verificação oral, específicas à submissão
+  deteccaoIA: DeteccaoIA | null; // sinal de uso de IA (não veredicto)
   notaIA: number; // soma ponderada, escala 0–20
   tokensInput: number;
   tokensOutput: number;
@@ -62,7 +68,8 @@ async function avaliarComLLM(p: ParamsAvaliacao): Promise<ResultadoAvaliacao> {
     { "criterioId": "<id da rubrica>", "nome": "<nome>", "pontos": <número>, "pontosMax": <número>, "justificacao": "<texto>" }
   ],
   "feedbackGlobal": "<comentário global ao aluno>",
-  "perguntasDefesa": ["<pergunta 1>", "<pergunta 2>", "<pergunta 3>"]
+  "perguntasDefesa": ["<pergunta 1>", "<pergunta 2>", "<pergunta 3>"],
+  "deteccaoIA": { "probabilidade": <0-100>, "indicadores": ["<indício 1>", "<indício 2>"] }
 }`;
 
   const system = [
@@ -82,8 +89,13 @@ async function avaliarComLLM(p: ParamsAvaliacao): Promise<ResultadoAvaliacao> {
     "Valoriza autoria autêntica: reflexão pessoal, exemplos originais e específicos, defesa",
     "fundamentada de escolhas e ligação a contexto concreto. Conteúdo genérico, vago ou de",
     "'sabor IA' (sem posição própria nem especificidade) não deve receber nota alta nos",
-    "critérios que exijam essas qualidades. NÃO acuses de uso de IA — limita-te a avaliar a",
-    "qualidade e a especificidade segundo a rubrica.",
+    "critérios que exijam essas qualidades.",
+    "",
+    "Em deteccaoIA, estima a probabilidade (0-100) de o texto ter sido GERADO POR IA, com base",
+    "em marcadores linguísticos: fraseado genérico e polido, estrutura demasiado uniforme,",
+    "ausência de voz pessoal/opinião, ausência de erros ou hesitações humanas, afirmações",
+    "vagas sem especificidade nem exemplos próprios. Lista 2-4 indicadores concretos observados.",
+    "É um SINAL para o professor pesar, NÃO um veredicto — assume incerteza e NÃO acuses.",
     "",
     "## Enunciado",
     enunciado,
@@ -128,12 +140,23 @@ async function avaliarComLLM(p: ParamsAvaliacao): Promise<ResultadoAvaliacao> {
     porCriterio: NotaCriterio[];
     feedbackGlobal: string;
     perguntasDefesa?: string[];
+    deteccaoIA?: { probabilidade?: number; indicadores?: string[] };
   };
+
+  const det = parsed.deteccaoIA;
+  const deteccaoIA: DeteccaoIA | null =
+    det && det.probabilidade != null
+      ? {
+          probabilidade: Math.max(0, Math.min(100, Math.round(Number(det.probabilidade) || 0))),
+          indicadores: Array.isArray(det.indicadores) ? det.indicadores.filter(Boolean).map(String) : [],
+        }
+      : null;
 
   return {
     porCriterio: parsed.porCriterio,
     feedbackGlobal: parsed.feedbackGlobal,
     perguntasDefesa: Array.isArray(parsed.perguntasDefesa) ? parsed.perguntasDefesa.filter(Boolean) : [],
+    deteccaoIA,
     notaIA: notaPonderada(parsed.porCriterio, rubrica),
     tokensInput: completion.usage?.prompt_tokens ?? 0,
     tokensOutput: completion.usage?.completion_tokens ?? 0,
@@ -255,6 +278,7 @@ function avaliarOffline(p: ParamsAvaliacao): ResultadoAvaliacao {
       "[MODO DEMO] Explica por palavras tuas a ideia central do teu trabalho.",
       "[MODO DEMO] Que escolha farias diferente e porquê?",
     ],
+    deteccaoIA: null,
     notaIA: notaPonderada(porCriterio, rubrica),
     tokensInput: 0,
     tokensOutput: 0,

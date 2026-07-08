@@ -25,6 +25,7 @@ export type Sub = {
   criterios: Crit[];
   feedback: string | null;
   perguntas: string[];
+  deteccaoIA: { probabilidade: number; indicadores: string[] } | null;
   simIA: number;
   simNome: string | null;
   simScore: number;
@@ -187,7 +188,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 14, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
                             {s.alunoNome}
-                            {s.simIA >= 0.12 && <span title="Proximidade com a IA" style={{ width: 6, height: 6, borderRadius: "50%", background: AMBER }} />}
+                            {(s.simIA >= 0.12 || (s.deteccaoIA?.probabilidade ?? 0) >= 60) && <span title="Sinal de uso de IA" style={{ width: 6, height: 6, borderRadius: "50%", background: AMBER }} />}
                           </div>
                           <div style={{ fontSize: 12, color: "rgba(29,26,19,0.5)" }}>{s.date}</div>
                         </div>
@@ -231,6 +232,30 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                           })}
                         </div>
                       </div>
+
+                      {/* Deteção de uso de IA (sinal, não veredicto) */}
+                      {sel.deteccaoIA && (() => {
+                        const p = sel.deteccaoIA.probabilidade;
+                        const cor = p >= 70 ? "#9f1d1d" : p >= 40 ? AMBER : TEAL;
+                        const nivel = p >= 70 ? "alta" : p >= 40 ? "moderada" : "baixa";
+                        return (
+                          <div style={{ background: `${cor}0f`, border: `1px solid ${cor}33`, borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                              <span className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.55)" }}>Deteção de uso de IA</span>
+                              <span style={{ fontSize: 12.5, fontWeight: 600, color: cor }}>{p}% · probabilidade {nivel}</span>
+                            </div>
+                            <div className="mbar"><span style={{ width: `${p}%`, background: cor }} /></div>
+                            {sel.deteccaoIA.indicadores.length > 0 && (
+                              <ul style={{ margin: "12px 0 0", paddingLeft: 18, fontSize: 13, lineHeight: 1.55, color: "rgba(29,26,19,0.72)" }}>
+                                {sel.deteccaoIA.indicadores.map((ind, i) => <li key={i} style={{ marginBottom: 3 }}>{ind}</li>)}
+                              </ul>
+                            )}
+                            <div style={{ marginTop: 10, fontSize: 11.5, color: "rgba(29,26,19,0.5)", lineHeight: 1.5 }}>
+                              Sinal probabilístico, não um veredicto — pode ter falsos positivos. Confirma com as perguntas de defesa antes de decidir.
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* Sinais anti-IA / plágio */}
                       {(sel.simIA >= 0.12 || sel.simScore >= 0.35) && (

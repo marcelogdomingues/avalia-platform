@@ -92,6 +92,7 @@ model Evaluation {
   estado         String    @default("PENDENTE")
   porCriterio    Json? // [{ criterioId, nome, pontos, pontosMax, justificacao }]
   perguntasDefesa Json? // [string] perguntas de verificação oral, específicas à submissão
+  deteccaoIA     Json? // { probabilidade: 0-100, indicadores: [string] } — sinal de uso de IA
   feedbackGlobal String?
   notaIA         Float?
   notaFinal      Float?

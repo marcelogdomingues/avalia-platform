@@ -331,6 +331,7 @@ export async function reavaliar(formData: FormData) {
       estado: "RASCUNHO",
       porCriterio: r.porCriterio as any,
       perguntasDefesa: r.perguntasDefesa as any,
+      deteccaoIA: r.deteccaoIA as any,
       feedbackGlobal: r.feedbackGlobal,
       notaIA: r.notaIA,
       notaFinal: null,
