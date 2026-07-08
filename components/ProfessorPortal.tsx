@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction } from "@/lib/actions";
+import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, type Snippet } from "@/lib/actions";
 import type { InsightsTurma, TomFeedback } from "@/lib/evaluate";
 import type { AnaliseIntegridade } from "@/lib/similaridade";
 
@@ -48,6 +48,7 @@ export type PortalProps = {
   subs: Sub[];
   stats: { total: number; media: number | null; min: number | null; max: number | null; aprovadas: number; distribuicao: { faixa: string; n: number }[] };
   integridade: AnaliseIntegridade;
+  snippets: Snippet[];
   temLLM: boolean;
 };
 
@@ -79,7 +80,7 @@ function statusOf(s: Sub): { label: string; color: string } {
   return { label: "Pendente", color: "rgba(29,26,19,0.55)" };
 }
 
-export default function ProfessorPortal({ prof, courses, assignment, subs, stats, integridade, temLLM }: PortalProps) {
+export default function ProfessorPortal({ prof, courses, assignment, subs, stats, integridade, snippets: snippetsIniciais, temLLM }: PortalProps) {
   const [view, setView] = useState<"queue" | "rubrics" | "analytics" | "integrity">("queue");
   const [filtro, setFiltro] = useState<"todas" | "rever" | "publicadas">("todas");
   const [selId, setSelId] = useState<string | null>(subs[0]?.id ?? null);
@@ -105,14 +106,52 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
     setMelhorarLoading(true);
     try {
       const novo = await melhorarFeedbackAction(ta.value, tom);
-      if (novo) {
-        const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")!.set!;
-        setter.call(ta, novo);
-        ta.dispatchEvent(new Event("input", { bubbles: true }));
-      }
+      if (novo) setFeedbackValor(novo);
     } finally {
       setMelhorarLoading(false);
     }
+  }
+
+  // Escreve no textarea de feedback disparando o onChange do React.
+  function setFeedbackValor(v: string) {
+    const ta = feedbackRef.current;
+    if (!ta) return;
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")!.set!;
+    setter.call(ta, v);
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    ta.focus();
+  }
+
+  // ── Banco de comentários ───────────────────────────────────────────────────
+  const [snippets, setSnippets] = useState<Snippet[]>(snippetsIniciais);
+  const [novoAtalho, setNovoAtalho] = useState("");
+  const [aGuardar, setAGuardar] = useState(false);
+  const [, startSnippet] = useTransition();
+
+  function inserirSnippet(s: Snippet) {
+    const ta = feedbackRef.current;
+    const atual = ta?.value ?? "";
+    setFeedbackValor(atual.trim() ? `${atual.trim()} ${s.texto}` : s.texto);
+    setSnippets((ss) => ss.map((x) => (x.id === s.id ? { ...x, usos: x.usos + 1 } : x)).sort((a, b) => b.usos - a.usos));
+    startSnippet(() => { usarSnippet(s.id); });
+  }
+
+  function guardarSnippet() {
+    const ta = feedbackRef.current;
+    const texto = ta?.value?.trim() ?? "";
+    const atalho = novoAtalho.trim();
+    if (!texto || !atalho) return;
+    startSnippet(async () => {
+      const criado = await criarSnippet(atalho, texto);
+      if (criado) setSnippets((ss) => [criado, ...ss]);
+      setNovoAtalho("");
+      setAGuardar(false);
+    });
+  }
+
+  function removerSnippet(id: string) {
+    setSnippets((ss) => ss.filter((s) => s.id !== id));
+    startSnippet(() => { apagarSnippet(id); });
   }
 
   const visiveis = subs.filter((s) =>
@@ -397,6 +436,33 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                               )}
                             </div>
                             <textarea key={sel.id} ref={feedbackRef} name="feedback" defaultValue={sel.feedback ?? ""} style={{ width: "100%", minHeight: 110 }} />
+
+                            {/* Banco de comentários reutilizáveis */}
+                            <div style={{ marginTop: 10 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                <span className="mono" style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(29,26,19,0.4)" }}>Banco de comentários</span>
+                                {snippets.map((s) => (
+                                  <span key={s.id} title={s.texto} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--surface-2)", border: "1px solid rgba(29,26,19,0.12)", borderRadius: 999, padding: "3px 4px 3px 10px", fontSize: 12 }}>
+                                    <button type="button" onClick={() => inserirSnippet(s)} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 12, color: INK, padding: 0 }}>
+                                      {s.atalho}{s.usos > 0 && <span style={{ color: "rgba(29,26,19,0.35)", marginLeft: 5 }}>{s.usos}</span>}
+                                    </button>
+                                    <button type="button" title="Remover atalho" onClick={() => removerSnippet(s.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(29,26,19,0.35)", fontSize: 13, lineHeight: 1, padding: "0 2px" }}>×</button>
+                                  </span>
+                                ))}
+                                {!aGuardar && (
+                                  <button type="button" className="btn ghost sm" onClick={() => setAGuardar(true)} style={{ padding: "3px 9px", fontSize: 11.5 }} title="Guarda o feedback atual como atalho reutilizável">＋ guardar atalho</button>
+                                )}
+                              </div>
+                              {aGuardar && (
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                                  <input value={novoAtalho} onChange={(e) => setNovoAtalho(e.target.value)} placeholder="etiqueta (ex.: falta exemplo)" autoFocus
+                                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); guardarSnippet(); } }}
+                                    style={{ flex: 1, maxWidth: 260, fontSize: 13, padding: "6px 10px" }} />
+                                  <button type="button" className="btn secondary sm" onClick={guardarSnippet} disabled={!novoAtalho.trim()}>Guardar</button>
+                                  <button type="button" className="btn ghost sm" onClick={() => { setAGuardar(false); setNovoAtalho(""); }}>Cancelar</button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                           <div style={{ display: "flex", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
                             <div className="field" style={{ margin: 0, width: 100 }}>

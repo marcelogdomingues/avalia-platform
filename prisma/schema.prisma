@@ -19,7 +19,22 @@ model Professor {
   password  String // scrypt: "salt:hash"
   createdAt DateTime @default(now())
 
-  courses Course[]
+  courses  Course[]
+  snippets CommentSnippet[]
+}
+
+// Banco de comentários reutilizáveis do professor (superpoder de correção).
+model CommentSnippet {
+  id          String   @id @default(cuid())
+  professorId String
+  atalho      String // etiqueta curta
+  texto       String
+  usos        Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  professor Professor @relation(fields: [professorId], references: [id], onDelete: Cascade)
+
+  @@index([professorId])
 }
 
 model Course {

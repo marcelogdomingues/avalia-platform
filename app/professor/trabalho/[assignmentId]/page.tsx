@@ -15,12 +15,13 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
   const prof = await requireProfessor();
   const { assignmentId } = await params;
 
-  const [a, courses] = await Promise.all([
+  const [a, courses, snippets] = await Promise.all([
     db.assignment.findFirst({
       where: { id: assignmentId, course: { professorId: prof.id } },
       include: { course: true, submissions: { include: { evaluation: true }, orderBy: { createdAt: "desc" } } },
     }),
     db.course.findMany({ where: { professorId: prof.id }, orderBy: { createdAt: "desc" }, select: { id: true, nome: true } }),
+    db.commentSnippet.findMany({ where: { professorId: prof.id }, orderBy: [{ usos: "desc" }, { createdAt: "desc" }], select: { id: true, atalho: true, texto: true, usos: true } }),
   ]);
   if (!a) notFound();
 
@@ -74,6 +75,7 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
       subs={subs}
       stats={stats}
       integridade={integridade}
+      snippets={snippets}
       temLLM={temLLM}
     />
   );

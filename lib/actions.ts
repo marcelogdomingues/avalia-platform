@@ -237,6 +237,39 @@ export async function melhorarFeedbackAction(feedback: string, tom: TomFeedback)
   return melhorarFeedback({ feedback, tom });
 }
 
+// ── Banco de comentários (snippets reutilizáveis do professor) ────────────────
+export interface Snippet { id: string; atalho: string; texto: string; usos: number }
+
+export async function listarSnippets(): Promise<Snippet[]> {
+  const prof = await requireProfessor();
+  return db.commentSnippet.findMany({
+    where: { professorId: prof.id },
+    orderBy: [{ usos: "desc" }, { createdAt: "desc" }],
+    select: { id: true, atalho: true, texto: true, usos: true },
+  });
+}
+
+export async function criarSnippet(atalho: string, texto: string): Promise<Snippet | null> {
+  const prof = await requireProfessor();
+  const a = atalho.trim(), t = texto.trim();
+  if (!a || !t) return null;
+  return db.commentSnippet.create({
+    data: { professorId: prof.id, atalho: a.slice(0, 40), texto: t.slice(0, 2000) },
+    select: { id: true, atalho: true, texto: true, usos: true },
+  });
+}
+
+export async function apagarSnippet(id: string): Promise<void> {
+  const prof = await requireProfessor();
+  await db.commentSnippet.deleteMany({ where: { id, professorId: prof.id } });
+}
+
+// Incrementa o contador de usos (fire-and-forget ao inserir no feedback).
+export async function usarSnippet(id: string): Promise<void> {
+  const prof = await requireProfessor();
+  await db.commentSnippet.updateMany({ where: { id, professorId: prof.id }, data: { usos: { increment: 1 } } });
+}
+
 // Deteção exata dos nomes de teste — corre a coleção do runner (ex.: pytest
 // --collect-only). Devolve os nomes reais; o editor usa-os em vez do regex.
 export async function detetarTestesAction(lang: Lang, conteudo: string): Promise<{ nomes: string[]; erro?: string }> {
