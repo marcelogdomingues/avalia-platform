@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useFormStatus } from "react-dom";
 import { aprovar, reavaliar, gerarLinhaBase, sair } from "@/lib/actions";
 
 const TEAL = "#0f766e";
@@ -47,6 +48,19 @@ function Mark({ size = 26 }: { size?: number }) {
     <svg viewBox="0 0 96 96" width={size} height={size} fill="none" stroke={TEAL} strokeWidth={11} strokeLinecap="round" strokeLinejoin="round">
       <path d="M16 84 L48 14 L80 84" /><path d="M28 54 L42 68 L64 40" />
     </svg>
+  );
+}
+
+function SubmitBtn({
+  className, style, pendingLabel, children,
+}: {
+  className: string; style?: React.CSSProperties; pendingLabel: string; children: React.ReactNode;
+}) {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" className={className} style={style} disabled={pending} aria-busy={pending}>
+      {pending ? pendingLabel : children}
+    </button>
   );
 }
 
@@ -136,7 +150,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
             {temLLM && (
               <form action={gerarLinhaBase}>
                 <input type="hidden" name="assignmentId" value={assignment.id} />
-                <button type="submit" className="btn secondary sm">{assignment.temBaseline ? "↻ Linha-base" : "Gerar linha-base"}</button>
+                <SubmitBtn className="btn secondary sm" pendingLabel="A gerar…">{assignment.temBaseline ? "↻ Linha-base" : "Gerar linha-base"}</SubmitBtn>
               </form>
             )}
             <a className="btn sm" href={`/professor/trabalho/${assignment.id}/export`}>⬇ Exportar CSV</a>
@@ -256,7 +270,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                               <label>Nota final</label>
                               <input name="notaFinal" type="number" step="0.1" min="0" max="20" defaultValue={sel.notaIA ?? undefined} />
                             </div>
-                            <button className="btn" type="submit" style={{ padding: "13px 22px" }}>Aprovar &amp; publicar</button>
+                            <SubmitBtn className="btn" style={{ padding: "13px 22px" }} pendingLabel="A publicar…">Aprovar &amp; publicar</SubmitBtn>
                           </div>
                         </form>
                       ) : (
@@ -268,7 +282,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                       <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 16 }}>
                         <form action={reavaliar}>
                           <input type="hidden" name="submissionId" value={sel.id} />
-                          <button type="submit" className="btn ghost sm">↻ Re-avaliar</button>
+                          <SubmitBtn className="btn ghost sm" pendingLabel="↻ A re-avaliar…">↻ Re-avaliar</SubmitBtn>
                         </form>
                         <a className="btn ghost sm" href={`/recibo/${sel.id}`} target="_blank">Ver recibo ↗</a>
                         <span className="mono" style={{ marginLeft: "auto", fontSize: 11.5, color: "rgba(29,26,19,0.45)" }}>{sel.modelo ?? ""}</span>
