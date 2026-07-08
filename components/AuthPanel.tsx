@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useFormStatus } from "react-dom";
 import { entrar, registar } from "@/lib/actions";
+import { getDict, type Locale } from "@/lib/i18n";
+import LangSwitcher from "./LangSwitcher";
 
 function Mark({ size = 30, stroke = "#faf7f1", w = 11 }: { size?: number; stroke?: string; w?: number }) {
   return (
@@ -12,13 +15,25 @@ function Mark({ size = 30, stroke = "#faf7f1", w = 11 }: { size?: number; stroke
   );
 }
 
+function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <button className="btn" type="submit" disabled={pending} style={{ width: "100%", justifyContent: "center", padding: "13px", opacity: pending ? 0.85 : 1 }}>
+      {pending ? pendingLabel : label}
+    </button>
+  );
+}
+
 export default function AuthPanel({
   initialMode = "signin",
   erro,
+  locale = "pt",
 }: {
   initialMode?: "signin" | "signup";
   erro?: string;
+  locale?: Locale;
 }) {
+  const t = getDict(locale).auth;
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const isUp = mode === "signup";
 
@@ -34,71 +49,65 @@ export default function AuthPanel({
           <Mark size={120} stroke="rgba(250,247,241,0.9)" w={10} />
         </div>
         <div>
-          <div className="auth2-eyebrow">Avaliação com IA · validação humana</div>
-          <p className="auth2-quote">“A primeira passagem é automática. O juízo continua humano.”</p>
+          <div className="auth2-eyebrow">{t.eyebrow}</div>
+          <p className="auth2-quote">{t.quote}</p>
           <div className="auth2-badges">
-            <span>Avaliação por rubrica</span>
-            <span>Revisão humana</span>
-            <span>Sinais anti-IA</span>
+            {t.badges.map((b) => (
+              <span key={b}>{b}</span>
+            ))}
           </div>
         </div>
       </div>
 
       {/* Formulário */}
       <div className="auth2-formwrap">
+        <div className="auth2-lang">
+          <LangSwitcher locale={locale} />
+        </div>
         <div className="auth2-card">
           <div className="seg auth2-toggle">
-            <button type="button" className={!isUp ? "active" : ""} onClick={() => setMode("signin")}>Entrar</button>
-            <button type="button" className={isUp ? "active" : ""} onClick={() => setMode("signup")}>Criar conta</button>
+            <button type="button" className={!isUp ? "active" : ""} onClick={() => setMode("signin")}>{t.signin}</button>
+            <button type="button" className={isUp ? "active" : ""} onClick={() => setMode("signup")}>{t.signup}</button>
           </div>
 
-          <h1 className="auth2-title">{isUp ? "Cria a tua conta" : "Bem-vindo de volta"}</h1>
-          <p className="auth2-sub">
-            {isUp ? "Configura em menos de um minuto — sem cartão." : "Entra para continuar a rever as tuas avaliações."}
-          </p>
+          <h1 className="auth2-title">{isUp ? t.createTitle : t.welcomeTitle}</h1>
+          <p className="auth2-sub">{isUp ? t.createSub : t.welcomeSub}</p>
 
           {erro && (
             <div className="err-banner" style={{ marginBottom: 20 }}>
-              {erro === "email"
-                ? "Já existe uma conta com esse email."
-                : erro === "campos"
-                ? "Preenche todos os campos (password com 6+ caracteres)."
-                : "Email ou password incorretos."}
+              {erro === "email" ? t.errEmail : erro === "campos" ? t.errFields : t.errCreds}
             </div>
           )}
 
           <form action={isUp ? registar : entrar}>
-            {isUp && (
+            {/* Campo Nome — expande com pop no modo criar conta */}
+            <div className={`auth2-expand ${isUp ? "open" : ""}`}>
               <div className="field">
-                <label>Nome completo</label>
-                <input name="nome" required placeholder="Prof. Elena Ramos" />
+                <label>{t.name}</label>
+                <input name="nome" required={isUp} placeholder={t.namePh} />
               </div>
-            )}
+            </div>
+
             <div className="field">
-              <label>Email institucional</label>
-              <input name="email" type="email" required autoComplete="email" placeholder="tu@universidade.pt" />
+              <label>{t.email}</label>
+              <input name="email" type="email" required autoComplete="email" placeholder={t.emailPh} />
             </div>
             <div className="field">
-              <label>Password</label>
-              <input
-                name="password"
-                type="password"
-                required
-                minLength={6}
-                autoComplete={isUp ? "new-password" : "current-password"}
-                placeholder="••••••••"
-              />
+              <label>{t.password}</label>
+              <input name="password" type="password" required minLength={6} autoComplete={isUp ? "new-password" : "current-password"} placeholder="••••••••" />
             </div>
-            <button className="btn" type="submit" style={{ width: "100%", justifyContent: "center", padding: "13px" }}>
-              {isUp ? "Criar conta" : "Entrar"}
-            </button>
+
+            <SubmitButton
+              label={isUp ? t.signupBtn : t.signinBtn}
+              pendingLabel={isUp ? t.signupPending : t.signinPending}
+            />
           </form>
 
           <p className="auth2-switch">
             {isUp ? (
-              <>Já tens conta? <a onClick={() => setMode("signin")}>Entrar</a></>
+              <>{t.switchToInQ} <a onClick={() => setMode("signin")}>{t.switchToIn}</a></>
             ) : (
-              <>Novo na Avalia? <a onClick={() => setMode("signup")}>Criar conta</a></>
+              <>{t.switchToUpQ} <a onClick={() => setMode("signup")}>{t.switchToUp}</a></>
             )}
           </p>
         </div>
