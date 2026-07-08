@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "./db";
 import { processarSubmissao, aprovarAvaliacao } from "./pipeline";
-import { avaliarSubmissao, gerarRespostaIA, type Criterio } from "./evaluate";
+import {
+  avaliarSubmissao,
+  gerarRespostaIA,
+  analisarResistenciaIA,
+  type Criterio,
+  type AnaliseEnunciado,
+} from "./evaluate";
 import {
   hashPassword,
   verifyPassword,
@@ -156,6 +162,16 @@ export async function criarTrabalho(formData: FormData) {
   }
 
   redirect(`/professor/trabalho/${a.id}`);
+}
+
+// Analisa a resistência do enunciado à IA (chamada pelo builder, antes de criar).
+export async function analisarEnunciadoAction(
+  enunciado: string,
+  instrucoes?: string,
+): Promise<AnaliseEnunciado | null> {
+  await requireProfessor();
+  if (!enunciado.trim()) return null;
+  return analisarResistenciaIA({ enunciado, instrucoes: instrucoes || null });
 }
 
 // (Re)gera a linha-base de IA de um trabalho existente.
