@@ -51,17 +51,21 @@ export default async function TrabalhoPage({
     return { s, ev, aprovado, nota, sim, simIA, estado: ev?.estado ?? "PENDENTE" };
   });
 
+  // Suspeita = cópia entre alunos OU proximidade com a linha-base de IA.
+  const suspeita = (i: (typeof items)[number]) =>
+    (i.sim != null && i.sim.score >= 0.15) || i.simIA >= 0.12;
+
   const contagens = {
     todas: items.length,
     pendentes: items.filter((i) => i.estado === "RASCUNHO").length,
     aprovadas: items.filter((i) => i.aprovado).length,
-    suspeitas: items.filter((i) => i.sim && i.sim.score >= 0.15).length,
+    suspeitas: items.filter(suspeita).length,
   };
 
   let lista = items;
   if (filtro === "pendentes") lista = items.filter((i) => i.estado === "RASCUNHO");
   else if (filtro === "aprovadas") lista = items.filter((i) => i.aprovado);
-  else if (filtro === "suspeitas") lista = items.filter((i) => i.sim && i.sim.score >= 0.15);
+  else if (filtro === "suspeitas") lista = items.filter(suspeita);
 
   if (ordenar === "nota_desc") lista = [...lista].sort((x, y) => (y.nota ?? -1) - (x.nota ?? -1));
   else if (ordenar === "nota_asc") lista = [...lista].sort((x, y) => (x.nota ?? 99) - (y.nota ?? 99));
