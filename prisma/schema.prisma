@@ -45,6 +45,7 @@ model Assignment {
   instrucoes       String?
   solucaoModelo    String?
   respostaIA       String? // linha-base: resposta que uma IA genérica produz para este enunciado
+  testSuite        Json? // autograder: { lang, testFiles:[{path,content}], obrigatorios:"todos"|[nomes] }
   feedbackImediato Boolean  @default(false)
   submitToken      String   @unique @default(cuid())
   createdAt        DateTime @default(now())
@@ -75,6 +76,7 @@ model Submission {
   alunoNumero      String? // para casar com o Moodle no export
   ficheiros        Json // [{ nome, storageKey, mime, tamanho }]
   conteudoExtraido String?
+  testResult       Json? // autograder: { total, passed, obrigatoriosTotal, obrigatoriosPassed, gateMet, tests:[{nome,ok,obrigatorio}] }
   createdAt        DateTime @default(now())
 
   assignment Assignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)

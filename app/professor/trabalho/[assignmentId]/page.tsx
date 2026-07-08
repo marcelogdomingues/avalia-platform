@@ -49,6 +49,7 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
       feedback: ev?.feedbackGlobal ?? null,
       perguntas: (ev?.perguntasDefesa as string[] | null) ?? [],
       deteccaoIA: (ev?.deteccaoIA as { probabilidade: number; indicadores: string[] } | null) ?? null,
+      testResult: (s.testResult as Sub["testResult"]) ?? null,
       simIA: similaridadeComTexto(s.conteudoExtraido, a.respostaIA),
       simNome: sim?.outroNome ?? null,
       simScore: sim?.score ?? 0,

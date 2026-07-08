@@ -1,0 +1,9 @@
+# Imagem do autograder para Python (pytest).
+# Construir uma vez:  docker build -t avalia-runner-python -f runner/Dockerfile.python runner
+# O lib/runner.ts corre esta imagem por submissão, isolada:
+#   --network none --memory 512m --cpus 1 --pids-limit 128, testes montados read-only.
+FROM python:3.11-slim
+RUN pip install --no-cache-dir pytest pytest-json-report
+RUN useradd -m runner
+USER runner
+WORKDIR /work

@@ -26,6 +26,10 @@ export type Sub = {
   feedback: string | null;
   perguntas: string[];
   deteccaoIA: { probabilidade: number; indicadores: string[] } | null;
+  testResult: {
+    total: number; passed: number; obrigatoriosTotal: number; obrigatoriosPassed: number; gateMet: boolean;
+    tests: { nome: string; ok: boolean; obrigatorio: boolean }[];
+  } | null;
   simIA: number;
   simNome: string | null;
   simScore: number;
@@ -232,6 +236,33 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                           })}
                         </div>
                       </div>
+
+                      {/* Testes automáticos (autograder) */}
+                      {sel.testResult && (() => {
+                        const tr = sel.testResult;
+                        const cor = tr.gateMet ? TEAL : "#9f1d1d";
+                        const pct = tr.total ? Math.round((tr.passed / tr.total) * 100) : 0;
+                        return (
+                          <div style={{ background: `${cor}12`, border: `1px solid ${cor}33`, borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                              <span className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.55)" }}>🧪 Testes automáticos</span>
+                              <span style={{ fontSize: 12.5, fontWeight: 600, color: cor }}>{tr.passed}/{tr.total} · obrigatórios {tr.obrigatoriosPassed}/{tr.obrigatoriosTotal}</span>
+                            </div>
+                            <div className="mbar"><span style={{ width: `${pct}%`, background: cor }} /></div>
+                            <details className="disclosure" style={{ marginTop: 10 }}>
+                              <summary>Ver testes</summary>
+                              <ul style={{ listStyle: "none", margin: "8px 0 0", padding: 0, display: "grid", gap: 3, fontSize: 12.5 }}>
+                                {tr.tests.map((t, i) => (
+                                  <li key={i} style={{ display: "flex", alignItems: "center", gap: 8, color: t.ok ? TEAL : "#9f1d1d" }}>
+                                    <span>{t.ok ? "✓" : "✗"}</span><span style={{ color: INK }}>{t.nome}</span>
+                                    {t.obrigatorio && <span className="mono" style={{ fontSize: 10, color: "rgba(29,26,19,0.45)" }}>obrigatório</span>}
+                                  </li>
+                                ))}
+                              </ul>
+                            </details>
+                          </div>
+                        );
+                      })()}
 
                       {/* Deteção de uso de IA (sinal, não veredicto) */}
                       {sel.deteccaoIA && (() => {

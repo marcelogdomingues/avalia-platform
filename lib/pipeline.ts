@@ -13,6 +13,7 @@ export async function processarSubmissao(params: {
   alunoNumero?: string;
   studentId?: string;
   ficheiros: FicheiroSubmissao[];
+  testResult?: object;
 }): Promise<{ submissionId: string; evaluationId: string }> {
   const assignment = await db.assignment.findUniqueOrThrow({
     where: { id: params.assignmentId },
@@ -33,6 +34,7 @@ export async function processarSubmissao(params: {
         tamanho: f.buffer.length,
       })),
       conteudoExtraido,
+      testResult: (params.testResult ?? undefined) as object | undefined,
     },
   });
 

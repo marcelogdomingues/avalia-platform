@@ -97,7 +97,8 @@ async function main() {
     assignmentId: string,
     nome: string,
     texto: string,
-    ev?: ReturnType<typeof mkEval>
+    ev?: ReturnType<typeof mkEval>,
+    testResult?: object
   ) {
     const al = alunos[nome];
     const sub = await db.submission.create({
@@ -108,6 +109,7 @@ async function main() {
         alunoNumero: al?.numero,
         ficheiros: [{ nome: "trabalho.txt", mime: "text/plain", tamanho: texto.length }] as unknown as object,
         conteudoExtraido: texto,
+        testResult: testResult as object | undefined,
       },
     });
     await db.evaluation.create({
@@ -273,6 +275,53 @@ async function main() {
   });
   await submeter(pooA.id, "Ana Silva", "Criei classes Livro, Socio e Emprestimo com atributos privados e getters/setters. Fiz Socio abstrato com subclasses SocioEstudante e SocioProfessor porque os limites de empréstimo diferem — usei polimorfismo no método limiteEmprestimos(). O código está no zip.", mkEval(rubPoo, [0.9, 0.85, 0.8], { estado: "RASCUNHO", fb: "Muito boa justificação da herança (limites diferentes). Design sólido.", perguntas: ["Porque escolheste tornar Socio abstrato em vez de usar um enum de tipo?"], det: { probabilidade: 14, indicadores: ["Decisão de design justificada pessoalmente"] } }));
   await submeter(pooA.id, "Eduardo Pinto", "Fiz as três classes pedidas com encapsulamento e uma herança. O código funciona e está organizado.", mkEval(rubPoo, [0.55, 0.7, 0.6], { estado: "RASCUNHO", fb: "Funciona, mas a resposta não explica as escolhas de design. Justifica a herança.", perguntas: ["Que relação de herança usaste e porquê?"], det: { probabilidade: 40, indicadores: ["Descrição vaga sem detalhes específicos"] } }));
+
+  // Trabalho com AUTOGRADER (Python) — testes automáticos que gateiam a submissão
+  const pyTests = `from solution import soma, media
+
+def test_soma_positivos(): assert soma(2, 3) == 5
+def test_soma_negativos(): assert soma(-2, -3) == -5
+def test_soma_zero(): assert soma(0, 7) == 7
+def test_media_basica(): assert media([2, 4, 6]) == 4
+def test_media_vazia():
+    import pytest
+    with pytest.raises(ValueError):
+        media([])
+`;
+  const rubPy: Crit[] = [
+    { id: "c1", nome: "Testes automáticos", descricao: "Passa nos testes do professor.", peso: 60, pontosMax: 20 },
+    { id: "c2", nome: "Qualidade do código", descricao: "Legibilidade, nomes e simplicidade.", peso: 40, pontosMax: 20 },
+  ];
+  const pyA = await db.assignment.create({
+    data: {
+      courseId: poo.id,
+      titulo: "Funções: soma e média (Python, com testes)",
+      enunciado: "Cria solution.py com soma(a, b) e media(lista) — média dos elementos; levanta ValueError se a lista for vazia. Ao submeter, os testes automáticos correm contra o teu código: tens de passar todos os obrigatórios para submeter.",
+      tiposFicheiro: ["zip", "py"],
+      rubrica: rubPy as unknown as object,
+      testSuite: {
+        lang: "python",
+        testFiles: [{ path: "test_funcoes.py", content: pyTests }],
+        obrigatorios: ["test_soma_positivos", "test_soma_negativos", "test_soma_zero", "test_media_basica"],
+      } as unknown as object,
+    },
+  });
+  const mk = (ok5: boolean) => ({
+    total: 5, passed: ok5 ? 5 : 4, obrigatoriosTotal: 4, obrigatoriosPassed: 4, gateMet: true,
+    tests: [
+      { nome: "test_soma_positivos", ok: true, obrigatorio: true },
+      { nome: "test_soma_negativos", ok: true, obrigatorio: true },
+      { nome: "test_soma_zero", ok: true, obrigatorio: true },
+      { nome: "test_media_basica", ok: true, obrigatorio: true },
+      { nome: "test_media_vazia", ok: ok5, obrigatorio: false },
+    ],
+  });
+  await submeter(pyA.id, "Ana Silva", "def soma(a,b): return a+b\ndef media(l):\n  if not l: raise ValueError('vazia')\n  return sum(l)/len(l)",
+    mkEval(rubPy, [1.0, 0.9], { estado: "APROVADO", fb: "Passou todos os testes (5/5) e o código está limpo. Excelente.", perguntas: ["Porque levantas ValueError em vez de devolver 0?"], det: { probabilidade: 12, indicadores: ["Tratamento de erro pensado"] } }),
+    mk(true));
+  await submeter(pyA.id, "Rui Costa", "def soma(a,b): return a+b\ndef media(l): return sum(l)/len(l)",
+    mkEval(rubPy, [0.8, 0.7], { estado: "RASCUNHO", fb: "Passou os 4 obrigatórios mas falha o teste (opcional) da lista vazia — não tratas o erro. Corrige para robustez.", perguntas: ["O que acontece se chamares media([])?"], det: { probabilidade: 15, indicadores: ["Falta tratamento de caso limite"] } }),
+    mk(false));
 
   // ── Cadeira 4: Inteligência Artificial ──────────────────
   const ia = await db.course.create({ data: { professorId: professor.id, nome: "Inteligência Artificial", ano: "2025/2026" } });

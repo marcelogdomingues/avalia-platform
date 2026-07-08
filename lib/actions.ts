@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "./db";
 import { processarSubmissao, aprovarAvaliacao } from "./pipeline";
+import { runTests, avaliarGate, extrairCodigo, LANG_LABELS, EXT, type Lang, type TestFile, type GateResult } from "./runner";
 import {
   avaliarSubmissao,
   gerarRespostaIA,
@@ -226,30 +227,50 @@ export async function apagarTrabalho(formData: FormData) {
 }
 
 // ── Aluno submete (link público) ─────────────────────────────────────────────
-export async function submeterTrabalho(token: string, formData: FormData) {
+export type SubmeterResultado =
+  | { ok: true; submissionId: string; gate?: GateResult }
+  | { ok: false; gate?: GateResult; erro: string };
+
+export async function submeterTrabalho(token: string, formData: FormData): Promise<SubmeterResultado> {
   const assignment = await db.assignment.findUnique({ where: { submitToken: token } });
-  if (!assignment) throw new Error("Link de submissão inválido.");
+  if (!assignment) return { ok: false, erro: "Link de submissão inválido." };
 
-  const alunoNome = String(formData.get("alunoNome") ?? "").trim() || "Anónimo";
-  const alunoNumero = String(formData.get("alunoNumero") ?? "").trim() || undefined;
   const file = formData.get("ficheiro") as File | null;
-  if (!file || file.size === 0) throw new Error("Nenhum ficheiro submetido.");
+  if (!file || file.size === 0) return { ok: false, erro: "Nenhum ficheiro submetido." };
 
-  // se houver aluno autenticado, associa a submissão à conta dele
   const aluno = await getCurrentStudent();
-
+  const alunoNome = aluno?.nome ?? (String(formData.get("alunoNome") ?? "").trim() || "Anónimo");
+  const alunoNumero = aluno?.numero ?? (String(formData.get("alunoNumero") ?? "").trim() || undefined);
   const buffer = Buffer.from(await file.arrayBuffer());
+
+  // Autograder: se o trabalho tem testes, correm ANTES de aceitar a submissão.
+  let gate: GateResult | undefined;
+  const suite = assignment.testSuite as { lang: Lang; testFiles: TestFile[]; obrigatorios: "todos" | string[] } | null;
+  if (suite && Array.isArray(suite.testFiles) && suite.testFiles.length) {
+    const codigo = extrairCodigo(buffer, file.name, suite.lang);
+    if (!codigo.length) {
+      return { ok: false, erro: `Não encontrei ficheiros de ${LANG_LABELS[suite.lang]} no upload — submete um .zip de código ou um ficheiro ${EXT[suite.lang].join("/")}.` };
+    }
+    const run = await runTests(suite.lang, codigo, suite.testFiles);
+    gate = avaliarGate(run, suite.obrigatorios);
+    if (!gate.gateMet) {
+      // BLOQUEIA — a submissão não é criada.
+      return { ok: false, gate, erro: run.erro ?? `Passaste ${gate.obrigatoriosPassed}/${gate.obrigatoriosTotal} testes obrigatórios. Tens de passar todos para submeter.` };
+    }
+  }
+
   const { submissionId } = await processarSubmissao({
     assignmentId: assignment.id,
     studentId: aluno?.id,
-    alunoNome: aluno?.nome ?? alunoNome,
+    alunoNome,
     alunoEmail: aluno?.email,
-    alunoNumero: aluno?.numero ?? alunoNumero,
+    alunoNumero,
     ficheiros: [{ nome: file.name, mime: file.type, buffer }],
+    testResult: gate,
   });
 
   revalidatePath(`/professor/trabalho/${assignment.id}`);
-  return submissionId;
+  return { ok: true, submissionId, gate };
 }
 
 // ── Editar trabalho ──────────────────────────────────────────────────────────
