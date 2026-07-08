@@ -13,6 +13,13 @@ interface Crit {
 
 const TIPOS = ["pdf", "docx", "txt", "zip"];
 
+// Critérios que a IA tende a fazer mal — reforçam a autoria humana.
+const CRITERIOS_IA_HARD: Crit[] = [
+  { nome: "Reflexão pessoal", descricao: "Ligação a experiência própria, opinião fundamentada ou aprendizagem pessoal.", peso: 0, pontosMax: 20 },
+  { nome: "Defesa de escolhas", descricao: "Justifica as decisões tomadas e porque não escolheu as alternativas.", peso: 0, pontosMax: 20 },
+  { nome: "Ligação ao contexto da aula", descricao: "Refere conteúdos, exemplos ou dados específicos dados na aula ou pela turma.", peso: 0, pontosMax: 20 },
+];
+
 export default function CriarTrabalho({ courseId }: { courseId: string }) {
   const [criterios, setCriterios] = useState<Crit[]>([
     { nome: "Correção técnica", descricao: "", peso: 50, pontosMax: 20 },
@@ -54,6 +61,13 @@ export default function CriarTrabalho({ courseId }: { courseId: string }) {
   }
   function remove(i: number) {
     setCriterios((cs) => cs.filter((_, j) => j !== i));
+  }
+  function addIAHard() {
+    setCriterios((cs) => {
+      const nomes = new Set(cs.map((c) => c.nome.trim().toLowerCase()));
+      const novos = CRITERIOS_IA_HARD.filter((c) => !nomes.has(c.nome.toLowerCase()));
+      return [...cs, ...novos];
+    });
   }
 
   return (
@@ -152,8 +166,13 @@ export default function CriarTrabalho({ courseId }: { courseId: string }) {
             <button type="button" className="btn ghost sm" onClick={() => remove(i)} title="Remover" style={{ marginTop: 20 }}>✕</button>
           </div>
         ))}
-        <div className="row-between">
-          <button type="button" className="btn secondary sm" onClick={add}>+ Adicionar critério</button>
+        <div className="row-between" style={{ flexWrap: "wrap", gap: 10 }}>
+          <div className="btn-row">
+            <button type="button" className="btn secondary sm" onClick={add}>+ Adicionar critério</button>
+            <button type="button" className="btn secondary sm" onClick={addIAHard} title="Critérios que a IA faz mal">
+              🛡️ + Critérios resistentes a IA
+            </button>
+          </div>
           <span className={`weight-note ${somaPesos === 100 ? "ok" : "warn"}`}>
             Soma dos pesos: {somaPesos}% {somaPesos === 100 ? "✓" : "(recomendado 100%)"}
           </span>
