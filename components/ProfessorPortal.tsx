@@ -817,14 +817,15 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                         {integridade.clusters.map((c, i) => {
                           const cor = c.scoreMax >= 0.6 ? "#9f1d1d" : c.scoreMax >= 0.4 ? AMBER : TEAL;
                           return (
-                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: 12, background: "var(--surface-2)", border: `1px solid ${cor}22` }}>
+                            <a key={i} href={`/professor/trabalho/${assignment.id}/comparar?a=${c.ids[0]}&b=${c.ids[1]}`}
+                              style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: 12, background: "var(--surface-2)", border: `1px solid ${cor}22`, color: "inherit" }} title="Comparar lado a lado">
                               <span style={{ width: 10, height: 10, borderRadius: "50%", background: cor, flexShrink: 0 }} />
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 14, fontWeight: 500 }}>{c.nomes.join(" · ")}</div>
                                 <div style={{ fontSize: 12, color: "rgba(29,26,19,0.5)", marginTop: 2 }}>{c.ids.length} submissões · semelhança média {Math.round(c.scoreMedio * 100)}%</div>
                               </div>
-                              <span className="badge" style={{ background: `${cor}18`, color: cor, fontWeight: 600 }}>máx {Math.round(c.scoreMax * 100)}%</span>
-                            </div>
+                              <span className="badge" style={{ background: `${cor}18`, color: cor, fontWeight: 600 }}>máx {Math.round(c.scoreMax * 100)}% →</span>
+                            </a>
                           );
                         })}
                       </div>
@@ -839,11 +840,12 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                         {integridade.pares.slice(0, 12).map((p, i) => {
                           const cor = p.score >= 0.6 ? "#9f1d1d" : p.score >= 0.4 ? AMBER : TEAL;
                           return (
-                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                              <div style={{ width: 260, fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.aNome} <span style={{ color: "rgba(29,26,19,0.4)" }}>↔</span> {p.bNome}</div>
+                            <a key={i} href={`/professor/trabalho/${assignment.id}/comparar?a=${p.aId}&b=${p.bId}`}
+                              style={{ display: "flex", alignItems: "center", gap: 14, color: "inherit", padding: "4px 6px", margin: "-4px -6px", borderRadius: 8 }} title="Comparar lado a lado">
+                              <div style={{ width: 250, fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.aNome} <span style={{ color: "rgba(29,26,19,0.4)" }}>↔</span> {p.bNome}</div>
                               <div className="bar" style={{ flex: 1 }}><span style={{ width: `${Math.round(p.score * 100)}%`, background: cor }} /></div>
-                              <div className="mono" style={{ width: 44, textAlign: "right", fontSize: 13, color: cor, fontWeight: 600 }}>{Math.round(p.score * 100)}%</div>
-                            </div>
+                              <div className="mono" style={{ width: 56, textAlign: "right", fontSize: 13, color: cor, fontWeight: 600 }}>{Math.round(p.score * 100)}% →</div>
+                            </a>
                           );
                         })}
                       </div>
