@@ -14,6 +14,8 @@ import {
   gerarEnunciado,
   gerarInsightsTurma,
   melhorarFeedback,
+  tutorSocratico,
+  type MensagemTutor,
   type Criterio,
   type AnaliseEnunciado,
   type CriterioSugerido,
@@ -235,6 +237,26 @@ export async function melhorarFeedbackAction(feedback: string, tom: TomFeedback)
   await requireProfessor();
   if (!feedback.trim()) return null;
   return melhorarFeedback({ feedback, tom });
+}
+
+// ── Tutor socrático (aluno) ───────────────────────────────────────────────────
+// Guia o aluno a melhorar sem dar a resposta. Carrega o contexto da submissão.
+export async function tutorAction(submissionId: string, historico: MensagemTutor[]): Promise<string | null> {
+  const aluno = await getCurrentStudent();
+  if (!aluno) return null;
+  const sub = await db.submission.findFirst({
+    where: { id: submissionId, studentId: aluno.id },
+    include: { assignment: true, evaluation: true },
+  });
+  if (!sub) return null;
+  const aprovado = sub.evaluation?.estado === "APROVADO";
+  const released = aprovado || sub.assignment.feedbackImediato;
+  return tutorSocratico({
+    enunciado: sub.assignment.enunciado,
+    feedback: released ? sub.evaluation?.feedbackGlobal ?? null : null,
+    criterios: released ? ((sub.evaluation?.porCriterio as { nome: string; pontos: number; pontosMax: number }[] | null) ?? []) : [],
+    historico: historico.slice(-8).map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: String(m.content).slice(0, 1500) })),
+  });
 }
 
 // ── Banco de comentários (snippets reutilizáveis do professor) ────────────────

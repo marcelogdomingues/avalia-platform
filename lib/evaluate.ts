@@ -279,6 +279,39 @@ export async function melhorarFeedback(p: { feedback: string; tom: TomFeedback; 
   return completion.choices[0]?.message?.content?.trim() || null;
 }
 
+// ── Tutor socrático (portal do aluno) ────────────────────────────────────────
+// Ajuda o aluno a melhorar SEM lhe dar a resposta nem escrever o trabalho.
+// Alinha com o combate ao abuso de IA: promove aprendizagem, não faz o trabalho.
+export interface MensagemTutor { role: "user" | "assistant"; content: string }
+
+export async function tutorSocratico(p: {
+  enunciado: string;
+  feedback?: string | null;
+  criterios?: { nome: string; pontos: number; pontosMax: number }[];
+  historico: MensagemTutor[];
+}): Promise<string | null> {
+  if (!temLLM || p.historico.length === 0) return null;
+  const criteriosTxt = (p.criterios ?? []).length
+    ? "\nDesempenho por critério:\n" + p.criterios!.map((c) => `- ${c.nome}: ${c.pontos}/${c.pontosMax}`).join("\n")
+    : "";
+  const system = [
+    "És um tutor socrático de ensino superior. O teu objetivo é ajudar o aluno a APRENDER e a MELHORAR o próprio trabalho.",
+    "REGRAS INVIOLÁVEIS:",
+    "- NUNCA escreves o trabalho pelo aluno, nem dás a solução, o código, a resposta final ou texto pronto a copiar.",
+    "- Guias com perguntas orientadoras, pistas conceptuais e sugestões do que rever/estudar.",
+    "- Se o aluno pedir a resposta directa ('faz por mim', 'dá-me o código/a solução'), recusas com simpatia e devolves uma pergunta que o ajude a chegar lá sozinho.",
+    "- Sê breve (2-4 frases ou uma pergunta-chave), concreto e encorajador. Português de Portugal.",
+    `\nEnunciado do trabalho:\n${p.enunciado.slice(0, 1200)}`,
+    p.feedback ? `\nFeedback que o professor deu:\n${p.feedback.slice(0, 800)}` : "",
+    criteriosTxt,
+  ].join("\n");
+  const completion = await llm.chat.completions.create({
+    model: AVALIADOR_MODEL, temperature: 0.6,
+    messages: [{ role: "system", content: system }, ...p.historico.slice(-8)],
+  });
+  return completion.choices[0]?.message?.content?.trim() || null;
+}
+
 // ── Gerar rubrica com IA (a partir do enunciado) ─────────────────────────────
 export interface CriterioSugerido { nome: string; descricao: string; peso: number; pontosMax: number }
 

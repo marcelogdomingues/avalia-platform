@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { sairAluno } from "@/lib/actions";
+import { sairAluno, tutorAction } from "@/lib/actions";
+import type { MensagemTutor } from "@/lib/evaluate";
 
 type Bar = { label: string; v: number; max: number };
 export type Work = {
@@ -38,11 +39,13 @@ export default function StudentPortal({
   studentName,
   courses,
   newCount,
+  temLLM,
 }: {
   works: Work[];
   studentName: string;
   courses: string[];
   newCount: number;
+  temLLM: boolean;
 }) {
   const [view, setView] = useState<"work" | "grades">("work");
   const [selId, setSelId] = useState<string | null>(works[0]?.id ?? null);
@@ -50,9 +53,31 @@ export default function StudentPortal({
   const sel = works.find((w) => w.id === selId) ?? null;
   const initials = studentName.split(/\s+/).map((s) => s[0]).slice(0, 2).join("").toUpperCase();
 
+  // Tutor socrático — conversa por submissão (não persiste; ajuda a estudar).
+  const [tutorMsgs, setTutorMsgs] = useState<Record<string, MensagemTutor[]>>({});
+  const [tutorInput, setTutorInput] = useState("");
+  const [tutorLoading, setTutorLoading] = useState(false);
+  const msgs = sel ? tutorMsgs[sel.id] ?? [] : [];
+
+  async function enviarTutor() {
+    const pergunta = tutorInput.trim();
+    if (!pergunta || !sel || tutorLoading) return;
+    const historico: MensagemTutor[] = [...msgs, { role: "user", content: pergunta }];
+    setTutorMsgs((m) => ({ ...m, [sel.id]: historico }));
+    setTutorInput("");
+    setTutorLoading(true);
+    try {
+      const resp = await tutorAction(sel.id, historico);
+      setTutorMsgs((m) => ({ ...m, [sel.id]: [...historico, { role: "assistant", content: resp ?? "Não consegui responder agora. Tenta reformular a tua dúvida." }] }));
+    } finally {
+      setTutorLoading(false);
+    }
+  }
+
   function pick(id: string) {
     setSelId(id);
     setAskOpen(false);
+    setTutorInput("");
   }
 
   const navBtn = (v: "work" | "grades", icon: string, label: string) => {
@@ -224,6 +249,53 @@ export default function StudentPortal({
                               <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 10 }}>Feedback do teu professor</div>
                               <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 14, padding: "20px 22px", fontSize: 15, lineHeight: 1.65, color: "rgba(29,26,19,0.82)", marginBottom: 28 }}>{sel.feedback}</div>
                             </>
+                          )}
+
+                          {/* Tutor socrático (IA) */}
+                          {temLLM && (
+                            <div style={{ marginBottom: 28 }}>
+                              <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 10 }}>Tutor de estudo · IA</div>
+                              <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 14, padding: "18px 20px" }}>
+                                <div style={{ fontSize: 13.5, lineHeight: 1.55, color: "rgba(29,26,19,0.65)", marginBottom: msgs.length ? 16 : 12 }}>
+                                  Faz perguntas para perceberes como melhorar. O tutor <strong>orienta-te com pistas — nunca faz o trabalho por ti</strong>.
+                                </div>
+
+                                {msgs.length > 0 && (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+                                    {msgs.map((m, i) => (
+                                      <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+                                        <div style={{ maxWidth: "82%", fontSize: 14, lineHeight: 1.55, padding: "10px 14px", borderRadius: 14,
+                                          background: m.role === "user" ? TEAL : "var(--surface-2)",
+                                          color: m.role === "user" ? CREAM : "rgba(29,26,19,0.85)",
+                                          borderBottomRightRadius: m.role === "user" ? 4 : 14, borderBottomLeftRadius: m.role === "user" ? 14 : 4 }}>
+                                          {m.content}
+                                        </div>
+                                      </div>
+                                    ))}
+                                    {tutorLoading && (
+                                      <div style={{ fontSize: 13, color: "rgba(29,26,19,0.5)" }}>o tutor está a pensar…</div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {msgs.length === 0 && (
+                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                                    {["Como posso melhorar este trabalho?", "Que conceitos devo rever?", "Por onde começo a estudar isto?"].map((q) => (
+                                      <button key={q} type="button" onClick={() => setTutorInput(q)} className="btn ghost sm" style={{ fontSize: 12, padding: "5px 11px" }}>{q}</button>
+                                    ))}
+                                  </div>
+                                )}
+
+                                <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+                                  <textarea value={tutorInput} onChange={(e) => setTutorInput(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviarTutor(); } }}
+                                    placeholder="Escreve a tua dúvida…" style={{ flex: 1, minHeight: 44, resize: "none" }} />
+                                  <button type="button" className="btn" onClick={enviarTutor} disabled={tutorLoading || !tutorInput.trim()} style={{ padding: "11px 18px" }}>
+                                    {tutorLoading ? "…" : "Perguntar"}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
                           )}
 
                           {/* Pedir esclarecimento */}

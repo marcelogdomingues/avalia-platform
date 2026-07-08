@@ -1,5 +1,6 @@
 import { requireStudent } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { temLLM } from "@/lib/evaluate";
 import StudentPortal, { type Work } from "@/components/StudentPortal";
 
 export const dynamic = "force-dynamic";
@@ -47,5 +48,5 @@ export default async function AlunoDashboard() {
   const courses = Array.from(new Set(works.map((w) => w.course)));
   const newCount = works.filter((w) => w.released).length;
 
-  return <StudentPortal works={works} studentName={aluno.nome} courses={courses} newCount={newCount} />;
+  return <StudentPortal works={works} studentName={aluno.nome} courses={courses} newCount={newCount} temLLM={temLLM} />;
 }
