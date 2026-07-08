@@ -25,8 +25,30 @@ export const LANG_LABELS: Record<Lang, string> = {
   dart: "Dart (dart test)",
   kotlin: "Kotlin (Gradle)",
 };
-// Linguagens com imagem de runner pronta nesta instância.
-export const LANGS_PRONTAS: Lang[] = ["python"];
+// Config de execução por linguagem — juntar uma = imagem Docker + comando + parser.
+// O comando corre em `sh -c` dentro do contentor: aluno em /work (rw), testes em
+// /tests (ro). Deve escrever no stdout algo que o parser saiba ler.
+interface LangRun { image: string; cmd: string; parse: (stdout: string) => TestOutcome[] }
+const RUN_CFG: Partial<Record<Lang, LangRun>> = {
+  python: {
+    image: "avalia-runner-python",
+    cmd: "PYTHONPATH=/work timeout 25 pytest /tests --json-report --json-report-file=/work/r.json -q >/dev/null 2>&1; cat /work/r.json 2>/dev/null || true",
+    parse: (raw) => {
+      const j = JSON.parse(raw) as { tests?: { nodeid: string; outcome: string }[] };
+      return (j.tests ?? []).map((t) => ({ nome: String(t.nodeid).split("::").pop() ?? t.nodeid, ok: t.outcome === "passed" }));
+    },
+  },
+  java: {
+    image: "avalia-runner-java",
+    // Junta testes e código do aluno na mesma pasta (testes ganham em colisão),
+    // compila tudo e corre o JUnit console, que escreve relatórios XML legados.
+    cmd: "cp /tests/*.java /work/ 2>/dev/null; timeout 40 sh -c 'javac -cp /opt/junit/junit.jar /work/*.java -d /work/out 2>/work/c.err && java -jar /opt/junit/junit.jar execute -cp /work/out --scan-classpath --reports-dir=/work/rep --disable-banner --details=none >/dev/null 2>&1'; cat /work/rep/*.xml 2>/dev/null || true",
+    parse: parseJavaXml,
+  },
+};
+
+// Linguagens com imagem de runner pronta nesta instância (derivado da config).
+export const LANGS_PRONTAS: Lang[] = Object.keys(RUN_CFG) as Lang[];
 export const EXT: Record<Lang, string[]> = {
   python: [".py"], java: [".java"], dart: [".dart"], kotlin: [".kt"],
 };
@@ -102,8 +124,25 @@ async function runRemote(lang: Lang, studentFiles: TestFile[], testFiles: TestFi
   }
 }
 
+// Faz parse dos relatórios JUnit XML legados (<testcase name=... > com <failure>/<error>).
+export function parseJavaXml(raw: string): TestOutcome[] {
+  const tests: TestOutcome[] = [];
+  const re = /<testcase\b([^>]*?)(\/>|>([\s\S]*?)<\/testcase>)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(raw))) {
+    const attrs = m[1];
+    const inner = m[3] ?? "";
+    const nome = attrs.match(/\bname="([^"]*)"/)?.[1]?.replace(/\(\)$/, "").trim();
+    if (!nome) continue;
+    if (/<skipped\b/.test(inner)) continue;         // ignorados não contam
+    tests.push({ nome, ok: !/<(failure|error)\b/.test(inner) });
+  }
+  return tests;
+}
+
 async function runDocker(lang: Lang, studentFiles: TestFile[], testFiles: TestFile[]): Promise<RunResult> {
-  if (!LANGS_PRONTAS.includes(lang)) {
+  const cfg = RUN_CFG[lang];
+  if (!cfg) {
     return { tests: [], erro: `Runner de ${LANG_LABELS[lang]} ainda não está configurado (falta a imagem Docker). Já suportado: ${LANGS_PRONTAS.map((l) => LANG_LABELS[l]).join(", ")}.` };
   }
   const dir = await mkdtemp(join(tmpdir(), "avalia-run-"));
@@ -118,20 +157,14 @@ async function runDocker(lang: Lang, studentFiles: TestFile[], testFiles: TestFi
       "docker",
       [
         "run", "--rm", "--network", "none", "--memory", "512m", "--cpus", "1", "--pids-limit", "128",
-        "-v", `${student}:/work:rw`, "-v", `${tests}:/tests:ro`, "-w", "/work", "avalia-runner-python",
-        "sh", "-c",
-        "PYTHONPATH=/work timeout 25 pytest /tests --json-report --json-report-file=/work/r.json -q >/dev/null 2>&1; cat /work/r.json 2>/dev/null || true",
+        "-v", `${student}:/work:rw`, "-v", `${tests}:/tests:ro`, "-w", "/work", cfg.image,
+        "sh", "-c", cfg.cmd,
       ],
-      { timeout: 45000, maxBuffer: 8 * 1024 * 1024 }
+      { timeout: 60000, maxBuffer: 8 * 1024 * 1024 }
     );
     const raw = stdout.trim();
     if (!raw) return { tests: [], erro: "Os testes não produziram resultado (erro de importação/compilação ou nenhum teste encontrado)." };
-    const j = JSON.parse(raw) as { tests?: { nodeid: string; outcome: string }[] };
-    const outcomes = (j.tests ?? []).map((t) => ({
-      nome: String(t.nodeid).split("::").pop() ?? t.nodeid,
-      ok: t.outcome === "passed",
-    }));
-    return { tests: outcomes };
+    return { tests: cfg.parse(raw) };
   } catch (e) {
     const msg = (e as Error).message ?? "";
     return { tests: [], erro: /docker/i.test(msg) && /not found|ENOENT/i.test(msg) ? "Docker não está disponível no servidor." : `Falha a correr os testes: ${msg.slice(0, 160)}` };

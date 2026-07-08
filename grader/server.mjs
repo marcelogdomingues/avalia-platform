@@ -63,6 +63,22 @@ const LANGS = {
       return [...nomes];
     },
   },
+  java: {
+    image: "avalia-runner-java",
+    cmd: "cp /tests/*.java /work/ 2>/dev/null; timeout 40 sh -c 'javac -cp /opt/junit/junit.jar /work/*.java -d /work/out 2>/work/c.err && java -jar /opt/junit/junit.jar execute -cp /work/out --scan-classpath --reports-dir=/work/rep --disable-banner --details=none >/dev/null 2>&1'; cat /work/rep/*.xml 2>/dev/null || true",
+    parse: (raw) => {
+      const tests = [];
+      const re = /<testcase\b([^>]*?)(\/>|>([\s\S]*?)<\/testcase>)/g;
+      let m;
+      while ((m = re.exec(String(raw)))) {
+        const attrs = m[1], inner = m[3] || "";
+        const nm = (attrs.match(/\bname="([^"]*)"/) || [])[1];
+        if (!nm || /<skipped\b/.test(inner)) continue;
+        tests.push({ nome: nm.replace(/\(\)$/, "").trim(), ok: !/<(failure|error)\b/.test(inner) });
+      }
+      return tests;
+    },
+  },
 };
 
 // Semáforo — nunca mais do que CONC contentores em paralelo (protege a RAM).
