@@ -3,7 +3,19 @@ import { redirect } from "next/navigation";
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import { db } from "./db";
 
-const SECRET = process.env.AUTH_SECRET ?? "avalia-dev-secret-troca-em-producao";
+// O segredo das sessões TEM de vir do ambiente em produção. Em dev cai para um
+// valor conhecido (conveniência), mas nunca em produção — senão qualquer um
+// forja cookies de sessão. Resolvido de forma lazy (em runtime, não no build):
+// o `next build` corre com NODE_ENV=production sem AUTH_SECRET e não deve rebentar.
+const DEV_SECRET = "avalia-dev-secret-troca-em-producao";
+function secret(): string {
+  const s = process.env.AUTH_SECRET;
+  if (s && s.length >= 16) return s;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("AUTH_SECRET em falta (ou < 16 chars) em produção — define uma variável de ambiente forte antes do deploy.");
+  }
+  return DEV_SECRET;
+}
 const COOKIE_PROF = "avalia_sess";
 const COOKIE_ALUNO = "avalia_aluno";
 
@@ -22,17 +34,18 @@ export function verifyPassword(pw: string, stored: string): boolean {
 
 // ── Cookie assinado (HMAC) ───────────────────────────────────────────────────
 function sign(v: string): string {
-  return `${v}.${createHmac("sha256", SECRET).update(v).digest("base64url")}`;
+  return `${v}.${createHmac("sha256", secret()).update(v).digest("base64url")}`;
 }
 function unsign(signed: string): string | null {
   const i = signed.lastIndexOf(".");
   if (i < 0) return null;
   const v = signed.slice(0, i);
-  return signed.slice(i + 1) === createHmac("sha256", SECRET).update(v).digest("base64url") ? v : null;
+  return signed.slice(i + 1) === createHmac("sha256", secret()).update(v).digest("base64url") ? v : null;
 }
 async function setCookie(name: string, value: string) {
   (await cookies()).set(name, sign(value), {
     httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30,
+    secure: process.env.NODE_ENV === "production",
   });
 }
 async function readCookie(name: string): Promise<string | null> {
