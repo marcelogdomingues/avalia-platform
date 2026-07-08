@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { temLLM } from "@/lib/evaluate";
 import { calcularStats } from "@/lib/stats";
 import { calcularSimilaridades, similaridadeComTexto, analisarIntegridade } from "@/lib/similaridade";
+import { diffPalavras } from "@/lib/diff";
 import ProfessorPortal, { type Sub } from "@/components/ProfessorPortal";
 
 export const dynamic = "force-dynamic";
@@ -30,11 +31,34 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
   const sims = calcularSimilaridades(infoSubs);
   const integridade = analisarIntegridade(infoSubs, a.respostaIA);
 
+  // Ressubmissões: para cada submissão, a anterior do mesmo aluno (submissions vêm desc).
+  const identidade = (s: (typeof a.submissions)[number]) => s.studentId ?? s.alunoNumero ?? s.alunoNome;
+  const anteriorDe = new Map<string, (typeof a.submissions)[number]>();
+  const grupos = new Map<string, (typeof a.submissions)[number][]>();
+  for (const s of a.submissions) {
+    const k = identidade(s);
+    (grupos.get(k) ?? grupos.set(k, []).get(k)!).push(s);
+  }
+  for (const lista of grupos.values()) {
+    for (let i = 0; i < lista.length - 1; i++) anteriorDe.set(lista[i].id, lista[i + 1]); // lista[i+1] é mais antiga
+  }
+
   const subs: Sub[] = a.submissions.map((s) => {
     const ev = s.evaluation;
     const aprovado = ev?.estado === "APROVADO";
     const nota = aprovado ? ev?.notaFinal ?? ev?.notaIA ?? null : ev?.notaIA ?? null;
     const sim = sims.get(s.id);
+    const ant = anteriorDe.get(s.id);
+    let ressubmissao: Sub["ressubmissao"] = null;
+    if (ant && s.conteudoExtraido && ant.conteudoExtraido) {
+      const d = diffPalavras(ant.conteudoExtraido, s.conteudoExtraido);
+      ressubmissao = {
+        anteriorData: new Intl.DateTimeFormat("pt-PT", { day: "2-digit", month: "short" }).format(ant.createdAt),
+        adicionadas: d.adicionadas,
+        removidas: d.removidas,
+        segs: d.segs,
+      };
+    }
     return {
       id: s.id,
       evaluationId: ev?.id ?? null,
@@ -57,6 +81,7 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
       simNome: sim?.outroNome ?? null,
       simScore: sim?.score ?? 0,
       modelo: ev?.modelo ?? null,
+      ressubmissao,
     };
   });
 

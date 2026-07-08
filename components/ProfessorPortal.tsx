@@ -36,6 +36,7 @@ export type Sub = {
   simNome: string | null;
   simScore: number;
   modelo: string | null;
+  ressubmissao: { anteriorData: string; adicionadas: number; removidas: number; segs: { tipo: "igual" | "add" | "rem"; texto: string }[] } | null;
 };
 export type PortalProps = {
   prof: { nome: string; initials: string };
@@ -84,6 +85,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
   const [view, setView] = useState<"queue" | "rubrics" | "analytics" | "integrity">("queue");
   const [filtro, setFiltro] = useState<"todas" | "rever" | "publicadas">("todas");
   const [selId, setSelId] = useState<string | null>(subs[0]?.id ?? null);
+  const [diffOpen, setDiffOpen] = useState(false);
 
   // Features de IA no portal
   const [insights, setInsights] = useState<InsightsTurma | null>(null);
@@ -191,6 +193,9 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
     .filter((x) => x.motivos.length > 0)
     .sort((a, b) => b.motivos.length - a.motivos.length);
   const porRever = subs.filter((s) => s.estado === "RASCUNHO").length;
+
+  // fecha o diff ao trocar de submissão
+  useEffect(() => { setDiffOpen(false); }, [selId]);
 
   // teclado J/K na fila
   useEffect(() => {
@@ -417,6 +422,33 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                             {sel.perguntas.map((q, i) => <li key={i} style={{ marginBottom: 5 }}>{q}</li>)}
                           </ul>
                         </details>
+                      )}
+
+                      {/* Ressubmissão: o que mudou desde a versão anterior */}
+                      {sel.ressubmissao && (
+                        <div style={{ marginBottom: 20, background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 12, padding: "14px 16px" }}>
+                          <button type="button" onClick={() => setDiffOpen((o) => !o)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
+                            <span style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5, fontWeight: 600 }}>
+                              ♺ Ressubmissão · alterações desde {sel.ressubmissao.anteriorData}
+                            </span>
+                            <span style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12.5 }}>
+                              <span style={{ color: TEAL }}>+{sel.ressubmissao.adicionadas}</span>
+                              <span style={{ color: "#9f1d1d" }}>−{sel.ressubmissao.removidas}</span>
+                              <span style={{ color: "rgba(29,26,19,0.4)" }}>{diffOpen ? "▲" : "▼"}</span>
+                            </span>
+                          </button>
+                          {diffOpen && (
+                            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(29,26,19,0.08)", fontSize: 13.5, lineHeight: 1.7, maxHeight: 280, overflowY: "auto", whiteSpace: "pre-wrap" }}>
+                              {sel.ressubmissao.segs.map((s, i) => (
+                                <span key={i} style={
+                                  s.tipo === "add" ? { background: "rgba(15,118,110,0.16)", color: "#0b5a54", borderRadius: 3 }
+                                  : s.tipo === "rem" ? { background: "rgba(159,29,29,0.12)", color: "#9f1d1d", textDecoration: "line-through", borderRadius: 3 }
+                                  : { color: "rgba(29,26,19,0.72)" }
+                                }>{s.texto}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       )}
 
                       {/* Aprovar (feedback editável + nota) */}

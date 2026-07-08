@@ -98,7 +98,8 @@ async function main() {
     nome: string,
     texto: string,
     ev?: ReturnType<typeof mkEval>,
-    testResult?: object
+    testResult?: object,
+    quando?: Date
   ) {
     const al = alunos[nome];
     const sub = await db.submission.create({
@@ -110,6 +111,7 @@ async function main() {
         ficheiros: [{ nome: "trabalho.txt", mime: "text/plain", tamanho: texto.length }] as unknown as object,
         conteudoExtraido: texto,
         testResult: testResult as object | undefined,
+        ...(quando ? { createdAt: quando } : {}),
       },
     });
     await db.evaluation.create({
@@ -215,8 +217,20 @@ async function main() {
     })
   );
 
-  // pendente (ainda a avaliar)
-  await submeter(merge.id, "Beatriz Nunes", "Relatório em anexo sobre merge sort e a sua complexidade O(n log n) com exemplo detalhado passo a passo.");
+  // Beatriz: ressubmissão — 1ª tentativa fraca, depois versão melhorada (mostra o diff)
+  await submeter(
+    merge.id, "Beatriz Nunes",
+    "O merge sort ordena uma lista dividindo-a e depois juntando as partes. A complexidade é boa. Não pus exemplo.",
+    mkEval(rubMerge, [0.5, 0.5, 0.2], { estado: "RASCUNHO", fb: "Ideia geral certa, mas falta a análise de complexidade e um exemplo concreto.", perguntas: ["Porque é que a complexidade é O(n log n)?"] }),
+    undefined,
+    new Date("2026-07-06T10:00:00"),
+  );
+  await submeter(
+    merge.id, "Beatriz Nunes",
+    "O merge sort ordena uma lista dividindo-a recursivamente ao meio até sublistas de um elemento e depois juntando as partes por ordem. A complexidade é O(n log n) porque a recursão tem log n níveis e cada nível processa n elementos. Exemplo: para [5,2,4,1] divide em [5,2] e [4,1], ordena cada par e faz merge para [1,2,4,5].",
+    undefined, undefined,
+    new Date("2026-07-08T09:00:00"),
+  );
 
   // segundo trabalho de AED
   const rubComplex: Crit[] = [
