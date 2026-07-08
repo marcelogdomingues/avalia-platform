@@ -196,6 +196,20 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
     .map(([nome, { soma, n }]) => ({ nome, media: soma / n, n }))
     .sort((a, b) => a.media - b.media);
 
+  // Heatmap aluno×critério: matriz de desempenho (em /20) por critério.
+  const heatCols = assignment.rubrica.map((c) => c.nome);
+  const heatRows = subs
+    .filter((s) => s.criterios.length > 0)
+    .map((s) => ({
+      id: s.id,
+      nome: s.alunoNome,
+      initials: s.initials,
+      celulas: heatCols.map((col) => {
+        const c = s.criterios.find((x) => x.nome === col);
+        return c && c.pontosMax ? (c.pontos / c.pontosMax) * 20 : null;
+      }),
+    }));
+
   // Alunos em risco: motivos acumulados por submissão.
   const emRisco = subs
     .map((s) => {
@@ -286,6 +300,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                 <SubmitBtn className="btn secondary sm" pendingLabel="A gerar…">{assignment.temBaseline ? "↻ Linha-base" : "Gerar linha-base"}</SubmitBtn>
               </form>
             )}
+            <a className="btn secondary sm" href={`/professor/trabalho/${assignment.id}/relatorio`}>▤ Relatório</a>
             <a className="btn sm" href={`/professor/trabalho/${assignment.id}/export`}>⬇ Exportar CSV</a>
           </div>
         </header>
@@ -656,6 +671,46 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* Heatmap aluno × critério */}
+              {heatRows.length > 0 && heatCols.length > 0 && (
+                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Mapa de calor · aluno × critério</div>
+                  <div style={{ fontSize: 13, color: "rgba(29,26,19,0.5)", marginBottom: 18 }}>Desempenho de cada aluno em cada critério (/20). Vermelho = fraco, verde = forte — vê padrões num relance.</div>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ borderCollapse: "separate", borderSpacing: 3, fontSize: 12.5 }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: "left", padding: "4px 10px 4px 0", fontWeight: 500, color: "rgba(29,26,19,0.5)" }}></th>
+                          {heatCols.map((c) => (
+                            <th key={c} style={{ padding: "0 4px", fontWeight: 500, color: "rgba(29,26,19,0.55)", writingMode: "horizontal-tb", maxWidth: 90, verticalAlign: "bottom", fontSize: 11.5, lineHeight: 1.2 }}>{c}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {heatRows.map((r) => (
+                          <tr key={r.id}>
+                            <td style={{ padding: "0 10px 0 0", whiteSpace: "nowrap", color: "rgba(29,26,19,0.8)" }}>
+                              <button onClick={() => { setView("queue"); setSelId(r.id); }} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 12.5, color: INK, padding: 0 }}>{r.nome}</button>
+                            </td>
+                            {r.celulas.map((v, j) => {
+                              const cor = v == null ? "rgba(29,26,19,0.05)" : v < 9.5 ? "#9f1d1d" : v < 14 ? AMBER : TEAL;
+                              const alpha = v == null ? 1 : 0.28 + (v / 20) * 0.55;
+                              return (
+                                <td key={j} title={v == null ? "sem dados" : `${r.nome} · ${heatCols[j]}: ${v.toFixed(1)}/20`}
+                                  style={{ width: 46, height: 34, textAlign: "center", borderRadius: 6, color: v == null ? "rgba(29,26,19,0.3)" : v >= 14 ? "#fff" : v >= 9.5 ? "#3d2a06" : "#fff",
+                                    background: v == null ? "rgba(29,26,19,0.05)" : cor === TEAL ? `rgba(15,118,110,${alpha})` : cor === AMBER ? `rgba(180,83,9,${alpha})` : `rgba(159,29,29,${alpha})`, fontWeight: 600 }}>
+                                  {v == null ? "—" : v.toFixed(0)}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
