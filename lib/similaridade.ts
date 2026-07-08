@@ -28,6 +28,13 @@ export interface AlertaSimilaridade {
   score: number; // 0..1
 }
 
+// Similaridade de uma submissão com um texto de referência (ex: linha-base de IA).
+// Score 0..1 por índice de Jaccard sobre shingles de palavras.
+export function similaridadeComTexto(conteudo: string | null, referencia: string | null): number {
+  if (!conteudo || !referencia) return 0;
+  return jaccard(shingles(conteudo), shingles(referencia));
+}
+
 // Para cada submissão, o par mais parecido com ela (dentro do mesmo conjunto).
 export function calcularSimilaridades(
   subs: { id: string; alunoNome: string; conteudoExtraido: string | null }[],

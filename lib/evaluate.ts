@@ -21,6 +21,7 @@ export interface NotaCriterio {
 export interface ResultadoAvaliacao {
   porCriterio: NotaCriterio[];
   feedbackGlobal: string;
+  perguntasDefesa: string[]; // verificação oral, específicas à submissão
   notaIA: number; // soma ponderada, escala 0–20
   tokensInput: number;
   tokensOutput: number;
@@ -60,7 +61,8 @@ async function avaliarComLLM(p: ParamsAvaliacao): Promise<ResultadoAvaliacao> {
   "porCriterio": [
     { "criterioId": "<id da rubrica>", "nome": "<nome>", "pontos": <número>, "pontosMax": <número>, "justificacao": "<texto>" }
   ],
-  "feedbackGlobal": "<comentário global ao aluno>"
+  "feedbackGlobal": "<comentário global ao aluno>",
+  "perguntasDefesa": ["<pergunta 1>", "<pergunta 2>", "<pergunta 3>"]
 }`;
 
   const system = [
@@ -72,6 +74,10 @@ async function avaliarComLLM(p: ParamsAvaliacao): Promise<ResultadoAvaliacao> {
     "Respondes SEMPRE com um único objecto JSON válido, exactamente nesta forma:",
     formatoJson,
     "Inclui uma entrada em porCriterio para CADA critério da rubrica, usando o criterioId.",
+    "Em perguntasDefesa, gera 3 a 5 perguntas de verificação oral ESPECÍFICAS ao conteúdo",
+    "submetido (escolhas feitas, raciocínio, detalhes concretos) — perguntas que só quem",
+    "realmente realizou o trabalho conseguiria responder bem. Servem para o professor",
+    "confirmar a autoria numa mini-oral. Evita perguntas genéricas.",
     "",
     "## Enunciado",
     enunciado,
@@ -112,16 +118,49 @@ async function avaliarComLLM(p: ParamsAvaliacao): Promise<ResultadoAvaliacao> {
 
   const raw = completion.choices[0]?.message?.content;
   if (!raw) throw new Error("Resposta do avaliador vazia.");
-  const parsed = JSON.parse(raw) as { porCriterio: NotaCriterio[]; feedbackGlobal: string };
+  const parsed = JSON.parse(raw) as {
+    porCriterio: NotaCriterio[];
+    feedbackGlobal: string;
+    perguntasDefesa?: string[];
+  };
 
   return {
     porCriterio: parsed.porCriterio,
     feedbackGlobal: parsed.feedbackGlobal,
+    perguntasDefesa: Array.isArray(parsed.perguntasDefesa) ? parsed.perguntasDefesa.filter(Boolean) : [],
     notaIA: notaPonderada(parsed.porCriterio, rubrica),
     tokensInput: completion.usage?.prompt_tokens ?? 0,
     tokensOutput: completion.usage?.completion_tokens ?? 0,
     modelo: AVALIADOR_MODEL,
   };
+}
+
+// ── Linha-base de IA: o que uma IA genérica produz para este enunciado ───────
+// Guardada no Assignment; cada submissão é comparada com ela (sinal de uso de IA).
+
+export async function gerarRespostaIA(p: {
+  enunciado: string;
+  instrucoes?: string | null;
+  rubrica: Criterio[];
+}): Promise<string | null> {
+  if (!temLLM) return null;
+
+  const system = [
+    "És um aluno a resolver um trabalho académico com a ajuda de uma IA generalista.",
+    "Produz uma resposta completa, competente e TÍPICA — o género de resposta que sai",
+    "de uma IA quando lhe dão este enunciado. Escreve só a resposta, sem preâmbulos.",
+    p.instrucoes ? `\nContexto extra: ${p.instrucoes}` : "",
+  ].join("\n");
+
+  const completion = await llm.chat.completions.create({
+    model: AVALIADOR_MODEL,
+    temperature: 0.4,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: `Enunciado:\n${p.enunciado}` },
+    ],
+  });
+  return completion.choices[0]?.message?.content?.trim() || null;
 }
 
 // ── Caminho demo: sem chave, heurística determinística e CLARAMENTE marcada ──
@@ -151,6 +190,10 @@ function avaliarOffline(p: ParamsAvaliacao): ResultadoAvaliacao {
     feedbackGlobal:
       "[MODO DEMO] Avaliação gerada sem modelo de linguagem, apenas para demonstrar o " +
       "fluxo. Define LLM_API_KEY (Groq/OpenRouter) no .env para avaliação real.",
+    perguntasDefesa: [
+      "[MODO DEMO] Explica por palavras tuas a ideia central do teu trabalho.",
+      "[MODO DEMO] Que escolha farias diferente e porquê?",
+    ],
     notaIA: notaPonderada(porCriterio, rubrica),
     tokensInput: 0,
     tokensOutput: 0,

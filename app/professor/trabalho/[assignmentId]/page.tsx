@@ -1,10 +1,10 @@
 import { requireProfessor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { aprovar, reavaliar, apagarTrabalho, aprovarTodas } from "@/lib/actions";
+import { aprovar, reavaliar, apagarTrabalho, aprovarTodas, gerarLinhaBase } from "@/lib/actions";
 import { temLLM } from "@/lib/evaluate";
 import { calcularStats } from "@/lib/stats";
-import { calcularSimilaridades } from "@/lib/similaridade";
+import { calcularSimilaridades, similaridadeComTexto } from "@/lib/similaridade";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +47,8 @@ export default async function TrabalhoPage({
     const aprovado = ev?.estado === "APROVADO";
     const nota = aprovado ? ev?.notaFinal ?? ev?.notaIA ?? null : ev?.notaIA ?? null;
     const sim = sims.get(s.id);
-    return { s, ev, aprovado, nota, sim, estado: ev?.estado ?? "PENDENTE" };
+    const simIA = similaridadeComTexto(s.conteudoExtraido, a.respostaIA);
+    return { s, ev, aprovado, nota, sim, simIA, estado: ev?.estado ?? "PENDENTE" };
   });
 
   const contagens = {
@@ -146,6 +147,33 @@ export default async function TrabalhoPage({
         </div>
       </div>
 
+      {temLLM && (
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div className="row-between" style={{ flexWrap: "wrap", gap: 12 }}>
+            <div style={{ maxWidth: 620 }}>
+              <span className="eyebrow">🛡️ Linha-base de IA</span>
+              <p className="muted" style={{ margin: "6px 0 0", fontSize: 14 }}>
+                {a.respostaIA
+                  ? "Resposta-tipo que uma IA produz para este enunciado. Cada submissão é comparada com ela — proximidade alta é sinal de uso de IA."
+                  : "Gera a resposta-tipo da IA para este enunciado. Depois, cada submissão mostra quão próxima está dela."}
+              </p>
+            </div>
+            <form action={gerarLinhaBase}>
+              <input type="hidden" name="assignmentId" value={a.id} />
+              <button className="btn secondary sm" type="submit">
+                {a.respostaIA ? "↻ Regenerar" : "Gerar linha-base"}
+              </button>
+            </form>
+          </div>
+          {a.respostaIA && (
+            <details className="disclosure" style={{ marginTop: 10 }}>
+              <summary>Ver resposta-tipo da IA</summary>
+              <p className="justif" style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>{a.respostaIA}</p>
+            </details>
+          )}
+        </div>
+      )}
+
       <div className="row-between" style={{ marginBottom: 12 }}>
         <h2 className="section-title">Submissões ({a.submissions.length})</h2>
         {pendentes > 0 && (
@@ -183,10 +211,12 @@ export default async function TrabalhoPage({
       ) : lista.length === 0 ? (
         <div className="card empty-state"><div className="big">🔍</div><p>Nenhuma submissão neste filtro.</p></div>
       ) : (
-        lista.map(({ s, ev, aprovado, nota, sim }) => {
+        lista.map(({ s, ev, aprovado, nota, sim, simIA }) => {
           const criterios = (ev?.porCriterio as any[]) ?? [];
           const estado = (ev?.estado ?? "PENDENTE").toLowerCase();
           const alta = sim && sim.score >= 0.35;
+          const altaIA = simIA >= 0.3;
+          const perguntas = (ev?.perguntasDefesa as string[] | null) ?? [];
           return (
             <div key={s.id} className="card submission">
               <div className="submission-head">
@@ -198,7 +228,12 @@ export default async function TrabalhoPage({
                   </div>
                   <span className="model-tag">{ev?.modelo ?? "—"}</span>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  {simIA >= 0.12 && (
+                    <span className={`badge ${altaIA ? "s-erro" : "s-rascunho"}`} title="Proximidade com a resposta-tipo da IA">
+                      ≈ IA {Math.round(simIA * 100)}%
+                    </span>
+                  )}
                   {sim && sim.score >= 0.15 && (
                     <span className={`badge ${alta ? "s-erro" : "s-rascunho"}`} title={`Parecido com ${sim.outroNome}`}>
                       ⚠ {Math.round(sim.score * 100)}% similar
@@ -212,6 +247,11 @@ export default async function TrabalhoPage({
               {alta && (
                 <div className="err-banner" style={{ margin: "12px 0 0" }}>
                   Alta similaridade ({Math.round(sim!.score * 100)}%) com a submissão de <b>{sim!.outroNome}</b> — possível cópia.
+                </div>
+              )}
+              {altaIA && (
+                <div className="err-banner" style={{ margin: "12px 0 0" }}>
+                  Proximidade alta ({Math.round(simIA * 100)}%) com a resposta-tipo da IA — possível uso de IA. Confirma com as perguntas de defesa.
                 </div>
               )}
 
@@ -232,6 +272,17 @@ export default async function TrabalhoPage({
               </ul>
 
               {ev?.feedbackGlobal && <div className="feedback">{ev.feedbackGlobal}</div>}
+
+              {perguntas.length > 0 && (
+                <details className="disclosure" style={{ marginTop: 14 }}>
+                  <summary>🎤 Perguntas de defesa ({perguntas.length})</summary>
+                  <ul className="justif" style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+                    {perguntas.map((q, i) => (
+                      <li key={i} style={{ marginBottom: 5 }}>{q}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
 
               <hr className="hr" />
               <div className="row-between" style={{ flexWrap: "wrap", gap: 12 }}>
