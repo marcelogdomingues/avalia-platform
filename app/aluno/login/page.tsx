@@ -13,8 +13,12 @@ export default async function AlunoLogin({
   if (await getCurrentStudent()) redirect(next ?? "/aluno");
 
   return (
-    <div className="centered" style={{ minHeight: "60vh" }}>
-      <div className="card auth-card">
+    <div className="public">
+      <div className="public-bar">
+        <a href="/" className="brand"><span className="logo" /> Avalia · Aluno</a>
+      </div>
+      <div className="centered">
+        <div className="card auth-card">
         <h1 className="page-title" style={{ fontSize: 22 }}>Entrar (aluno)</h1>
         <p className="page-sub" style={{ marginBottom: 20 }}>Acede às tuas submissões e notas.</p>
         {erro && <div className="err-banner">Email ou password incorretos.</div>}
@@ -24,9 +28,10 @@ export default async function AlunoLogin({
           <div className="field"><label>Password</label><input name="password" type="password" required /></div>
           <button className="btn" type="submit" style={{ width: "100%", justifyContent: "center" }}>Entrar</button>
         </form>
-        <p className="hint" style={{ marginTop: 16, textAlign: "center" }}>
-          Não tens conta? <a href={`/aluno/registo${next ? `?next=${encodeURIComponent(next)}` : ""}`}>Criar conta</a>
-        </p>
+          <p className="hint" style={{ marginTop: 16, textAlign: "center" }}>
+            Não tens conta? <a href={`/aluno/registo${next ? `?next=${encodeURIComponent(next)}` : ""}`}>Criar conta</a>
+          </p>
+        </div>
       </div>
     </div>
   );
