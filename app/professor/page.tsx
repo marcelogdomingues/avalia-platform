@@ -1,6 +1,7 @@
 import { requireProfessor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { criarCadeira, apagarCadeira } from "@/lib/actions";
+import ProfShell from "@/components/ProfShell";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export default async function Dashboard() {
   );
 
   return (
-    <>
+    <ProfShell>
       <h1 className="page-title">Painel</h1>
       <p className="page-sub">Olá, {prof.nome.split(/\s+/)[0]} — aqui está o resumo das tuas cadeiras.</p>
 
@@ -114,6 +115,6 @@ export default async function Dashboard() {
           <button className="btn" type="submit">Criar cadeira</button>
         </form>
       </details>
-    </>
+    </ProfShell>
   );
 }

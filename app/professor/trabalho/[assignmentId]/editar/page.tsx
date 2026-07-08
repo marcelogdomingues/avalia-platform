@@ -2,6 +2,7 @@ import { requireProfessor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import EditarTrabalho from "@/components/EditarTrabalho";
+import ProfShell from "@/components/ProfShell";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export default async function EditarPage({
   if (!a) notFound();
 
   return (
-    <>
+    <ProfShell>
       <div className="breadcrumb">
         <a href="/professor">Cadeiras</a> <span>/</span>
         <a href={`/professor/cadeira/${a.courseId}`}>{a.course.nome}</a> <span>/</span>
@@ -41,6 +42,6 @@ export default async function EditarPage({
           rubrica={a.rubrica as any}
         />
       </div>
-    </>
+    </ProfShell>
   );
 }
