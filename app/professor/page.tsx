@@ -70,27 +70,10 @@ export default async function Dashboard() {
         <span className="section-title">As minhas cadeiras</span>
       </div>
 
-      <div className="card" style={{ marginBottom: 28 }}>
-        <span className="eyebrow">Criar cadeira</span>
-        <form action={criarCadeira} style={{ marginTop: 12 }}>
-          <div className="row-between" style={{ alignItems: "end", gap: 12 }}>
-            <div className="field" style={{ flex: 1, margin: 0 }}>
-              <label>Nome da cadeira</label>
-              <input name="nome" placeholder="ex: Algoritmos e Estruturas de Dados" required />
-            </div>
-            <div className="field" style={{ width: 140, margin: 0 }}>
-              <label>Ano letivo</label>
-              <input name="ano" placeholder="2025/2026" />
-            </div>
-            <button className="btn" type="submit">Criar</button>
-          </div>
-        </form>
-      </div>
-
       {cursos.length === 0 ? (
         <div className="card empty-state">
           <div className="big">📚</div>
-          <p>Ainda não tens cadeiras. Cria a primeira acima.</p>
+          <p>Ainda não tens cadeiras. Cria a primeira em baixo.</p>
         </div>
       ) : (
         <div className="grid cols-2">
@@ -116,6 +99,21 @@ export default async function Dashboard() {
           })}
         </div>
       )}
+
+      <details className="disclosure card" style={{ marginTop: 28 }} open={cursos.length === 0}>
+        <summary style={{ fontSize: 15 }}>＋ Nova cadeira</summary>
+        <form action={criarCadeira} style={{ marginTop: 16, maxWidth: 520 }}>
+          <div className="field">
+            <label>Nome da cadeira</label>
+            <input name="nome" placeholder="ex: Algoritmos e Estruturas de Dados" required />
+          </div>
+          <div className="field">
+            <label>Ano letivo <span className="help">(opcional)</span></label>
+            <input name="ano" placeholder="2025/2026" />
+          </div>
+          <button className="btn" type="submit">Criar cadeira</button>
+        </form>
+      </details>
     </>
   );
 }
