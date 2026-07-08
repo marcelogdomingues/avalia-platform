@@ -241,6 +241,16 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 
 .hr { height: 1px; background: var(--border); border: 0; margin: 18px 0; }
 
+/* ── Toolbar: filtros + ordenação (segmented) ───────────── */
+.toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.seg { display: inline-flex; gap: 2px; padding: 3px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.seg a { padding: 5px 11px; border-radius: var(--radius-xs); font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; transition: background .12s, color .12s; }
+.seg a:hover { color: var(--text); text-decoration: none; }
+.seg a.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.seg a .n { color: var(--faint); font-weight: 600; margin-left: 4px; }
+.seg a.active .n { color: var(--accent-text); }
+.seg-label { font-size: 12px; color: var(--faint); align-self: center; }
+
 /* ── Result hero (recibo do aluno) ──────────────────────── */
 .result-hero { text-align: center; padding: 30px 24px 26px; }
 .result-grade { font-size: 60px; font-weight: 750; letter-spacing: -0.04em; line-height: 1; margin: 14px 0 4px; font-variant-numeric: tabular-nums; }
