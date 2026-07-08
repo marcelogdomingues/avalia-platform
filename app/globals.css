@@ -644,7 +644,25 @@ details.disclosure > summary::-webkit-details-marker { display: none; }
   .phase-mock { position: relative; opacity: 1 !important; transform: none !important; margin-bottom: 20px; }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   Portal (aluno/professor) — shell sidebar + lista/detalhe
+   ═══════════════════════════════════════════════════════════ */
+.portal { display: grid; grid-template-columns: 242px 1fr; height: 100vh; overflow: hidden; }
+.portal-side { background: #efe8da; border-right: 1px solid rgba(29,26,19,0.1); display: flex; flex-direction: column; padding: 22px 16px; animation: portalSidebar .6s cubic-bezier(.22,.61,.36,1) both; }
+.portal-sec { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(29,26,19,0.42); padding: 8px 12px; }
+.portal-main { display: flex; flex-direction: column; min-width: 0; background: #faf7f1; }
+.portal-top { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; border-bottom: 1px solid rgba(29,26,19,0.1); background: rgba(250,247,241,0.9); backdrop-filter: blur(8px); animation: portalContent .55s cubic-bezier(.22,.61,.36,1) both; }
+.portal-scroll { flex: 1; overflow-y: auto; }
+.pwork-grid { display: grid; grid-template-columns: 380px 1fr; height: 100%; }
+.pwork-list { border-right: 1px solid rgba(29,26,19,0.1); display: flex; flex-direction: column; min-height: 0; }
+.prow { width: 100%; text-align: left; display: flex; align-items: center; gap: 12px; background: none; border: none; border-radius: 11px; padding: 14px 12px; cursor: pointer; transition: background .12s; }
+.prow:hover { background: rgba(29,26,19,0.05); }
+
 @media (max-width: 860px) {
+  .portal { grid-template-columns: 1fr; height: auto; overflow: visible; }
+  .portal-side { flex-direction: row; flex-wrap: wrap; height: auto; }
+  .pwork-grid { grid-template-columns: 1fr; height: auto; }
+  .pwork-list { border-right: none; border-bottom: 1px solid rgba(29,26,19,0.1); }
   .auth2 { grid-template-columns: 1fr; }
   .auth2-brand { display: none; }
   .site-hero { grid-template-columns: 1fr; gap: 40px; }
