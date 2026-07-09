@@ -173,7 +173,8 @@ async function main() {
     }
     await db.evaluation.create({ data: evData as never });
     const passRate = `${gate.passed}/${gate.total} testes`;
-    console.log(`    ✓ ${nome}: ${passRate}${temLLM && evData.notaIA != null ? ` · IA ${evData.notaIA}/20` : ""}${(evData.deteccaoIA as { probabilidade?: number })?.probabilidade != null ? ` · IA-uso ${(evData.deteccaoIA as { probabilidade: number }).probabilidade}%` : ""}`);
+    const tempo = gate.duracaoMs != null ? ` · ${(gate.duracaoMs / 1000).toFixed(1)}s` : "";
+    console.log(`    ✓ ${nome}: ${passRate}${tempo}${temLLM && evData.notaIA != null ? ` · IA ${evData.notaIA}/20` : ""}${(evData.deteccaoIA as { probabilidade?: number })?.probabilidade != null ? ` · IA-uso ${(evData.deteccaoIA as { probabilidade: number }).probabilidade}%` : ""}`);
     return sub;
   }
 
@@ -671,6 +672,71 @@ function maior(arr) { return Math.max(...arr); }
 module.exports = { soma, maior };
 `, "solution.js");
 
+    // — Projeto 5: Utilitários (Go) —
+    const goTests = `package main
+import "testing"
+func TestSoma(t *testing.T) { if Soma(2, 3) != 5 { t.Fatal("soma") } }
+func TestMaior(t *testing.T) { if Maior([]int{3, 7, 2}) != 7 { t.Fatal("maior") } }
+`;
+    const goA = await db.assignment.create({ data: {
+      courseId: proj.id, titulo: "Utilitários (Go)",
+      enunciado: "Em solution.go (package main), implementa Soma(a, b int) int e Maior(xs []int) int.",
+      tiposFicheiro: ["go", "zip"], rubrica: rubCod as unknown as object,
+      testSuite: { lang: "go", testFiles: [{ path: "solution_test.go", content: goTests }], obrigatorios: "todos" } as unknown as object,
+    } });
+    await submeterCodigo(goA, "Ana Silva", `package main
+func Soma(a, b int) int { return a + b }
+func Maior(xs []int) int {
+    m := xs[0]
+    for _, x := range xs { if x > m { m = x } }
+    return m
+}
+`, "solution.go");
+
+    // — Projeto 6: Utilitários (Ruby) —
+    const rbTests = `require 'minitest/autorun'
+require_relative 'solution'
+class UtilTest < Minitest::Test
+  def test_soma; assert_equal 5, soma(2, 3); end
+  def test_maior; assert_equal 7, maior([3, 7, 2]); end
+end
+`;
+    const rbA = await db.assignment.create({ data: {
+      courseId: proj.id, titulo: "Utilitários (Ruby)",
+      enunciado: "Em solution.rb, define soma(a, b) e maior(arr).",
+      tiposFicheiro: ["rb", "zip"], rubrica: rubCod as unknown as object,
+      testSuite: { lang: "ruby", testFiles: [{ path: "solution_test.rb", content: rbTests }], obrigatorios: "todos" } as unknown as object,
+    } });
+    await submeterCodigo(rbA, "Eduardo Pinto", `def soma(a, b)
+  a + b
+end
+
+def maior(arr)
+  arr.max
+end
+`, "solution.rb");
+
+    // — Projeto 7: Utilitários (TypeScript) —
+    const tsTests = `import { test } from 'node:test';
+import assert from 'node:assert';
+import { soma, maior } from './solution.ts';
+test('soma', () => { assert.strictEqual(soma(2, 3), 5); });
+test('maior', () => { assert.strictEqual(maior([3, 7, 2]), 7); });
+`;
+    const tsA = await db.assignment.create({ data: {
+      courseId: proj.id, titulo: "Utilitários (TypeScript)",
+      enunciado: "Em solution.ts, exporta soma(a: number, b: number): number e maior(arr: number[]): number.",
+      tiposFicheiro: ["ts", "zip"], rubrica: rubCod as unknown as object,
+      testSuite: { lang: "typescript", testFiles: [{ path: "solution.test.ts", content: tsTests }], obrigatorios: "todos" } as unknown as object,
+    } });
+    await submeterCodigo(tsA, "Beatriz Nunes", `export function soma(a: number, b: number): number {
+  return a + b;
+}
+export function maior(arr: number[]): number {
+  return Math.max(...arr);
+}
+`, "solution.ts");
+
     // — Cenários de sandbox: crash e loop infinito (demonstram a proteção) —
     console.log("  Cenários de sandbox (esperado: bloqueados):");
     // erro de sintaxe → não importa → nenhum teste corre
@@ -686,6 +752,25 @@ module.exports = { soma, maior };
     def peek(self): return self.d[-1]
     def is_empty(self): return not self.d
     def size(self): return len(self.d)
+`, "solution.py");
+    // fork storm → --pids-limit 128 impede (fork rebenta) → import falha → bloqueado
+    await submeterCodigo(pilha, "Diana Faria", `import os, time
+for _ in range(500):
+    if os.fork() == 0:
+        time.sleep(1); os._exit(0)
+class Pilha:
+    def __init__(self): self.d = []
+`, "solution.py");
+    // memory bomb → --memory 512m → OOM kill → sem resultado → bloqueado
+    await submeterCodigo(pilha, "Carlos Mendes", `_ = bytearray(2_000_000_000)
+class Pilha:
+    def __init__(self): self.d = []
+`, "solution.py");
+    // acesso à rede → --network none → falha → bloqueado
+    await submeterCodigo(pilha, "Beatriz Nunes", `import urllib.request
+urllib.request.urlopen("http://example.com", timeout=3)
+class Pilha:
+    def __init__(self): self.d = []
 `, "solution.py");
   } else {
     console.log("  (Projetos de código saltados — RUNNER_MODE=off ou Docker indisponível)");

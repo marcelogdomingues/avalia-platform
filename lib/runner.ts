@@ -17,7 +17,7 @@ const execFileP = promisify(execFile);
 export type Lang = "python" | "java" | "javascript" | "typescript" | "go" | "ruby" | "dart" | "kotlin";
 export interface TestFile { path: string; content: string }
 export interface TestOutcome { nome: string; ok: boolean }
-export interface RunResult { tests: TestOutcome[]; erro?: string }
+export interface RunResult { tests: TestOutcome[]; erro?: string; duracaoMs?: number }
 
 export const LANG_LABELS: Record<Lang, string> = {
   python: "Python (pytest)",
@@ -215,6 +215,7 @@ async function runDocker(lang: Lang, studentFiles: TestFile[], testFiles: TestFi
   await mkdir(tests);
   for (const f of studentFiles) await writeFile(join(student, safeName(f.path)), f.content);
   for (const f of testFiles) await writeFile(join(tests, safeName(f.path)), f.content);
+  const inicio = Date.now();
   try {
     const { stdout } = await execFileP(
       "docker",
@@ -225,12 +226,13 @@ async function runDocker(lang: Lang, studentFiles: TestFile[], testFiles: TestFi
       ],
       { timeout: 60000, maxBuffer: 8 * 1024 * 1024 }
     );
+    const duracaoMs = Date.now() - inicio;
     const raw = stdout.trim();
-    if (!raw) return { tests: [], erro: "Os testes não produziram resultado (erro de importação/compilação ou nenhum teste encontrado)." };
-    return { tests: cfg.parse(raw) };
+    if (!raw) return { tests: [], erro: "Os testes não produziram resultado (erro de importação/compilação ou nenhum teste encontrado).", duracaoMs };
+    return { tests: cfg.parse(raw), duracaoMs };
   } catch (e) {
     const msg = (e as Error).message ?? "";
-    return { tests: [], erro: /docker/i.test(msg) && /not found|ENOENT/i.test(msg) ? "Docker não está disponível no servidor." : `Falha a correr os testes: ${msg.slice(0, 160)}` };
+    return { tests: [], duracaoMs: Date.now() - inicio, erro: /docker/i.test(msg) && /not found|ENOENT/i.test(msg) ? "Docker não está disponível no servidor." : `Falha a correr os testes: ${msg.slice(0, 160)}` };
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
@@ -334,6 +336,7 @@ export interface GateResult {
   obrigatoriosPassed: number;
   gateMet: boolean;
   tests: { nome: string; ok: boolean; obrigatorio: boolean }[];
+  duracaoMs?: number;
   erro?: string;
 }
 
@@ -353,6 +356,7 @@ export function avaliarGate(run: RunResult, obrigatorios: "todos" | string[]): G
     obrigatoriosPassed: obrPassed,
     gateMet,
     tests,
+    duracaoMs: run.duracaoMs,
     erro: run.erro,
   };
 }

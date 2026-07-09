@@ -32,7 +32,7 @@ export type Sub = {
   defesaAvaliacao: { consistencia: number; veredicto: string; observacoes: string[] } | null;
   deteccaoIA: { probabilidade: number; indicadores: string[] } | null;
   testResult: {
-    total: number; passed: number; obrigatoriosTotal: number; obrigatoriosPassed: number; gateMet: boolean;
+    total: number; passed: number; obrigatoriosTotal: number; obrigatoriosPassed: number; gateMet: boolean; duracaoMs?: number;
     tests: { nome: string; ok: boolean; obrigatorio: boolean }[];
   } | null;
   simIA: number;
@@ -435,7 +435,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                           <div style={{ background: `${cor}12`, border: `1px solid ${cor}33`, borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                               <span className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.55)" }}>🧪 Testes automáticos</span>
-                              <span style={{ fontSize: 12.5, fontWeight: 600, color: cor }}>{tr.passed}/{tr.total} · obrigatórios {tr.obrigatoriosPassed}/{tr.obrigatoriosTotal}</span>
+                              <span style={{ fontSize: 12.5, fontWeight: 600, color: cor }}>{tr.passed}/{tr.total} · obrigatórios {tr.obrigatoriosPassed}/{tr.obrigatoriosTotal}{tr.duracaoMs != null ? ` · ${(tr.duracaoMs / 1000).toFixed(1)}s` : ""}</span>
                             </div>
                             <div className="mbar"><span style={{ width: `${pct}%`, background: cor }} /></div>
                             <details className="disclosure" style={{ marginTop: 10 }}>
