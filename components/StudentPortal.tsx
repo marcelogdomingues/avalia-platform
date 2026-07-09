@@ -21,6 +21,7 @@ export type Work = {
   defesaPerguntas: string[];
   defesaRespostas: { pergunta: string; resposta: string }[];
   recurso: { pedido: string; estado: "aberto" | "respondido"; resposta?: string } | null;
+  testResult: { total: number; passed: number; gateMet: boolean; duracaoMs?: number; tests: { nome: string; ok: boolean; obrigatorio: boolean; ms?: number }[] } | null;
 };
 
 const TEAL = "#0f766e";
@@ -225,6 +226,28 @@ export default function StudentPortal({
                     <div style={{ maxWidth: 640 }}>
                       <div className="mono" style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 6 }}>{sel.course} · {sel.date}</div>
                       <h2 className="serif" style={{ fontWeight: 500, fontSize: 32, margin: "0 0 22px", color: INK }}>{sel.name}</h2>
+
+                      {/* Testes automáticos (autograder) */}
+                      {sel.testResult && (
+                        <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 14, padding: "16px 20px", marginBottom: 26 }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
+                            <span style={{ fontSize: 14.5, fontWeight: 600 }}>🧪 Testes automáticos</span>
+                            <span className="mono" style={{ fontSize: 12.5, fontWeight: 600, color: TEAL }}>
+                              {sel.testResult.passed}/{sel.testResult.total} passaram{sel.testResult.duracaoMs != null ? ` · ${(sel.testResult.duracaoMs / 1000).toFixed(1)}s` : ""}
+                            </span>
+                          </div>
+                          <div style={{ display: "grid", gap: 3, fontSize: 13 }}>
+                            {sel.testResult.tests.map((t, i) => (
+                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, color: t.ok ? TEAL : "#9f1d1d" }}>
+                                <span>{t.ok ? "✓" : "✗"}</span>
+                                <span style={{ color: "rgba(29,26,19,0.8)" }}>{t.nome}</span>
+                                {!t.obrigatorio && <span className="mono" style={{ fontSize: 10, color: "rgba(29,26,19,0.4)" }}>opcional</span>}
+                                {t.ms != null && <span className="mono" style={{ fontSize: 10, color: "rgba(29,26,19,0.35)", marginLeft: "auto" }}>{t.ms < 1 ? "<1" : t.ms}ms</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Entrevista de defesa */}
                       {sel.defesaPerguntas.length > 0 && (() => {

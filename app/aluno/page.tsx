@@ -45,6 +45,7 @@ export default async function AlunoDashboard() {
       defesaPerguntas: (ev?.perguntasDefesa as string[] | null) ?? [],
       defesaRespostas: (s.respostasDefesa as { pergunta: string; resposta: string }[] | null) ?? [],
       recurso: (s.recurso as { pedido: string; estado: "aberto" | "respondido"; resposta?: string } | null) ?? null,
+      testResult: (s.testResult as { total: number; passed: number; gateMet: boolean; duracaoMs?: number; tests: { nome: string; ok: boolean; obrigatorio: boolean; ms?: number }[] } | null) ?? null,
     };
   });
 
