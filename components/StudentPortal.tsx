@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { sairAluno, tutorAction, responderDefesa, pedirRevisao } from "@/lib/actions";
+import { sairAluno, tutorAction, responderDefesa, pedirRevisao, explicarFalhaAction } from "@/lib/actions";
 import type { MensagemTutor } from "@/lib/evaluate";
 
 type Bar = { label: string; v: number; max: number };
@@ -109,6 +109,21 @@ export default function StudentPortal({
       if (r.ok) { setAskEnviado((m) => ({ ...m, [w.id]: true })); setAskOpen(false); setAskText(""); }
     } finally {
       setAskLoading(false);
+    }
+  }
+
+  // Explicação de teste falhado (IA), por (submissão, teste)
+  const [explic, setExplic] = useState<Record<string, string>>({});
+  const [explicLoading, setExplicLoading] = useState<string | null>(null);
+  async function explicarTeste(subId: string, nome: string) {
+    const chave = `${subId}:${nome}`;
+    if (explicLoading || explic[chave]) return;
+    setExplicLoading(chave);
+    try {
+      const t = await explicarFalhaAction(subId, nome);
+      setExplic((m) => ({ ...m, [chave]: t ?? "Não consegui explicar agora." }));
+    } finally {
+      setExplicLoading(null);
     }
   }
 
@@ -236,15 +251,28 @@ export default function StudentPortal({
                               {sel.testResult.passed}/{sel.testResult.total} passaram{sel.testResult.duracaoMs != null ? ` · ${(sel.testResult.duracaoMs / 1000).toFixed(1)}s` : ""}
                             </span>
                           </div>
-                          <div style={{ display: "grid", gap: 3, fontSize: 13 }}>
-                            {sel.testResult.tests.map((t, i) => (
-                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, color: t.ok ? TEAL : "#9f1d1d" }}>
-                                <span>{t.ok ? "✓" : "✗"}</span>
-                                <span style={{ color: "rgba(29,26,19,0.8)" }}>{t.nome}</span>
-                                {!t.obrigatorio && <span className="mono" style={{ fontSize: 10, color: "rgba(29,26,19,0.4)" }}>opcional</span>}
-                                {t.ms != null && <span className="mono" style={{ fontSize: 10, color: "rgba(29,26,19,0.35)", marginLeft: "auto" }}>{t.ms < 1 ? "<1" : t.ms}ms</span>}
-                              </div>
-                            ))}
+                          <div style={{ display: "grid", gap: 5, fontSize: 13 }}>
+                            {sel.testResult.tests.map((t, i) => {
+                              const chave = `${sel.id}:${t.nome}`;
+                              return (
+                                <div key={i}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, color: t.ok ? TEAL : "#9f1d1d" }}>
+                                    <span>{t.ok ? "✓" : "✗"}</span>
+                                    <span style={{ color: "rgba(29,26,19,0.8)" }}>{t.nome}</span>
+                                    {!t.obrigatorio && <span className="mono" style={{ fontSize: 10, color: "rgba(29,26,19,0.4)" }}>opcional</span>}
+                                    {temLLM && !t.ok && !explic[chave] && (
+                                      <button type="button" onClick={() => explicarTeste(sel.id, t.nome)} disabled={explicLoading === chave} style={{ background: "none", border: "none", cursor: "pointer", color: TEAL, fontSize: 11.5, fontFamily: "inherit", textDecoration: "underline", padding: 0 }}>
+                                        {explicLoading === chave ? "…" : "porquê?"}
+                                      </button>
+                                    )}
+                                    {t.ms != null && <span className="mono" style={{ fontSize: 10, color: "rgba(29,26,19,0.35)", marginLeft: "auto" }}>{t.ms < 1 ? "<1" : t.ms}ms</span>}
+                                  </div>
+                                  {explic[chave] && (
+                                    <div style={{ fontSize: 12.5, lineHeight: 1.5, color: "rgba(29,26,19,0.7)", background: "var(--surface-2)", borderRadius: 8, padding: "8px 10px", marginTop: 4, marginLeft: 20 }}>💡 {explic[chave]}</div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}

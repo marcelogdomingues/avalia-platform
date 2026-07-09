@@ -17,6 +17,7 @@ import {
   tutorSocratico,
   avaliarDefesa,
   gerarTestes,
+  explicarFalha,
   type MensagemTutor,
   type DefesaAvaliacao,
   type Criterio,
@@ -240,6 +241,16 @@ export async function melhorarFeedbackAction(feedback: string, tom: TomFeedback)
   await requireProfessor();
   if (!feedback.trim()) return null;
   return melhorarFeedback({ feedback, tom });
+}
+
+// Explica ao aluno porque um teste do autograder falhou (sem dar a solução).
+export async function explicarFalhaAction(submissionId: string, testeNome: string): Promise<string | null> {
+  const aluno = await getCurrentStudent();
+  if (!aluno) return null;
+  const sub = await db.submission.findFirst({ where: { id: submissionId, studentId: aluno.id }, include: { assignment: true } });
+  if (!sub) return null;
+  const suite = sub.assignment.testSuite as { lang?: string } | null;
+  return explicarFalha({ enunciado: sub.assignment.enunciado, testeNome, lang: suite?.lang });
 }
 
 // ── Tutor socrático (aluno) ───────────────────────────────────────────────────

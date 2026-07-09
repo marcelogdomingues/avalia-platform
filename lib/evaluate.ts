@@ -312,6 +312,24 @@ export async function gerarTestes(p: { enunciado: string; lang: string; instruco
   return txt;
 }
 
+// ── Explicar um teste falhado ao aluno (sem dar a solução) ───────────────────
+export async function explicarFalha(p: { enunciado: string; testeNome: string; lang?: string }): Promise<string | null> {
+  if (!temLLM || !p.testeNome.trim()) return null;
+  const system = [
+    "És um tutor. Um teste automático do trabalho do aluno FALHOU. Pelo nome do teste e o enunciado,",
+    "explica em 2-3 frases, por palavras simples, O QUE esse teste provavelmente verifica e O QUE o aluno",
+    "deve rever no seu código para o passar.",
+    "NÃO dás a solução, o código, nem o valor esperado exato. Guias com uma pista conceptual. Português de Portugal.",
+    `\nEnunciado:\n${p.enunciado.slice(0, 800)}`,
+    p.lang ? `Linguagem: ${p.lang}` : "",
+  ].join("\n");
+  const completion = await llm.chat.completions.create({
+    model: AVALIADOR_MODEL, temperature: 0.5,
+    messages: [{ role: "system", content: system }, { role: "user", content: `Teste que falhou: "${p.testeNome}"` }],
+  });
+  return completion.choices[0]?.message?.content?.trim() || null;
+}
+
 // ── Tutor socrático (portal do aluno) ────────────────────────────────────────
 // Ajuda o aluno a melhorar SEM lhe dar a resposta nem escrever o trabalho.
 // Alinha com o combate ao abuso de IA: promove aprendizagem, não faz o trabalho.
