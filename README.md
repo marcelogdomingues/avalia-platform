@@ -29,19 +29,65 @@ Logins de exemplo criados pelo seed:
 - **Cadeiras** — criar/apagar, isoladas por professor (multi-tenant).
 - **Trabalhos com rubric builder** — enunciado, tipos de ficheiro, critérios com peso e
   escala, instruções extra e solução-modelo, feedback imediato ao aluno. **Editável.**
-- **Validação** — rever, ajustar nota final, **aprovar**, **re-avaliar**, **aprovar todas** (lote).
-- **Estatísticas** por trabalho — média, min/máx, aprovadas, histograma de notas.
-- **Deteção de similaridade/plágio** entre submissões (offline, Jaccard de shingles).
-- **Export CSV** das notas (formato para o gradebook do Moodle).
+- **IA na criação** — sugerir enunciado, gerar rubrica, analisar resistência do enunciado à IA.
+- **Fila de revisão** — rever, ajustar nota final, **aprovar**, **re-avaliar**, **aprovar todas** (lote),
+  navegação por teclado (J/K).
+- **Banco de comentários** — atalhos de feedback reutilizáveis (guardar/inserir/contar usos).
+- **Melhorar feedback com IA** — reescreve num tom (encorajador/direto/conciso).
+- **Vista Integridade** — grafo de similaridade, grupos de cópia (clusters), proximidade à
+  resposta-tipo de IA, e **comparação lado-a-lado** com texto partilhado realçado.
+- **Analytics profundos** — calibração IA-vs-professor, critérios mais fracos, alunos em risco,
+  **mapa de calor aluno×critério**, insights da turma (IA), e **analytics ao nível da cadeira**
+  (matriz de progresso, médias, tendência).
+- **Relatório imprimível/PDF** e **export CSV** (formato para o gradebook do Moodle).
 
 **Aluno**
 - **Contas de aluno** — registo/login; submissões associadas à conta.
-- **Dashboard** — "as minhas submissões" com estado e nota.
-- **Recibo** por link (`/recibo/[id]`) — vê o resultado quando publicado.
+- **Portal** — trabalhos, notas, feedback e linha do tempo (submetido → IA → validação → publicado).
+- **Tutor socrático (IA)** — ajuda a melhorar com pistas, **sem dar a resposta**.
+- **Entrevista de defesa** — responde às perguntas geradas pela IA (confirma autoria).
+- **Pedido de revisão** — recurso ao professor, com resposta no próprio portal.
+- **Recibo** por link (`/recibo/[id]`).
 
 **Motor**
 - **Pré-avaliação IA** — nota e justificação por critério (modelo demo OU LLM real).
 - **Extração real** — PDF, DOCX, TXT, ZIP de código; **imagens** (visão) no caminho LLM.
+
+## Combate ao abuso de IA
+
+Postura **detetar e dissuadir**, em quatro frentes:
+- **Deteção de uso de IA** — sinal probabilístico (0–100%) com indicadores, sobre texto *e código*.
+- **Linha-base de IA** — resposta que uma IA genérica daria ao enunciado, para medir proximidade.
+- **Perguntas de defesa** — geradas por submissão; o aluno responde e a IA avalia a **consistência**
+  das respostas com o trabalho (indício de autoria real).
+- **Rubrica resistente a IA** — critérios que exigem autoria autêntica (reflexão, defesa de escolhas).
+
+## Autograder (testes de código em sandbox)
+
+Trabalhos de código correm os **testes do professor** contra o código do aluno num contentor
+**Docker isolado** (`--network none --memory 512m --cpus 1 --pids-limit 128`, testes read-only,
+timeout). O aluno **tem de passar os testes obrigatórios para submeter**; os opcionais contam para
+a nota mas não bloqueiam. Tempo de execução (total e por-teste) mostrado no UI.
+
+- **6 linguagens**: Python (pytest), Java (JUnit 5), JavaScript e TypeScript (node:test),
+  Go (go test), Ruby (minitest). Juntar outra = imagem `runner/Dockerfile.<lang>` + entrada no
+  registo de `lib/runner.ts` (e `grader/server.mjs`).
+- **Deteção exata** de testes (ex.: `pytest --collect-only`) além da heurística por regex.
+- **Sandbox comprovado**: loop infinito (timeout), fork bomb (pids-limit), memory bomb (OOM),
+  acesso à rede (network none) e erros de compilação → todos bloqueados.
+- **Pluggable para produção**: `RUNNER_MODE=docker|remote|off`. Vercel não corre Docker → usa
+  `remote` com um grader externo (ver [`grader/README.md`](grader/README.md)).
+
+Construir as imagens (uma vez):
+
+```bash
+docker build -t avalia-runner-python -f runner/Dockerfile.python runner
+docker build -t avalia-runner-java   -f runner/Dockerfile.java   runner
+docker build -t avalia-runner-node   -f runner/Dockerfile.node   runner
+docker build -t avalia-runner-ts     -f runner/Dockerfile.typescript runner
+docker build -t avalia-runner-go     -f runner/Dockerfile.go     runner
+docker build -t avalia-runner-ruby   -f runner/Dockerfile.ruby   runner
+```
 
 ## Avaliação real (opcional)
 
@@ -64,17 +110,25 @@ app/
     layout.tsx                          # shell (sidebar) + guarda de auth
     page.tsx                            # dashboard: cadeiras
     cadeira/[courseId]/page.tsx         # trabalhos + criar trabalho (rubric builder)
-    trabalho/[assignmentId]/page.tsx    # submissões, aprovar, re-avaliar
+    cadeira/[courseId]/page.tsx         # trabalhos + analytics da cadeira (matriz de progresso)
+    trabalho/[assignmentId]/page.tsx    # fila de revisão, integridade, análises
+    trabalho/[assignmentId]/relatorio/  # relatório imprimível/PDF
+    trabalho/[assignmentId]/comparar/   # comparação lado-a-lado de submissões
     trabalho/[assignmentId]/export/     # CSV das notas
-  submeter/[token]/page.tsx             # submissão do aluno (+ resultado imediato)
-components/CriarTrabalho.tsx            # rubric builder (client)
+  aluno/page.tsx                        # portal do aluno (tutor, defesa, recurso)
+  submeter/[token]/page.tsx             # submissão do aluno (+ autograder ao vivo)
+components/                            # ProfessorPortal, StudentPortal, TestSuiteEditor, …
 lib/
   auth.ts                              # sessão, hashing (scrypt)
-  actions.ts                           # server actions (auth, cadeiras, trabalhos, validação)
-  llm.ts · evaluate.ts                 # avaliador agnóstico (demo + LLM real)
+  actions.ts                           # server actions
+  llm.ts · evaluate.ts                 # avaliador + IA (deteção, defesa, tutor, insights)
+  runner.ts                            # autograder (Docker), 6 linguagens, gate, deteção exata
+  similaridade.ts · diff.ts · stats.ts # integridade, diff palavra-a-palavra, estatísticas
   extract.ts · pipeline.ts · db.ts     # extração, orquestração, Prisma
-prisma/schema.prisma                   # Professor, Course, Assignment, Submission, Evaluation
-scripts/                               # seed.ts, demo.ts
+runner/Dockerfile.<lang>               # imagens do autograder (python/java/node/ts/go/ruby)
+grader/                                # grader remoto (RUNNER_MODE=remote) + README
+prisma/schema.prisma                   # Professor, Course, Assignment, Submission, Evaluation, …
+scripts/                               # seed.ts (dados ricos + autograder real), smoke.mjs
 docs/                                  # PROJETO, MODELO-DADOS, CUSTOS
 ```
 
@@ -84,7 +138,23 @@ docs/                                  # PROJETO, MODELO-DADOS, CUSTOS
 - [`docs/MODELO-DADOS.md`](docs/MODELO-DADOS.md) — modelo de dados.
 - [`docs/CUSTOS.md`](docs/CUSTOS.md) — open-source gratuito → on-prem; custos.
 
+## Segurança
+
+- Sessões assinadas por HMAC; **`AUTH_SECRET` obrigatório em produção** (ver `.env.example`),
+  cookies `secure` em produção.
+- Código de aluno corre **sempre** em sandbox Docker isolado (ver Autograder).
+- `.env` nunca é versionado. Se partilhaste chaves de API, **roda-as**.
+
+## Testes
+
+```bash
+npm run dev          # noutro terminal
+npm run smoke        # verifica rotas-chave (público/professor/aluno) via cookies assinados
+```
+
 ## Estado
 
-Fluxo completo funcional e verificado (`npm run build`). Por fazer (roadmap): visão para
-slides/imagens, execução de código em sandbox, integração LTI/API com o Moodle, analytics.
+Fluxo completo funcional e verificado (`npm run build` + `npm run smoke`). Feito face ao roadmap
+original: **execução de código em sandbox** (6 linguagens), **analytics** (turma e cadeira),
+**visão/imagens** no caminho LLM. Por fazer: integração LTI/API com o Moodle, mais linguagens
+(Dart/Kotlin/C), autenticação SSO institucional.
