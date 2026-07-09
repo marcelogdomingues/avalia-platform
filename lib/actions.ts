@@ -368,7 +368,10 @@ export async function usarSnippet(id: string): Promise<void> {
 export async function detetarTestesAction(lang: Lang, conteudo: string): Promise<{ nomes: string[]; erro?: string }> {
   await requireProfessor();
   if (!conteudo.trim()) return { nomes: [] };
-  const path = lang === "python" ? "test_trabalho.py" : lang === "javascript" ? "solution.test.js" : lang === "dart" ? "trabalho_test.dart" : lang === "kotlin" ? "TrabalhoTest.kt" : "TrabalhoTest.java";
+  const path = ({
+    python: "test_trabalho.py", javascript: "solution.test.js", typescript: "solution.test.ts",
+    go: "solution_test.go", ruby: "solution_test.rb", dart: "trabalho_test.dart", kotlin: "TrabalhoTest.kt", java: "TrabalhoTest.java",
+  } as Record<Lang, string>)[lang];
   return collectTests(lang, [{ path, content: conteudo }]);
 }
 

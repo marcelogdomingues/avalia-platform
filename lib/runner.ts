@@ -14,7 +14,7 @@ import AdmZip from "adm-zip";
 
 const execFileP = promisify(execFile);
 
-export type Lang = "python" | "java" | "javascript" | "dart" | "kotlin";
+export type Lang = "python" | "java" | "javascript" | "typescript" | "go" | "ruby" | "dart" | "kotlin";
 export interface TestFile { path: string; content: string }
 export interface TestOutcome { nome: string; ok: boolean }
 export interface RunResult { tests: TestOutcome[]; erro?: string }
@@ -23,6 +23,9 @@ export const LANG_LABELS: Record<Lang, string> = {
   python: "Python (pytest)",
   java: "Java (JUnit)",
   javascript: "JavaScript (node:test)",
+  typescript: "TypeScript (node:test)",
+  go: "Go (go test)",
+  ruby: "Ruby (minitest)",
   dart: "Dart (dart test)",
   kotlin: "Kotlin (Gradle)",
 };
@@ -52,12 +55,31 @@ const RUN_CFG: Partial<Record<Lang, LangRun>> = {
     cmd: "cp /tests/*.js /work/ 2>/dev/null; cd /work; timeout 20 node --test --test-reporter=tap 2>/dev/null || true",
     parse: parseTapJs,
   },
+  typescript: {
+    image: "avalia-runner-ts",
+    // Node 22 corre .ts diretamente (type stripping), sem passo de compilação.
+    cmd: "cp /tests/*.ts /work/ 2>/dev/null; cd /work; timeout 20 node --test --experimental-strip-types --test-reporter=tap 2>/dev/null || true",
+    parse: parseTapJs,
+  },
+  go: {
+    image: "avalia-runner-go",
+    // go test -v imprime '--- PASS/FAIL: TestNome'. go.mod gerado; sem rede (GOPROXY=off).
+    cmd: "cp /tests/*.go /work/ 2>/dev/null; cd /work; go mod init solution >/dev/null 2>&1; timeout 30 go test -v . 2>&1 || true",
+    parse: parseGoTest,
+  },
+  ruby: {
+    image: "avalia-runner-ruby",
+    // minitest em modo verboso: 'Classe#test_nome = 0.00 s = .' (. pass, F/E falha).
+    cmd: "cp /tests/*.rb /work/ 2>/dev/null; cd /work; timeout 20 ruby -I. *_test.rb -v 2>&1 || true",
+    parse: parseRubyMinitest,
+  },
 };
 
 // Linguagens com imagem de runner pronta nesta instância (derivado da config).
 export const LANGS_PRONTAS: Lang[] = Object.keys(RUN_CFG) as Lang[];
 export const EXT: Record<Lang, string[]> = {
-  python: [".py"], java: [".java"], javascript: [".js"], dart: [".dart"], kotlin: [".kt"],
+  python: [".py"], java: [".java"], javascript: [".js"], typescript: [".ts"],
+  go: [".go"], ruby: [".rb"], dart: [".dart"], kotlin: [".kt"],
 };
 
 // Modo de execução — resolve os problemas de memória e de deploy:
@@ -141,6 +163,26 @@ export function parseTapJs(raw: string): TestOutcome[] {
     const nome = m[2].trim();
     if (/\.(js|mjs|cjs)$/i.test(nome) || nome.includes("/")) continue; // resumo do ficheiro
     tests.push({ nome, ok: m[1] === "ok" });
+  }
+  return tests;
+}
+
+// Faz parse do `go test -v`: linhas '--- PASS: TestNome (0.00s)' / '--- FAIL: ...'.
+export function parseGoTest(raw: string): TestOutcome[] {
+  const tests: TestOutcome[] = [];
+  for (const linha of String(raw).split("\n")) {
+    const m = linha.match(/^\s*--- (PASS|FAIL):\s+(\w+)/);
+    if (m) tests.push({ nome: m[2], ok: m[1] === "PASS" });
+  }
+  return tests;
+}
+
+// Faz parse do minitest verboso: 'Classe#test_nome = 0.00 s = .' ('.' passa, F/E falha).
+export function parseRubyMinitest(raw: string): TestOutcome[] {
+  const tests: TestOutcome[] = [];
+  for (const linha of String(raw).split("\n")) {
+    const m = linha.match(/(?:(\w+)#)?(\w+)\s*=\s*[\d.]+\s*s\s*=\s*([.FES])/);
+    if (m && m[2]) tests.push({ nome: m[2], ok: m[3] === "." });
   }
   return tests;
 }

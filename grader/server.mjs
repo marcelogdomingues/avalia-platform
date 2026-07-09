@@ -41,6 +41,19 @@ class _Finder(importlib.abc.MetaPathFinder):
 sys.meta_path.append(_Finder())
 `;
 
+// Parser TAP partilhado (node:test, js e ts).
+const tapParse = (raw) => {
+  const tests = [];
+  for (const linha of String(raw).split("\n")) {
+    const m = linha.match(/^\s*(not ok|ok)\s+\d+\s+-\s+(.+?)\s*(?:#.*)?$/);
+    if (!m) continue;
+    const nome = m[2].trim();
+    if (/\.(js|mjs|cjs|ts)$/i.test(nome) || nome.includes("/")) continue;
+    tests.push({ nome, ok: m[1] === "ok" });
+  }
+  return tests;
+};
+
 // Registo de linguagens — juntar uma = juntar a imagem Docker + o comando + o parser.
 const LANGS = {
   python: {
@@ -82,14 +95,33 @@ const LANGS = {
   javascript: {
     image: "avalia-runner-node",
     cmd: "cp /tests/*.js /work/ 2>/dev/null; cd /work; timeout 20 node --test --test-reporter=tap 2>/dev/null || true",
+    parse: tapParse,
+  },
+  typescript: {
+    image: "avalia-runner-ts",
+    cmd: "cp /tests/*.ts /work/ 2>/dev/null; cd /work; timeout 20 node --test --experimental-strip-types --test-reporter=tap 2>/dev/null || true",
+    parse: tapParse,
+  },
+  go: {
+    image: "avalia-runner-go",
+    cmd: "cp /tests/*.go /work/ 2>/dev/null; cd /work; go mod init solution >/dev/null 2>&1; timeout 30 go test -v . 2>&1 || true",
     parse: (raw) => {
       const tests = [];
-      for (const linha of String(raw).split("\n")) {
-        const m = linha.match(/^\s*(not ok|ok)\s+\d+\s+-\s+(.+?)\s*(?:#.*)?$/);
-        if (!m) continue;
-        const nome = m[2].trim();
-        if (/\.(js|mjs|cjs)$/i.test(nome) || nome.includes("/")) continue;
-        tests.push({ nome, ok: m[1] === "ok" });
+      for (const l of String(raw).split("\n")) {
+        const m = l.match(/^\s*--- (PASS|FAIL):\s+(\w+)/);
+        if (m) tests.push({ nome: m[2], ok: m[1] === "PASS" });
+      }
+      return tests;
+    },
+  },
+  ruby: {
+    image: "avalia-runner-ruby",
+    cmd: "cp /tests/*.rb /work/ 2>/dev/null; cd /work; timeout 20 ruby -I. *_test.rb -v 2>&1 || true",
+    parse: (raw) => {
+      const tests = [];
+      for (const l of String(raw).split("\n")) {
+        const m = l.match(/(?:(\w+)#)?(\w+)\s*=\s*[\d.]+\s*s\s*=\s*([.FES])/);
+        if (m && m[2]) tests.push({ nome: m[2], ok: m[3] === "." });
       }
       return tests;
     },

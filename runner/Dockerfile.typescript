@@ -1,0 +1,8 @@
+# Autograder para TypeScript (node:test + type stripping nativo do Node 22).
+# docker build -t avalia-runner-ts -f runner/Dockerfile.typescript runner
+# Isolado em runtime: --network none --memory 512m --cpus 1 --pids-limit 128.
+# Node 22 corre .ts diretamente com --experimental-strip-types (sem compilar).
+FROM node:22-slim
+RUN useradd -m runner
+USER runner
+WORKDIR /work
