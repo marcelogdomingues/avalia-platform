@@ -137,6 +137,8 @@ docs/                                  # PROJETO, MODELO-DADOS, CUSTOS
 - [`docs/PROJETO.md`](docs/PROJETO.md) — visão, fluxos, roadmap, riscos.
 - [`docs/MODELO-DADOS.md`](docs/MODELO-DADOS.md) — modelo de dados.
 - [`docs/CUSTOS.md`](docs/CUSTOS.md) — open-source gratuito → on-prem; custos.
+- [`docs/SEGURANCA.md`](docs/SEGURANCA.md) — sandbox, sessões, isolamento, checklist de produção.
+- [`grader/README.md`](grader/README.md) — grader remoto para produção.
 
 ## Segurança
 
