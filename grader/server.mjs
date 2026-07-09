@@ -131,6 +131,11 @@ const LANGS = {
     cmd: "cp /tests/*.c /work/ 2>/dev/null; cd /work; timeout 15 sh -c 'gcc -O0 -o prog *.c -lm 2>/dev/null && ./prog' 2>/dev/null || true",
     parse: tapParse,
   },
+  cpp: {
+    image: "avalia-runner-cpp",
+    cmd: "cp /tests/*.cpp /work/ 2>/dev/null; cd /work; timeout 15 sh -c 'g++ -O0 -o prog *.cpp 2>/dev/null && ./prog' 2>/dev/null || true",
+    parse: tapParse,
+  },
 };
 
 // Semáforo — nunca mais do que CONC contentores em paralelo (protege a RAM).

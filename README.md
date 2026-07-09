@@ -69,9 +69,9 @@ Trabalhos de código correm os **testes do professor** contra o código do aluno
 timeout). O aluno **tem de passar os testes obrigatórios para submeter**; os opcionais contam para
 a nota mas não bloqueiam. Tempo de execução (total e por-teste) mostrado no UI.
 
-- **6 linguagens**: Python (pytest), Java (JUnit 5), JavaScript e TypeScript (node:test),
-  Go (go test), Ruby (minitest). Juntar outra = imagem `runner/Dockerfile.<lang>` + entrada no
-  registo de `lib/runner.ts` (e `grader/server.mjs`).
+- **8 linguagens**: Python (pytest), Java (JUnit 5), JavaScript e TypeScript (node:test),
+  Go (go test), Ruby (minitest), C e C++ (gcc/g++ com convenção TAP). Juntar outra = imagem
+  `runner/Dockerfile.<lang>` + entrada no registo de `lib/runner.ts` (e `grader/server.mjs`).
 - **Deteção exata** de testes (ex.: `pytest --collect-only`) além da heurística por regex.
 - **Sandbox comprovado**: loop infinito (timeout), fork bomb (pids-limit), memory bomb (OOM),
   acesso à rede (network none) e erros de compilação → todos bloqueados.
@@ -87,6 +87,8 @@ docker build -t avalia-runner-node   -f runner/Dockerfile.node   runner
 docker build -t avalia-runner-ts     -f runner/Dockerfile.typescript runner
 docker build -t avalia-runner-go     -f runner/Dockerfile.go     runner
 docker build -t avalia-runner-ruby   -f runner/Dockerfile.ruby   runner
+docker build -t avalia-runner-c      -f runner/Dockerfile.c      runner
+docker build -t avalia-runner-cpp    -f runner/Dockerfile.cpp    runner
 ```
 
 ## Avaliação real (opcional)

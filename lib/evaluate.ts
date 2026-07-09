@@ -289,6 +289,7 @@ const FRAMEWORK_TESTES: Record<string, string> = {
   go: "go test. `package main` + `import \"testing\"` + `func Test<Nome>(t *testing.T) { if <cond> { t.Fatal(\"...\") } }`. Assume funções exportadas (maiúscula).",
   ruby: "minitest. `require 'minitest/autorun'; require_relative 'solution'`. `class TesteX < Minitest::Test; def test_<nome>; assert_equal esperado, metodo(args); end; end`.",
   c: "Convenção TAP em C: um ficheiro com `#include <stdio.h>`, protótipos das funções da solução, e `int main()` que imprime UMA linha por teste: `printf(<cond> ? \"ok N - <nome>\\n\" : \"not ok N - <nome>\\n\");`. Numera N a partir de 1.",
+  cpp: "Convenção TAP em C++: `#include <iostream>`, declara as funções da solução, e `int main()` que imprime UMA linha por teste com `std::cout << (<cond> ? \"ok N - <nome>\" : \"not ok N - <nome>\") << \"\\n\";`. Numera N a partir de 1.",
 };
 
 export async function gerarTestes(p: { enunciado: string; lang: string; instrucoes?: string | null }): Promise<string | null> {
