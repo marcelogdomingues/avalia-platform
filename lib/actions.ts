@@ -16,6 +16,7 @@ import {
   melhorarFeedback,
   tutorSocratico,
   avaliarDefesa,
+  gerarTestes,
   type MensagemTutor,
   type DefesaAvaliacao,
   type Criterio,
@@ -361,6 +362,13 @@ export async function apagarSnippet(id: string): Promise<void> {
 export async function usarSnippet(id: string): Promise<void> {
   const prof = await requireProfessor();
   await db.commentSnippet.updateMany({ where: { id, professorId: prof.id }, data: { usos: { increment: 1 } } });
+}
+
+// Gera um ficheiro de testes com IA para a linguagem escolhida (autograder).
+export async function gerarTestesAction(enunciado: string, lang: Lang, instrucoes?: string): Promise<string | null> {
+  await requireProfessor();
+  if (!enunciado.trim()) return null;
+  return gerarTestes({ enunciado, lang, instrucoes });
 }
 
 // Deteção exata dos nomes de teste — corre a coleção do runner (ex.: pytest

@@ -279,6 +279,38 @@ export async function melhorarFeedback(p: { feedback: string; tom: TomFeedback; 
   return completion.choices[0]?.message?.content?.trim() || null;
 }
 
+// ── Gerar ficheiro de testes com IA (autograder) ─────────────────────────────
+// A partir do enunciado, escreve testes na convenção da linguagem escolhida.
+const FRAMEWORK_TESTES: Record<string, string> = {
+  python: "pytest. Importa a solução com `from solution import <nomes>`. Cada teste é `def test_<nome>():` com asserts. Para exceções usa `import pytest; with pytest.raises(...)`.",
+  javascript: "node:test. `const test = require('node:test'); const assert = require('node:assert'); const { <nomes> } = require('./solution');`. Cada teste: `test('<nome>', () => { assert.strictEqual(...) });`.",
+  typescript: "node:test em TypeScript. `import { test } from 'node:test'; import assert from 'node:assert'; import { <nomes> } from './solution.ts';`. Cada teste: `test('<nome>', () => { ... });`. Usa tipos.",
+  java: "JUnit 5. `public class TrabalhoTest { @Test void <nome>() { assertEquals(...); } }`. Assume que o aluno entrega uma classe com métodos estáticos.",
+  go: "go test. `package main` + `import \"testing\"` + `func Test<Nome>(t *testing.T) { if <cond> { t.Fatal(\"...\") } }`. Assume funções exportadas (maiúscula).",
+  ruby: "minitest. `require 'minitest/autorun'; require_relative 'solution'`. `class TesteX < Minitest::Test; def test_<nome>; assert_equal esperado, metodo(args); end; end`.",
+  c: "Convenção TAP em C: um ficheiro com `#include <stdio.h>`, protótipos das funções da solução, e `int main()` que imprime UMA linha por teste: `printf(<cond> ? \"ok N - <nome>\\n\" : \"not ok N - <nome>\\n\");`. Numera N a partir de 1.",
+};
+
+export async function gerarTestes(p: { enunciado: string; lang: string; instrucoes?: string | null }): Promise<string | null> {
+  if (!temLLM) return null;
+  const fw = FRAMEWORK_TESTES[p.lang];
+  if (!fw) return null;
+  const system = [
+    "És professor de programação a escrever um conjunto de testes automáticos para avaliar código de alunos.",
+    "Escreve testes claros, com nomes descritivos, cobrindo o caso normal, casos-limite e erros esperados (4 a 8 testes).",
+    `Convenção da linguagem: ${fw}`,
+    "Responde APENAS com o conteúdo do ficheiro de testes — sem explicações, sem ```code fences```.",
+    p.instrucoes ? `Instruções extra: ${p.instrucoes}` : "",
+  ].join("\n");
+  const completion = await llm.chat.completions.create({
+    model: AVALIADOR_MODEL, temperature: 0.3,
+    messages: [{ role: "system", content: system }, { role: "user", content: `Enunciado:\n${p.enunciado}` }],
+  });
+  let txt = completion.choices[0]?.message?.content?.trim() || null;
+  if (txt) txt = txt.replace(/^```[\w]*\n?/, "").replace(/\n?```$/, "").trim(); // limpa fences se vierem
+  return txt;
+}
+
 // ── Tutor socrático (portal do aluno) ────────────────────────────────────────
 // Ajuda o aluno a melhorar SEM lhe dar a resposta nem escrever o trabalho.
 // Alinha com o combate ao abuso de IA: promove aprendizagem, não faz o trabalho.
