@@ -1,0 +1,11 @@
+# Imagem do autograder para JavaScript (test runner nativo do Node, sem deps).
+# Construir uma vez:  docker build -t avalia-runner-node -f runner/Dockerfile.node runner
+# O lib/runner.ts corre esta imagem por submissão, isolada:
+#   --network none --memory 512m --cpus 1 --pids-limit 128, testes montados read-only.
+#
+# Usa `node --test` (embutido desde o Node 18) — nenhuma dependência a instalar,
+# logo a execução do aluno nunca acede à rede.
+FROM node:20-slim
+RUN useradd -m runner
+USER runner
+WORKDIR /work

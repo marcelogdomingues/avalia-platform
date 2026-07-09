@@ -9,7 +9,7 @@ web app (Vercel)  ──POST /run──►  grader (VPS/faculdade, com Docker)  
                   ──POST /collect─►  (nomes exatos dos testes, sem os correr)
 ```
 
-Linguagens prontas: **Python (pytest)** e **Java (JUnit 5)**. Juntar outra =
+Linguagens prontas: **Python (pytest)**, **Java (JUnit 5)** e **JavaScript (node:test)**. Juntar outra =
 juntar uma imagem `runner/Dockerfile.<lang>` + a entrada em `LANGS` (comando +
 parser) no `grader/server.mjs` e em `lib/runner.ts`.
 
@@ -19,6 +19,7 @@ parser) no `grader/server.mjs` e em `lib/runner.ts`.
 # 1. Construir a(s) imagem(ns) de runner (uma vez)
 docker build -t avalia-runner-python -f runner/Dockerfile.python runner
 docker build -t avalia-runner-java   -f runner/Dockerfile.java   runner
+docker build -t avalia-runner-node   -f runner/Dockerfile.node   runner
 
 # 2. Arrancar o grader
 RUNNER_TOKEN=um-segredo RUNNER_CONCURRENCY=2 node grader/server.mjs

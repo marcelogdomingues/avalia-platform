@@ -14,7 +14,7 @@ import AdmZip from "adm-zip";
 
 const execFileP = promisify(execFile);
 
-export type Lang = "python" | "java" | "dart" | "kotlin";
+export type Lang = "python" | "java" | "javascript" | "dart" | "kotlin";
 export interface TestFile { path: string; content: string }
 export interface TestOutcome { nome: string; ok: boolean }
 export interface RunResult { tests: TestOutcome[]; erro?: string }
@@ -22,6 +22,7 @@ export interface RunResult { tests: TestOutcome[]; erro?: string }
 export const LANG_LABELS: Record<Lang, string> = {
   python: "Python (pytest)",
   java: "Java (JUnit)",
+  javascript: "JavaScript (node:test)",
   dart: "Dart (dart test)",
   kotlin: "Kotlin (Gradle)",
 };
@@ -45,12 +46,18 @@ const RUN_CFG: Partial<Record<Lang, LangRun>> = {
     cmd: "cp /tests/*.java /work/ 2>/dev/null; timeout 40 sh -c 'javac -cp /opt/junit/junit.jar /work/*.java -d /work/out 2>/work/c.err && java -jar /opt/junit/junit.jar execute -cp /work/out --scan-classpath --reports-dir=/work/rep --disable-banner --details=none >/dev/null 2>&1'; cat /work/rep/*.xml 2>/dev/null || true",
     parse: parseJavaXml,
   },
+  javascript: {
+    image: "avalia-runner-node",
+    // Junta testes e código na mesma pasta e corre o test runner nativo do Node (TAP).
+    cmd: "cp /tests/*.js /work/ 2>/dev/null; cd /work; timeout 20 node --test --test-reporter=tap 2>/dev/null || true",
+    parse: parseTapJs,
+  },
 };
 
 // Linguagens com imagem de runner pronta nesta instância (derivado da config).
 export const LANGS_PRONTAS: Lang[] = Object.keys(RUN_CFG) as Lang[];
 export const EXT: Record<Lang, string[]> = {
-  python: [".py"], java: [".java"], dart: [".dart"], kotlin: [".kt"],
+  python: [".py"], java: [".java"], javascript: [".js"], dart: [".dart"], kotlin: [".kt"],
 };
 
 // Modo de execução — resolve os problemas de memória e de deploy:
@@ -122,6 +129,20 @@ async function runRemote(lang: Lang, studentFiles: TestFile[], testFiles: TestFi
   } catch (e) {
     return { tests: [], erro: `Grader inacessível: ${(e as Error).message.slice(0, 120)}` };
   }
+}
+
+// Faz parse do TAP do `node --test`. Linhas: "ok N - nome" / "not ok N - nome".
+// Ignora as linhas de resumo por ficheiro (nome termina em .js) e subtestes-container.
+export function parseTapJs(raw: string): TestOutcome[] {
+  const tests: TestOutcome[] = [];
+  for (const linha of String(raw).split("\n")) {
+    const m = linha.match(/^\s*(not ok|ok)\s+\d+\s+-\s+(.+?)\s*(?:#.*)?$/);
+    if (!m) continue;
+    const nome = m[2].trim();
+    if (/\.(js|mjs|cjs)$/i.test(nome) || nome.includes("/")) continue; // resumo do ficheiro
+    tests.push({ nome, ok: m[1] === "ok" });
+  }
+  return tests;
 }
 
 // Faz parse dos relatórios JUnit XML legados (<testcase name=... > com <failure>/<error>).

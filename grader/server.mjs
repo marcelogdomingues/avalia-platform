@@ -79,6 +79,21 @@ const LANGS = {
       return tests;
     },
   },
+  javascript: {
+    image: "avalia-runner-node",
+    cmd: "cp /tests/*.js /work/ 2>/dev/null; cd /work; timeout 20 node --test --test-reporter=tap 2>/dev/null || true",
+    parse: (raw) => {
+      const tests = [];
+      for (const linha of String(raw).split("\n")) {
+        const m = linha.match(/^\s*(not ok|ok)\s+\d+\s+-\s+(.+?)\s*(?:#.*)?$/);
+        if (!m) continue;
+        const nome = m[2].trim();
+        if (/\.(js|mjs|cjs)$/i.test(nome) || nome.includes("/")) continue;
+        tests.push({ nome, ok: m[1] === "ok" });
+      }
+      return tests;
+    },
+  },
 };
 
 // Semáforo — nunca mais do que CONC contentores em paralelo (protege a RAM).

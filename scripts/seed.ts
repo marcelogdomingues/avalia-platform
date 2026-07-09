@@ -635,6 +635,58 @@ public class StringUtilsTest {
     public static int countVowels(String s) { return 0; }
 }
 `, "StringUtils.java");
+
+    // — Projeto 4: Utilitários (JavaScript, node:test) —
+    const jsTests = `const test = require('node:test');
+const assert = require('node:assert');
+const { soma, maior } = require('./solution');
+
+test('soma', () => { assert.strictEqual(soma(2, 3), 5); assert.strictEqual(soma(-1, 1), 0); });
+test('maior', () => { assert.strictEqual(maior([3, 7, 2]), 7); assert.strictEqual(maior([5]), 5); });
+test('maior_vazio', () => { assert.throws(() => maior([])); });
+`;
+    const jsA = await db.assignment.create({ data: {
+      courseId: proj.id, titulo: "Utilitários (JavaScript)",
+      enunciado: "Em solution.js, exporta soma(a, b) e maior(arr) (maior elemento do array). maior([]) deve lançar um erro. module.exports = { soma, maior }.",
+      tiposFicheiro: ["js", "zip"], rubrica: rubCod as unknown as object,
+      testSuite: { lang: "javascript", testFiles: [{ path: "solution.test.js", content: jsTests }],
+        obrigatorios: ["soma", "maior"] } as unknown as object,
+    } });
+    // correto (lança em vazio)
+    await submeterCodigo(jsA, "Ana Silva", `function soma(a, b) { return a + b; }
+function maior(arr) {
+  if (arr.length === 0) throw new Error("array vazio");
+  return Math.max(...arr);
+}
+module.exports = { soma, maior };
+`, "solution.js");
+    // passa obrigatórios, falha o opcional (maior([]) devolve -Infinity em vez de lançar)
+    await submeterCodigo(jsA, "Diana Faria", `function soma(a, b) { return a + b; }
+function maior(arr) { return Math.max(...arr); }
+module.exports = { soma, maior };
+`, "solution.js");
+    // BLOQUEADA: soma faz subtração → falha obrigatório
+    await submeterCodigo(jsA, "Rui Costa", `function soma(a, b) { return a - b; }
+function maior(arr) { return Math.max(...arr); }
+module.exports = { soma, maior };
+`, "solution.js");
+
+    // — Cenários de sandbox: crash e loop infinito (demonstram a proteção) —
+    console.log("  Cenários de sandbox (esperado: bloqueados):");
+    // erro de sintaxe → não importa → nenhum teste corre
+    await submeterCodigo(pilha, "Eduardo Pinto", `class Pilha
+    def __init__(self): self.d = []
+`, "solution.py");
+    // loop infinito → o timeout do sandbox mata (≈20s)
+    await submeterCodigo(pilha, "Rui Costa", `class Pilha:
+    def __init__(self): self.d = []
+    def push(self, x):
+        while True: pass
+    def pop(self): return self.d.pop()
+    def peek(self): return self.d[-1]
+    def is_empty(self): return not self.d
+    def size(self): return len(self.d)
+`, "solution.py");
   } else {
     console.log("  (Projetos de código saltados — RUNNER_MODE=off ou Docker indisponível)");
   }
