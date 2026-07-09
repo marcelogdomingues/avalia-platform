@@ -126,6 +126,11 @@ const LANGS = {
       return tests;
     },
   },
+  c: {
+    image: "avalia-runner-c",
+    cmd: "cp /tests/*.c /work/ 2>/dev/null; cd /work; timeout 15 sh -c 'gcc -O0 -o prog *.c -lm 2>/dev/null && ./prog' 2>/dev/null || true",
+    parse: tapParse,
+  },
 };
 
 // Semáforo — nunca mais do que CONC contentores em paralelo (protege a RAM).

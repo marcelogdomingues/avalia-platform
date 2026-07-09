@@ -14,7 +14,7 @@ import AdmZip from "adm-zip";
 
 const execFileP = promisify(execFile);
 
-export type Lang = "python" | "java" | "javascript" | "typescript" | "go" | "ruby" | "dart" | "kotlin";
+export type Lang = "python" | "java" | "javascript" | "typescript" | "go" | "ruby" | "c" | "dart" | "kotlin";
 export interface TestFile { path: string; content: string }
 export interface TestOutcome { nome: string; ok: boolean; ms?: number }
 export interface RunResult { tests: TestOutcome[]; erro?: string; duracaoMs?: number }
@@ -26,6 +26,7 @@ export const LANG_LABELS: Record<Lang, string> = {
   typescript: "TypeScript (node:test)",
   go: "Go (go test)",
   ruby: "Ruby (minitest)",
+  c: "C (gcc + TAP)",
   dart: "Dart (dart test)",
   kotlin: "Kotlin (Gradle)",
 };
@@ -76,13 +77,19 @@ const RUN_CFG: Partial<Record<Lang, LangRun>> = {
     cmd: "cp /tests/*.rb /work/ 2>/dev/null; cd /work; timeout 20 ruby -I. *_test.rb -v 2>&1 || true",
     parse: parseRubyMinitest,
   },
+  c: {
+    image: "avalia-runner-c",
+    // Compila solução + teste (o teste tem main() e imprime TAP); corre; parse TAP.
+    cmd: "cp /tests/*.c /work/ 2>/dev/null; cd /work; timeout 15 sh -c 'gcc -O0 -o prog *.c -lm 2>/dev/null && ./prog' 2>/dev/null || true",
+    parse: parseTapJs,
+  },
 };
 
 // Linguagens com imagem de runner pronta nesta instância (derivado da config).
 export const LANGS_PRONTAS: Lang[] = Object.keys(RUN_CFG) as Lang[];
 export const EXT: Record<Lang, string[]> = {
   python: [".py"], java: [".java"], javascript: [".js"], typescript: [".ts"],
-  go: [".go"], ruby: [".rb"], dart: [".dart"], kotlin: [".kt"],
+  go: [".go"], ruby: [".rb"], c: [".c", ".h"], dart: [".dart"], kotlin: [".kt"],
 };
 
 // Modo de execução — resolve os problemas de memória e de deploy:

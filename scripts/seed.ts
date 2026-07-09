@@ -737,6 +737,31 @@ export function maior(arr: number[]): number {
 }
 `, "solution.ts");
 
+    // — Projeto 8: Utilitários (C, convenção TAP) —
+    const cTests = `#include <stdio.h>
+int soma(int, int);
+int maior(int*, int);
+int main() {
+    printf(soma(2, 3) == 5 ? "ok 1 - soma\\n" : "not ok 1 - soma\\n");
+    int a[] = {3, 7, 2};
+    printf(maior(a, 3) == 7 ? "ok 2 - maior\\n" : "not ok 2 - maior\\n");
+    return 0;
+}
+`;
+    const cA = await db.assignment.create({ data: {
+      courseId: proj.id, titulo: "Utilitários (C)",
+      enunciado: "Em solution.c, implementa int soma(int a, int b) e int maior(int* xs, int n) (maior de n inteiros).",
+      tiposFicheiro: ["c", "zip"], rubrica: rubCod as unknown as object,
+      testSuite: { lang: "c", testFiles: [{ path: "tests.c", content: cTests }], obrigatorios: "todos" } as unknown as object,
+    } });
+    await submeterCodigo(cA, "Carlos Mendes", `int soma(int a, int b) { return a + b; }
+int maior(int* xs, int n) {
+    int m = xs[0];
+    for (int i = 1; i < n; i++) if (xs[i] > m) m = xs[i];
+    return m;
+}
+`, "solution.c");
+
     // — Cenários de sandbox: crash e loop infinito (demonstram a proteção) —
     console.log("  Cenários de sandbox (esperado: bloqueados):");
     // erro de sintaxe → não importa → nenhum teste corre
