@@ -364,6 +364,24 @@ export async function usarSnippet(id: string): Promise<void> {
   await db.commentSnippet.updateMany({ where: { id, professorId: prof.id }, data: { usos: { increment: 1 } } });
 }
 
+// Re-corre o autograder de uma submissão (ex.: depois de editar os testes).
+export async function recorrerTestesAction(submissionId: string): Promise<GateResult | null> {
+  const prof = await requireProfessor();
+  const sub = await db.submission.findFirst({
+    where: { id: submissionId, assignment: { course: { professorId: prof.id } } },
+    include: { assignment: true },
+  });
+  if (!sub || !sub.conteudoExtraido) return null;
+  const suite = sub.assignment.testSuite as { lang: Lang; testFiles: TestFile[]; obrigatorios: "todos" | string[] } | null;
+  if (!runnerAtivo || !suite?.testFiles?.length) return null;
+  const filename = (sub.ficheiros as { nome?: string }[] | null)?.[0]?.nome ?? `solution.${EXT[suite.lang][0].replace(".", "")}`;
+  const run = await runTests(suite.lang, [{ path: filename, content: sub.conteudoExtraido }], suite.testFiles);
+  const gate = avaliarGate(run, suite.obrigatorios);
+  await db.submission.update({ where: { id: sub.id }, data: { testResult: gate as object } });
+  revalidatePath(`/professor/trabalho/${sub.assignmentId}`);
+  return gate;
+}
+
 // Gera um ficheiro de testes com IA para a linguagem escolhida (autograder).
 export async function gerarTestesAction(enunciado: string, lang: Lang, instrucoes?: string): Promise<string | null> {
   await requireProfessor();

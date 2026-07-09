@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, avaliarDefesaAction, responderRecurso, type Snippet } from "@/lib/actions";
+import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, avaliarDefesaAction, responderRecurso, recorrerTestesAction, type Snippet } from "@/lib/actions";
 import type { DefesaAvaliacao } from "@/lib/evaluate";
 import type { InsightsTurma, TomFeedback } from "@/lib/evaluate";
 import type { AnaliseIntegridade } from "@/lib/similaridade";
@@ -96,6 +96,20 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
   const [insightsLoading, setInsightsLoading] = useState(false);
   const feedbackRef = useRef<HTMLTextAreaElement>(null);
   const [melhorarLoading, setMelhorarLoading] = useState(false);
+
+  // Re-correr o autograder (por submissão; sobrepõe o testResult localmente)
+  const [rerunTR, setRerunTR] = useState<Record<string, Sub["testResult"]>>({});
+  const [rerunLoading, setRerunLoading] = useState(false);
+  async function recorrerTestes(id: string) {
+    if (rerunLoading) return;
+    setRerunLoading(true);
+    try {
+      const r = await recorrerTestesAction(id);
+      if (r) setRerunTR((m) => ({ ...m, [id]: r as Sub["testResult"] }));
+    } finally {
+      setRerunLoading(false);
+    }
+  }
 
   // Resposta a recurso (por submissão)
   const [recursoTexto, setRecursoTexto] = useState("");
@@ -427,8 +441,8 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                       </div>
 
                       {/* Testes automáticos (autograder) */}
-                      {sel.testResult && (() => {
-                        const tr = sel.testResult;
+                      {(rerunTR[sel.id] ?? sel.testResult) && (() => {
+                        const tr = rerunTR[sel.id] ?? sel.testResult!;
                         const cor = tr.gateMet ? TEAL : "#9f1d1d";
                         const pct = tr.total ? Math.round((tr.passed / tr.total) * 100) : 0;
                         return (
@@ -438,8 +452,9 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                               <span style={{ fontSize: 12.5, fontWeight: 600, color: cor }}>{tr.passed}/{tr.total} · obrigatórios {tr.obrigatoriosPassed}/{tr.obrigatoriosTotal}{tr.duracaoMs != null ? ` · ${(tr.duracaoMs / 1000).toFixed(1)}s` : ""}</span>
                             </div>
                             <div className="mbar"><span style={{ width: `${pct}%`, background: cor }} /></div>
-                            <details className="disclosure" style={{ marginTop: 10 }}>
-                              <summary>Ver testes</summary>
+                            <div className="row-between" style={{ marginTop: 8 }}>
+                              <details className="disclosure" style={{ flex: 1 }}>
+                                <summary>Ver testes</summary>
                               <ul style={{ listStyle: "none", margin: "8px 0 0", padding: 0, display: "grid", gap: 3, fontSize: 12.5 }}>
                                 {tr.tests.map((t, i) => (
                                   <li key={i} style={{ display: "flex", alignItems: "center", gap: 8, color: t.ok ? TEAL : "#9f1d1d" }}>
@@ -449,7 +464,11 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                                   </li>
                                 ))}
                               </ul>
-                            </details>
+                              </details>
+                              <button type="button" className="btn ghost sm" onClick={() => recorrerTestes(sel.id)} disabled={rerunLoading} title="Corre os testes atuais contra este código" style={{ marginLeft: 12, whiteSpace: "nowrap" }}>
+                                {rerunLoading ? "↻ a correr…" : "↻ Re-correr"}
+                              </button>
+                            </div>
                           </div>
                         );
                       })()}
