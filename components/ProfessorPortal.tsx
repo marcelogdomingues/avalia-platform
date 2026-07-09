@@ -33,7 +33,7 @@ export type Sub = {
   deteccaoIA: { probabilidade: number; indicadores: string[] } | null;
   testResult: {
     total: number; passed: number; obrigatoriosTotal: number; obrigatoriosPassed: number; gateMet: boolean; duracaoMs?: number;
-    tests: { nome: string; ok: boolean; obrigatorio: boolean }[];
+    tests: { nome: string; ok: boolean; obrigatorio: boolean; ms?: number }[];
   } | null;
   simIA: number;
   simNome: string | null;
@@ -445,6 +445,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                                   <li key={i} style={{ display: "flex", alignItems: "center", gap: 8, color: t.ok ? TEAL : "#9f1d1d" }}>
                                     <span>{t.ok ? "✓" : "✗"}</span><span style={{ color: INK }}>{t.nome}</span>
                                     {t.obrigatorio && <span className="mono" style={{ fontSize: 10, color: "rgba(29,26,19,0.45)" }}>obrigatório</span>}
+                                    {t.ms != null && <span className="mono" style={{ fontSize: 10, color: "rgba(29,26,19,0.35)", marginLeft: "auto" }}>{t.ms < 1 ? "<1" : t.ms}ms</span>}
                                   </li>
                                 ))}
                               </ul>

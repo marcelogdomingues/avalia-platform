@@ -16,7 +16,7 @@ const execFileP = promisify(execFile);
 
 export type Lang = "python" | "java" | "javascript" | "typescript" | "go" | "ruby" | "dart" | "kotlin";
 export interface TestFile { path: string; content: string }
-export interface TestOutcome { nome: string; ok: boolean }
+export interface TestOutcome { nome: string; ok: boolean; ms?: number }
 export interface RunResult { tests: TestOutcome[]; erro?: string; duracaoMs?: number }
 
 export const LANG_LABELS: Record<Lang, string> = {
@@ -38,8 +38,11 @@ const RUN_CFG: Partial<Record<Lang, LangRun>> = {
     image: "avalia-runner-python",
     cmd: "PYTHONPATH=/work timeout 25 pytest /tests --json-report --json-report-file=/work/r.json -q >/dev/null 2>&1; cat /work/r.json 2>/dev/null || true",
     parse: (raw) => {
-      const j = JSON.parse(raw) as { tests?: { nodeid: string; outcome: string }[] };
-      return (j.tests ?? []).map((t) => ({ nome: String(t.nodeid).split("::").pop() ?? t.nodeid, ok: t.outcome === "passed" }));
+      const j = JSON.parse(raw) as { tests?: { nodeid: string; outcome: string; call?: { duration?: number }; duration?: number }[] };
+      return (j.tests ?? []).map((t) => ({
+        nome: String(t.nodeid).split("::").pop() ?? t.nodeid, ok: t.outcome === "passed",
+        ms: Math.round((t.call?.duration ?? t.duration ?? 0) * 1000) || undefined,
+      }));
     },
   },
   java: {
@@ -157,12 +160,18 @@ async function runRemote(lang: Lang, studentFiles: TestFile[], testFiles: TestFi
 // Ignora as linhas de resumo por ficheiro (nome termina em .js) e subtestes-container.
 export function parseTapJs(raw: string): TestOutcome[] {
   const tests: TestOutcome[] = [];
+  let ultimo: TestOutcome | null = null;
   for (const linha of String(raw).split("\n")) {
     const m = linha.match(/^\s*(not ok|ok)\s+\d+\s+-\s+(.+?)\s*(?:#.*)?$/);
-    if (!m) continue;
-    const nome = m[2].trim();
-    if (/\.(js|mjs|cjs)$/i.test(nome) || nome.includes("/")) continue; // resumo do ficheiro
-    tests.push({ nome, ok: m[1] === "ok" });
+    if (m) {
+      const nome = m[2].trim();
+      if (/\.(js|mjs|cjs|ts)$/i.test(nome) || nome.includes("/")) { ultimo = null; continue; }
+      ultimo = { nome, ok: m[1] === "ok" };
+      tests.push(ultimo);
+      continue;
+    }
+    const d = linha.match(/^\s*duration_ms:\s*([\d.]+)/); // bloco YAML do node:test
+    if (d && ultimo && ultimo.ms == null) ultimo.ms = Math.round(Number(d[1])) || undefined;
   }
   return tests;
 }
@@ -171,8 +180,8 @@ export function parseTapJs(raw: string): TestOutcome[] {
 export function parseGoTest(raw: string): TestOutcome[] {
   const tests: TestOutcome[] = [];
   for (const linha of String(raw).split("\n")) {
-    const m = linha.match(/^\s*--- (PASS|FAIL):\s+(\w+)/);
-    if (m) tests.push({ nome: m[2], ok: m[1] === "PASS" });
+    const m = linha.match(/^\s*--- (PASS|FAIL):\s+(\w+)\s*(?:\(([\d.]+)s\))?/);
+    if (m) tests.push({ nome: m[2], ok: m[1] === "PASS", ms: m[3] ? Math.round(Number(m[3]) * 1000) || undefined : undefined });
   }
   return tests;
 }
@@ -181,8 +190,8 @@ export function parseGoTest(raw: string): TestOutcome[] {
 export function parseRubyMinitest(raw: string): TestOutcome[] {
   const tests: TestOutcome[] = [];
   for (const linha of String(raw).split("\n")) {
-    const m = linha.match(/(?:(\w+)#)?(\w+)\s*=\s*[\d.]+\s*s\s*=\s*([.FES])/);
-    if (m && m[2]) tests.push({ nome: m[2], ok: m[3] === "." });
+    const m = linha.match(/(?:(\w+)#)?(\w+)\s*=\s*([\d.]+)\s*s\s*=\s*([.FES])/);
+    if (m && m[2]) tests.push({ nome: m[2], ok: m[4] === ".", ms: Math.round(Number(m[3]) * 1000) || undefined });
   }
   return tests;
 }
@@ -198,7 +207,8 @@ export function parseJavaXml(raw: string): TestOutcome[] {
     const nome = attrs.match(/\bname="([^"]*)"/)?.[1]?.replace(/\(\)$/, "").trim();
     if (!nome) continue;
     if (/<skipped\b/.test(inner)) continue;         // ignorados não contam
-    tests.push({ nome, ok: !/<(failure|error)\b/.test(inner) });
+    const t = attrs.match(/\btime="([\d.]+)"/)?.[1];
+    tests.push({ nome, ok: !/<(failure|error)\b/.test(inner), ms: t ? Math.round(Number(t) * 1000) || undefined : undefined });
   }
   return tests;
 }
