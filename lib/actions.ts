@@ -283,6 +283,26 @@ export async function tutorAction(submissionId: string, historico: MensagemTutor
   });
 }
 
+// Avaliação manual: o professor lança uma nota direta (oral/apresentação/participação),
+// sem ficheiro. Cria uma submissão + avaliação em RASCUNHO com a nota/feedback dados.
+export async function criarAvaliacaoManual(assignmentId: string, alunoNome: string, alunoNumero: string, nota: number, feedback: string): Promise<{ ok: boolean }> {
+  const prof = await requireProfessor();
+  const a = await db.assignment.findFirst({ where: { id: assignmentId, course: { professorId: prof.id } } });
+  if (!a || !alunoNome.trim()) return { ok: false };
+  const n = Math.max(0, Math.min(20, Number(nota) || 0));
+  const sub = await db.submission.create({
+    data: {
+      assignmentId: a.id, alunoNome: alunoNome.trim(), alunoNumero: alunoNumero.trim() || null,
+      ficheiros: [] as object, conteudoExtraido: null,
+    },
+  });
+  await db.evaluation.create({
+    data: { submissionId: sub.id, estado: "RASCUNHO", notaIA: n, feedbackGlobal: feedback.trim() || null, modelo: "manual", avaliadoEm: new Date() },
+  });
+  revalidatePath(`/professor/trabalho/${a.id}`);
+  return { ok: true };
+}
+
 // Duplica um trabalho (rubrica, testes, configurações) — sem submissões.
 export async function duplicarTrabalho(assignmentId: string) {
   const prof = await requireProfessor();

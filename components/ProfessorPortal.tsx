@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, avaliarDefesaAction, responderRecurso, recorrerTestesAction, recorrerTodosAction, duplicarTrabalho, type Snippet } from "@/lib/actions";
+import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, avaliarDefesaAction, responderRecurso, recorrerTestesAction, recorrerTodosAction, duplicarTrabalho, criarAvaliacaoManual, type Snippet } from "@/lib/actions";
 import type { DefesaAvaliacao } from "@/lib/evaluate";
 import type { InsightsTurma, TomFeedback } from "@/lib/evaluate";
 import type { AnaliseIntegridade } from "@/lib/similaridade";
@@ -101,6 +101,21 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
   const [filtro, setFiltro] = useState<"todas" | "rever" | "publicadas" | "recursos">("todas");
   const [turmaFiltro, setTurmaFiltro] = useState<string>("");
   const [busca, setBusca] = useState("");
+  const [ordem, setOrdem] = useState<"data" | "notaAsc" | "notaDesc" | "sinal">("data");
+  // Avaliação manual (oral/apresentação/participação — sem ficheiro)
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manual, setManual] = useState({ nome: "", numero: "", nota: "", feedback: "" });
+  const [manualLoading, setManualLoading] = useState(false);
+  async function lancarManual() {
+    if (manualLoading || !manual.nome.trim() || !manual.nota.trim()) return;
+    setManualLoading(true);
+    try {
+      const r = await criarAvaliacaoManual(assignment.id, manual.nome, manual.numero, Number(manual.nota), manual.feedback);
+      if (r.ok) { setManual({ nome: "", numero: "", nota: "", feedback: "" }); setManualOpen(false); }
+    } finally {
+      setManualLoading(false);
+    }
+  }
   const turmas = [...new Set(subs.map((s) => s.turma).filter((t): t is string => !!t))].sort();
   const [selId, setSelId] = useState<string | null>(subs[0]?.id ?? null);
   const [diffOpen, setDiffOpen] = useState(false);
@@ -241,7 +256,12 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
     (filtro === "todas" ? true : filtro === "rever" ? !s.aprovado : filtro === "recursos" ? s.recurso?.estado === "aberto" : s.aprovado)
     && (!turmaFiltro || s.turma === turmaFiltro)
     && (!busca.trim() || s.alunoNome.toLowerCase().includes(busca.trim().toLowerCase()) || (s.alunoNumero ?? "").includes(busca.trim()))
-  );
+  ).sort((a, b) => {
+    if (ordem === "notaAsc") return (a.nota ?? 99) - (b.nota ?? 99);
+    if (ordem === "notaDesc") return (b.nota ?? -1) - (a.nota ?? -1);
+    if (ordem === "sinal") return (Math.max(b.simIA * 100, b.deteccaoIA?.probabilidade ?? 0)) - (Math.max(a.simIA * 100, a.deteccaoIA?.probabilidade ?? 0));
+    return 0; // data: mantém a ordem original (createdAt desc)
+  });
   const recursosAbertos = subs.filter((s) => s.recurso?.estado === "aberto").length;
   const sel = subs.find((s) => s.id === selId) ?? null;
 
@@ -435,6 +455,12 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                         {turmas.map((t) => <option key={t} value={t}>Turma {t}</option>)}
                       </select>
                     )}
+                    <select value={ordem} onChange={(e) => setOrdem(e.target.value as typeof ordem)} title="Ordenar" style={{ fontFamily: "inherit", fontSize: 12, padding: "6px 8px", borderRadius: 99, border: "1px solid rgba(29,26,19,0.18)", background: "#fff", color: "rgba(29,26,19,0.7)", cursor: "pointer" }}>
+                      <option value="data">↕ Data</option>
+                      <option value="notaDesc">↓ Nota ↑</option>
+                      <option value="notaAsc">↑ Nota ↓</option>
+                      <option value="sinal">⚑ Sinal de IA</option>
+                    </select>
                   </div>
                 </div>
                 <div style={{ flex: 1, overflowY: "auto", padding: "0 12px 16px" }}>
@@ -461,6 +487,25 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                       </button>
                     );
                   })}
+                  <div style={{ padding: "10px 12px" }}>
+                    {!manualOpen ? (
+                      <button onClick={() => setManualOpen(true)} className="btn ghost sm" style={{ width: "100%", justifyContent: "center" }} title="Lançar uma nota sem ficheiro (oral, apresentação, participação)">+ Adicionar avaliação</button>
+                    ) : (
+                      <div style={{ background: "var(--surface-2)", borderRadius: 10, padding: 12, display: "grid", gap: 8 }}>
+                        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)" }}>Avaliação manual (sem ficheiro)</div>
+                        <input value={manual.nome} onChange={(e) => setManual((m) => ({ ...m, nome: e.target.value }))} placeholder="Nome do aluno" style={{ fontSize: 13, padding: "7px 10px" }} />
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <input value={manual.numero} onChange={(e) => setManual((m) => ({ ...m, numero: e.target.value }))} placeholder="Nº" style={{ fontSize: 13, padding: "7px 10px", flex: 1, minWidth: 0 }} />
+                          <input value={manual.nota} onChange={(e) => setManual((m) => ({ ...m, nota: e.target.value }))} type="number" min={0} max={20} step={0.1} placeholder="Nota /20" style={{ fontSize: 13, padding: "7px 10px", width: 80 }} />
+                        </div>
+                        <textarea value={manual.feedback} onChange={(e) => setManual((m) => ({ ...m, feedback: e.target.value }))} placeholder="Feedback (opcional)" style={{ fontSize: 13, minHeight: 44 }} />
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button onClick={lancarManual} disabled={manualLoading || !manual.nome.trim() || !manual.nota.trim()} className="btn sm" style={{ flex: 1 }}>{manualLoading ? "…" : "Lançar"}</button>
+                          <button onClick={() => setManualOpen(false)} className="btn ghost sm">Cancelar</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
