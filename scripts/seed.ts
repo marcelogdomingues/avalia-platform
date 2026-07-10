@@ -468,7 +468,7 @@ def test_pop_vazia_erro():
         Pilha().pop()
 `;
     const pilha = await db.assignment.create({ data: {
-      courseId: proj.id, titulo: "Pilha (Stack) em Python",
+      courseId: proj.id, escala: "cem", titulo: "Pilha (Stack) em Python",
       enunciado: "Implementa a classe Pilha em solution.py com push(x), pop() (LIFO), peek(), is_empty() e size(). pop() numa pilha vazia deve levantar um erro. Os testes obrigatórios têm de passar para submeteres.",
       tiposFicheiro: ["py", "zip"], rubrica: rubCod as unknown as object,
       instrucoes: "Valoriza tratamento do caso da pilha vazia.",
@@ -592,7 +592,7 @@ public class StringUtilsTest {
 }
 `;
     const javaA = await db.assignment.create({ data: {
-      courseId: proj.id, titulo: "StringUtils (Java, JUnit)",
+      courseId: proj.id, escala: "letra", titulo: "StringUtils (Java, JUnit)",
       enunciado: "Cria StringUtils.java com métodos estáticos: String reverse(String s), boolean isPalindrome(String s) e int countVowels(String s). Os testes JUnit obrigatórios têm de passar.",
       tiposFicheiro: ["java", "zip"], rubrica: rubCod as unknown as object,
       testSuite: { lang: "java", testFiles: [{ path: "StringUtilsTest.java", content: javaTests }],

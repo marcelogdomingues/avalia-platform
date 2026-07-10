@@ -6,6 +6,7 @@ import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorar
 import type { DefesaAvaliacao } from "@/lib/evaluate";
 import type { InsightsTurma, TomFeedback } from "@/lib/evaluate";
 import type { AnaliseIntegridade } from "@/lib/similaridade";
+import { notaTexto, escalaLabel, type Escala } from "@/lib/escala";
 
 const TEAL = "#0f766e";
 const INK = "#1d1a13";
@@ -51,7 +52,7 @@ export type PortalProps = {
   courses: { id: string; nome: string }[];
   assignment: {
     id: string; titulo: string; courseId: string; courseNome: string;
-    submitToken: string; temBaseline: boolean; temAutograder?: boolean; autograderLang?: string | null;
+    submitToken: string; temBaseline: boolean; temAutograder?: boolean; autograderLang?: string | null; escala?: string;
     rubrica: { nome: string; peso: number; pontosMax: number; descricao: string }[];
   };
   subs: Sub[];
@@ -469,6 +470,9 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                         <div>
                           <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 5 }}>Nota da IA</div>
                           <div className="serif" style={{ fontSize: 52, fontWeight: 500, lineHeight: 1 }}>{sel.notaIA ?? "—"}<span style={{ fontSize: 24, color: "rgba(29,26,19,0.4)" }}> / 20</span></div>
+                          {assignment.escala && assignment.escala !== "vinte" && sel.notaIA != null && (
+                            <div className="mono" style={{ fontSize: 11, color: TEAL, marginTop: 4 }}>= {notaTexto(sel.notaIA, assignment.escala as Escala)} <span style={{ color: "rgba(29,26,19,0.4)" }}>({escalaLabel(assignment.escala as Escala)})</span></div>
+                          )}
                         </div>
                         <div style={{ flex: 1, minWidth: 240, display: "flex", flexDirection: "column", gap: 11, paddingBottom: 6 }}>
                           {sel.criterios.map((c) => {

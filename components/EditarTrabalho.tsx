@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { editarTrabalho } from "@/lib/actions";
 import TestSuiteEditor, { type TestSuiteValor } from "./TestSuiteEditor";
+import { ESCALAS } from "@/lib/escala";
 
 interface Crit { nome: string; descricao: string; peso: number; pontosMax: number; }
 const TIPOS = ["pdf", "docx", "txt", "zip"];
 
 export default function EditarTrabalho({
-  assignmentId, titulo, enunciado, tipos, instrucoes, solucaoModelo, feedbackImediato, rubrica, testSuite,
+  assignmentId, titulo, enunciado, tipos, instrucoes, solucaoModelo, feedbackImediato, escala, rubrica, testSuite,
 }: {
   assignmentId: string;
   titulo: string;
@@ -17,6 +18,7 @@ export default function EditarTrabalho({
   instrucoes: string;
   solucaoModelo: string;
   feedbackImediato: boolean;
+  escala: string;
   rubrica: Crit[];
   testSuite: TestSuiteValor | null;
 }) {
@@ -71,6 +73,12 @@ export default function EditarTrabalho({
         <div style={{ marginTop: 14 }}>
           <div className="field"><label>Instruções extra</label><textarea name="instrucoes" defaultValue={instrucoes} /></div>
           <div className="field"><label>Solução-modelo</label><textarea name="solucaoModelo" defaultValue={solucaoModelo} /></div>
+          <div className="field">
+            <label>Escala de notação</label>
+            <select name="escala" defaultValue={escala}>
+              {ESCALAS.map((e) => <option key={e.v} value={e.v}>{e.l} — ex: {e.ex}</option>)}
+            </select>
+          </div>
           <label className="checkbox"><input type="checkbox" name="feedbackImediato" defaultChecked={feedbackImediato} /> Mostrar feedback ao aluno logo após submeter</label>
         </div>
       </details>

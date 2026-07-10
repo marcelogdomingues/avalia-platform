@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireProfessor } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { notaTexto, type Escala } from "@/lib/escala";
 
 // GET /professor/trabalho/[assignmentId]/export → CSV de notas.
 // Formato compatível com importação no gradebook do Moodle.
@@ -18,7 +19,10 @@ export async function GET(
   if (!a) return new NextResponse("Não encontrado", { status: 404 });
 
   const temAutograder = !!a.testSuite;
-  const cabecalho = ["Numero", "Nome", "Email", "Nota", "Estado", "Sinal IA %"];
+  const escala = (a.escala ?? "vinte") as Escala;
+  const cabecalho = ["Numero", "Nome", "Email", "Nota"];
+  if (escala !== "vinte") cabecalho.push("Nota (escala)");
+  cabecalho.push("Estado", "Sinal IA %");
   if (temAutograder) cabecalho.push("Testes");
   const linhas = [cabecalho];
   for (const s of a.submissions) {
@@ -34,9 +38,9 @@ export async function GET(
       s.alunoNome,
       s.alunoEmail ?? "",
       String(nota).replace(".", ","), // vírgula decimal (Excel PT)
-      estado,
-      sinalIA != null ? String(sinalIA) : "",
     ];
+    if (escala !== "vinte") linha.push(notaTexto(nota, escala));
+    linha.push(estado, sinalIA != null ? String(sinalIA) : "");
     if (temAutograder) linha.push(tr?.total != null ? `${tr.passed}/${tr.total}` : "");
     linhas.push(linha);
   }

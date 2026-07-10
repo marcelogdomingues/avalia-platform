@@ -99,7 +99,7 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
       assignment={{
         id: a.id, titulo: a.titulo, courseId: a.courseId, courseNome: a.course.nome,
         submitToken: a.submitToken, temBaseline: !!a.respostaIA, temAutograder: !!a.testSuite,
-        autograderLang: (a.testSuite as { lang?: string } | null)?.lang ?? null, rubrica,
+        autograderLang: (a.testSuite as { lang?: string } | null)?.lang ?? null, escala: a.escala, rubrica,
       }}
       subs={subs}
       stats={stats}

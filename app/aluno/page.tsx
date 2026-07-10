@@ -44,6 +44,7 @@ export default async function AlunoDashboard() {
       approvedBy: aprovado ? s.assignment.course.professor?.nome ?? null : null,
       defesaPerguntas: (ev?.perguntasDefesa as string[] | null) ?? [],
       defesaRespostas: (s.respostasDefesa as { pergunta: string; resposta: string }[] | null) ?? [],
+      escala: (s.assignment.escala ?? "vinte") as any,
       recurso: (s.recurso as { pedido: string; estado: "aberto" | "respondido"; resposta?: string } | null) ?? null,
       testResult: (s.testResult as { total: number; passed: number; gateMet: boolean; duracaoMs?: number; tests: { nome: string; ok: boolean; obrigatorio: boolean; ms?: number }[] } | null) ?? null,
     };

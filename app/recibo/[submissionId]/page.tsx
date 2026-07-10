@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { notaTexto, escalaSufixo, type Escala } from "@/lib/escala";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,7 @@ export default async function ReciboPage({
   const aprovado = ev?.estado === "APROVADO";
   const mostrar = aprovado || s.assignment.feedbackImediato;
   const nota = aprovado ? ev?.notaFinal ?? ev?.notaIA : ev?.notaIA;
+  const escala = (s.assignment.escala ?? "vinte") as Escala;
   const criterios = (ev?.porCriterio as any[]) ?? [];
   const tr = s.testResult as { passed: number; total: number; duracaoMs?: number; tests: { nome: string; ok: boolean; obrigatorio: boolean }[] } | null;
 
@@ -52,7 +54,7 @@ export default async function ReciboPage({
               {aprovado ? "Nota final" : "Pré-avaliação provisória"}
             </span>
             <div className={`result-grade ${gradeClass(nota)}`}>
-              {nota ?? "—"}<span className="max">/20</span>
+              {notaTexto(nota, escala)}<span className="max">{escalaSufixo(escala)}</span>
             </div>
             <p className="muted" style={{ margin: 0, fontSize: 14 }}>
               {aprovado ? "Validada pelo professor" : "Ainda sujeita a validação do professor"}

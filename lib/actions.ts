@@ -150,6 +150,7 @@ export async function criarTrabalho(formData: FormData) {
   const instrucoes = String(formData.get("instrucoes") ?? "").trim() || null;
   const solucaoModelo = String(formData.get("solucaoModelo") ?? "").trim() || null;
   const feedbackImediato = formData.get("feedbackImediato") === "on";
+  const escala = String(formData.get("escala") ?? "vinte");
   const tiposFicheiro = formData.getAll("tiposFicheiro").map(String);
 
   let rubrica: Criterio[] = [];
@@ -181,6 +182,7 @@ export async function criarTrabalho(formData: FormData) {
       instrucoes,
       solucaoModelo,
       feedbackImediato,
+      escala,
       tiposFicheiro: tiposFicheiro.length ? tiposFicheiro : ["pdf", "docx", "txt"],
       rubrica: rubrica as any,
       testSuite: parseTestSuite(formData) as any,
@@ -517,6 +519,7 @@ export async function editarTrabalho(formData: FormData) {
   const instrucoes = String(formData.get("instrucoes") ?? "").trim() || null;
   const solucaoModelo = String(formData.get("solucaoModelo") ?? "").trim() || null;
   const feedbackImediato = formData.get("feedbackImediato") === "on";
+  const escala = String(formData.get("escala") ?? "vinte");
   const tiposFicheiro = formData.getAll("tiposFicheiro").map(String);
 
   let rubrica: Criterio[] = [];
@@ -536,7 +539,7 @@ export async function editarTrabalho(formData: FormData) {
   await db.assignment.update({
     where: { id },
     data: {
-      titulo, enunciado, instrucoes, solucaoModelo, feedbackImediato,
+      titulo, enunciado, instrucoes, solucaoModelo, feedbackImediato, escala,
       tiposFicheiro: tiposFicheiro.length ? tiposFicheiro : ["pdf", "docx", "txt"],
       rubrica: rubrica as any,
       testSuite: parseTestSuite(formData) as any,

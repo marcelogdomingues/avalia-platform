@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { sairAluno, tutorAction, responderDefesa, pedirRevisao, explicarFalhaAction } from "@/lib/actions";
 import type { MensagemTutor } from "@/lib/evaluate";
+import { notaTexto, escalaSufixo, type Escala } from "@/lib/escala";
 
 type Bar = { label: string; v: number; max: number };
 export type Work = {
@@ -22,6 +23,7 @@ export type Work = {
   defesaRespostas: { pergunta: string; resposta: string }[];
   recurso: { pedido: string; estado: "aberto" | "respondido"; resposta?: string } | null;
   testResult: { total: number; passed: number; gateMet: boolean; duracaoMs?: number; tests: { nome: string; ok: boolean; obrigatorio: boolean; ms?: number }[] } | null;
+  escala: Escala;
 };
 
 const TEAL = "#0f766e";
@@ -225,7 +227,7 @@ export default function StudentPortal({
                           </div>
                           <div style={{ textAlign: "right", flex: "none" }}>
                             <div className="serif" style={{ fontSize: 18, color: w.released ? INK : "rgba(29,26,19,0.4)" }}>
-                              {w.released && w.score != null ? w.score : "—"}
+                              {w.released && w.score != null ? notaTexto(w.score, w.escala) : "—"}
                             </div>
                             <div className="mono" style={{ fontSize: 9.5, letterSpacing: "0.04em", textTransform: "uppercase", color: w.statusColor }}>{w.statusLabel}</div>
                           </div>
@@ -326,7 +328,7 @@ export default function StudentPortal({
                             <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "22px 26px", display: "flex", alignItems: "center", gap: 22 }}>
                               <div>
                                 <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 5 }}>A tua nota</div>
-                                <div className="serif" style={{ fontSize: 52, fontWeight: 500, lineHeight: 1 }}>{sel.score}<span style={{ fontSize: 24, color: "rgba(29,26,19,0.4)" }}> / 20</span></div>
+                                <div className="serif" style={{ fontSize: 52, fontWeight: 500, lineHeight: 1 }}>{notaTexto(sel.score, sel.escala)}<span style={{ fontSize: 24, color: "rgba(29,26,19,0.4)" }}> {escalaSufixo(sel.escala)}</span></div>
                               </div>
                               <div className="serif" style={{ fontSize: 22, fontWeight: 500, color: TEAL, paddingLeft: 22, borderLeft: "1px solid rgba(29,26,19,0.12)", maxWidth: 120, lineHeight: 1.15 }}>{sel.qual}</div>
                             </div>
@@ -509,7 +511,7 @@ export default function StudentPortal({
                         <div style={{ fontSize: 14.5, fontWeight: 500 }}>{w.name}</div>
                         <div style={{ fontSize: 12.5, color: "rgba(29,26,19,0.5)" }}>{w.course} · {w.date}</div>
                       </div>
-                      <div className="serif" style={{ fontSize: 20, fontWeight: 500, color: w.released ? INK : "rgba(29,26,19,0.4)" }}>{w.released && w.score != null ? w.score : "—"}</div>
+                      <div className="serif" style={{ fontSize: 20, fontWeight: 500, color: w.released ? INK : "rgba(29,26,19,0.4)" }}>{w.released && w.score != null ? notaTexto(w.score, w.escala) : "—"}</div>
                     </div>
                   ))}
                 </div>

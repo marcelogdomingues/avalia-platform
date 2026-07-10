@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { criarTrabalho, analisarEnunciadoAction, gerarRubricaAction, gerarEnunciadoAction } from "@/lib/actions";
 import TestSuiteEditor from "./TestSuiteEditor";
 import type { AnaliseEnunciado } from "@/lib/evaluate";
+import { ESCALAS } from "@/lib/escala";
 
 interface Crit {
   nome: string;
@@ -249,6 +250,12 @@ export default function CriarTrabalho({ courseId }: { courseId: string }) {
           <div className="field">
             <label>Solução-modelo <span className="help">(opcional — a IA compara contra isto)</span></label>
             <textarea name="solucaoModelo" placeholder="Resposta de referência" />
+          </div>
+          <div className="field">
+            <label>Escala de notação</label>
+            <select name="escala" defaultValue="vinte">
+              {ESCALAS.map((e) => <option key={e.v} value={e.v}>{e.l} — ex: {e.ex}</option>)}
+            </select>
           </div>
           <label className="checkbox">
             <input type="checkbox" name="feedbackImediato" /> Mostrar feedback ao aluno logo após submeter

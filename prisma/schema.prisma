@@ -62,6 +62,7 @@ model Assignment {
   respostaIA       String? // linha-base: resposta que uma IA genérica produz para este enunciado
   testSuite        Json? // autograder: { lang, testFiles:[{path,content}], obrigatorios:"todos"|[nomes] }
   feedbackImediato Boolean  @default(false)
+  escala           String   @default("vinte") // vinte|cem|letra|ects|passa — escala de notação
   submitToken      String   @unique @default(cuid())
   createdAt        DateTime @default(now())
 

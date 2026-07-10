@@ -39,6 +39,7 @@ export default async function EditarPage({
           instrucoes={a.instrucoes ?? ""}
           solucaoModelo={a.solucaoModelo ?? ""}
           feedbackImediato={a.feedbackImediato}
+          escala={a.escala}
           rubrica={a.rubrica as any}
           testSuite={(a.testSuite as any) ?? null}
         />
