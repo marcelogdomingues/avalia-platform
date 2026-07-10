@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { sairAluno, tutorAction, responderDefesa, pedirRevisao, explicarFalhaAction } from "@/lib/actions";
+import { sairAluno, tutorAction, responderDefesa, pedirRevisao, explicarFalhaAction, submeterAvaliacaoPar } from "@/lib/actions";
 import type { MensagemTutor } from "@/lib/evaluate";
 import { notaTexto, escalaSufixo, type Escala } from "@/lib/escala";
 
@@ -24,6 +24,7 @@ export type Work = {
   recurso: { pedido: string; estado: "aberto" | "respondido"; resposta?: string } | null;
   testResult: { total: number; passed: number; gateMet: boolean; duracaoMs?: number; tests: { nome: string; ok: boolean; obrigatorio: boolean; ms?: number }[] } | null;
   escala: Escala;
+  parPorAvaliar: { id: string; excerto: string } | null;
 };
 
 const TEAL = "#0f766e";
@@ -129,11 +130,28 @@ export default function StudentPortal({
     }
   }
 
+  // Avaliação por pares
+  const [parNota, setParNota] = useState("");
+  const [parCom, setParCom] = useState("");
+  const [parLoading, setParLoading] = useState(false);
+  const [parFeito, setParFeito] = useState<Record<string, boolean>>({});
+  async function enviarPar(w: Work) {
+    if (parLoading || !w.parPorAvaliar || !parNota.trim()) return;
+    setParLoading(true);
+    try {
+      const r = await submeterAvaliacaoPar(w.parPorAvaliar.id, Number(parNota), parCom);
+      if (r.ok) { setParFeito((m) => ({ ...m, [w.id]: true })); setParNota(""); setParCom(""); }
+    } finally {
+      setParLoading(false);
+    }
+  }
+
   function pick(id: string) {
     setSelId(id);
     setAskOpen(false);
     setTutorInput("");
     setAskText("");
+    setParNota(""); setParCom("");
   }
 
   const navBtn = (v: "work" | "grades", icon: string, label: string) => {
@@ -276,6 +294,29 @@ export default function StudentPortal({
                               );
                             })}
                           </div>
+                        </div>
+                      )}
+
+                      {/* Avaliação por pares — avaliar o trabalho de um colega */}
+                      {sel.parPorAvaliar && (
+                        <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.12)", borderRadius: 14, padding: "18px 20px", marginBottom: 26 }}>
+                          <div style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 4 }}>👥 Avaliar um colega</div>
+                          {parFeito[sel.id] ? (
+                            <div style={{ fontSize: 13.5, color: TEAL }}>✓ Avaliação enviada. Obrigado!</div>
+                          ) : (
+                            <>
+                              <div style={{ fontSize: 13, color: "rgba(29,26,19,0.6)", marginBottom: 10 }}>Lê o trabalho (anónimo) de um colega e dá uma nota justa com um comentário construtivo.</div>
+                              <div style={{ background: "var(--surface-2)", borderRadius: 10, padding: "12px 14px", fontSize: 13.5, lineHeight: 1.6, maxHeight: 160, overflowY: "auto", marginBottom: 12, whiteSpace: "pre-wrap" }}>{sel.parPorAvaliar.excerto}…</div>
+                              <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+                                <div className="field" style={{ margin: 0, width: 90 }}>
+                                  <label>Nota /20</label>
+                                  <input type="number" min={0} max={20} step={0.5} value={parNota} onChange={(e) => setParNota(e.target.value)} />
+                                </div>
+                                <textarea value={parCom} onChange={(e) => setParCom(e.target.value)} placeholder="Comentário construtivo…" style={{ flex: 1, minWidth: 200, minHeight: 44 }} />
+                                <button type="button" className="btn" onClick={() => enviarPar(sel)} disabled={parLoading || !parNota.trim()} style={{ padding: "11px 18px" }}>{parLoading ? "…" : "Enviar"}</button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
 

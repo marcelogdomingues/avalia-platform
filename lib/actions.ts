@@ -154,6 +154,9 @@ export async function criarTrabalho(formData: FormData) {
   const prazoRaw = String(formData.get("prazo") ?? "").trim();
   const prazo = prazoRaw ? new Date(prazoRaw) : null;
   const politicaAtraso = String(formData.get("politicaAtraso") ?? "aceitar");
+  const penalizacaoAtraso = Math.max(0, Math.min(100, Number(formData.get("penalizacaoAtraso")) || 0));
+  const grupo = formData.get("grupo") === "on";
+  const avaliacaoPares = formData.get("avaliacaoPares") === "on";
   const tiposFicheiro = formData.getAll("tiposFicheiro").map(String);
 
   let rubrica: Criterio[] = [];
@@ -187,7 +190,7 @@ export async function criarTrabalho(formData: FormData) {
       feedbackImediato,
       escala,
       prazo: prazo && !isNaN(prazo.getTime()) ? prazo : null,
-      politicaAtraso,
+      politicaAtraso, penalizacaoAtraso, grupo, avaliacaoPares,
       tiposFicheiro: tiposFicheiro.length ? tiposFicheiro : ["pdf", "docx", "txt"],
       rubrica: rubrica as any,
       testSuite: parseTestSuite(formData) as any,
@@ -278,6 +281,26 @@ export async function tutorAction(submissionId: string, historico: MensagemTutor
     criterios: released ? ((sub.evaluation?.porCriterio as { nome: string; pontos: number; pontosMax: number }[] | null) ?? []) : [],
     historico: historico.slice(-8).map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: String(m.content).slice(0, 1500) })),
   });
+}
+
+// ── Avaliação por pares ───────────────────────────────────────────────────────
+// O aluno avalia a submissão (anonimizada) de um colega. Uma avaliação por par.
+export async function submeterAvaliacaoPar(alvoSubId: string, nota: number, comentario: string): Promise<{ ok: boolean }> {
+  const aluno = await getCurrentStudent();
+  if (!aluno) return { ok: false };
+  const alvo = await db.submission.findUnique({ where: { id: alvoSubId }, include: { assignment: true } });
+  if (!alvo || !alvo.assignment.avaliacaoPares) return { ok: false };
+  // a submissão do próprio revisor neste trabalho
+  const minha = await db.submission.findFirst({ where: { assignmentId: alvo.assignmentId, studentId: aluno.id } });
+  if (!minha || minha.id === alvoSubId) return { ok: false };
+  const n = Math.max(0, Math.min(20, Number(nota) || 0));
+  await db.peerReview.upsert({
+    where: { revisorSubId_alvoSubId: { revisorSubId: minha.id, alvoSubId } },
+    update: { nota: n, comentario: comentario.slice(0, 1000) },
+    create: { assignmentId: alvo.assignmentId, revisorSubId: minha.id, alvoSubId, nota: n, comentario: comentario.slice(0, 1000) },
+  });
+  revalidatePath("/aluno");
+  return { ok: true };
 }
 
 // ── Recurso / pedido de revisão ───────────────────────────────────────────────
@@ -484,8 +507,22 @@ export async function submeterTrabalho(token: string, formData: FormData): Promi
 
   // Prazo: se expirou, bloqueia ou aceita marcando como fora de prazo.
   const atrasada = !!(assignment.prazo && Date.now() > assignment.prazo.getTime());
+  const diasAtraso = atrasada ? Math.ceil((Date.now() - assignment.prazo!.getTime()) / 86400000) : 0;
   if (atrasada && assignment.politicaAtraso === "bloquear") {
     return { ok: false, erro: `O prazo terminou em ${assignment.prazo!.toLocaleString("pt-PT")}. Este trabalho não aceita entregas fora de prazo.` };
+  }
+
+  // Grupo (membros adicionais) e turma.
+  const turma = String(formData.get("turma") ?? "").trim() || undefined;
+  let membros: { nome: string; numero?: string }[] | undefined;
+  if (assignment.grupo) {
+    const raw = String(formData.get("membros") ?? "").trim();
+    membros = raw
+      ? raw.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
+          const [nome, numero] = l.split(",").map((x) => x.trim());
+          return { nome, numero: numero || undefined };
+        }).filter((m) => m.nome)
+      : undefined;
   }
 
   // Autograder: se o trabalho tem testes, correm ANTES de aceitar a submissão.
@@ -513,6 +550,9 @@ export async function submeterTrabalho(token: string, formData: FormData): Promi
     ficheiros: [{ nome: file.name, mime: file.type, buffer }],
     testResult: gate,
     atrasada,
+    diasAtraso,
+    membros,
+    turma,
   });
 
   revalidatePath(`/professor/trabalho/${assignment.id}`);
@@ -535,6 +575,9 @@ export async function editarTrabalho(formData: FormData) {
   const prazoRaw = String(formData.get("prazo") ?? "").trim();
   const prazo = prazoRaw ? new Date(prazoRaw) : null;
   const politicaAtraso = String(formData.get("politicaAtraso") ?? "aceitar");
+  const penalizacaoAtraso = Math.max(0, Math.min(100, Number(formData.get("penalizacaoAtraso")) || 0));
+  const grupo = formData.get("grupo") === "on";
+  const avaliacaoPares = formData.get("avaliacaoPares") === "on";
   const tiposFicheiro = formData.getAll("tiposFicheiro").map(String);
 
   let rubrica: Criterio[] = [];
@@ -554,7 +597,7 @@ export async function editarTrabalho(formData: FormData) {
   await db.assignment.update({
     where: { id },
     data: {
-      titulo, enunciado, instrucoes, solucaoModelo, feedbackImediato, escala, politicaAtraso,
+      titulo, enunciado, instrucoes, solucaoModelo, feedbackImediato, escala, politicaAtraso, penalizacaoAtraso, grupo, avaliacaoPares,
       prazo: prazo && !isNaN(prazo.getTime()) ? prazo : null,
       tiposFicheiro: tiposFicheiro.length ? tiposFicheiro : ["pdf", "docx", "txt"],
       rubrica: rubrica as any,

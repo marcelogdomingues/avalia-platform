@@ -23,6 +23,20 @@ export default async function AlunoDashboard() {
     },
   });
 
+  // Avaliação por pares: para cada trabalho com pares ativos, um colega por avaliar.
+  const jaAvaliei = new Set(
+    (await db.peerReview.findMany({ where: { revisorSubId: { in: subs.map((s) => s.id) } }, select: { alvoSubId: true } })).map((r) => r.alvoSubId),
+  );
+  const paresPorTrabalho = new Map<string, { id: string; excerto: string }>();
+  for (const s of subs) {
+    if (!s.assignment.avaliacaoPares) continue;
+    const colega = await db.submission.findFirst({
+      where: { assignmentId: s.assignmentId, studentId: { not: aluno.id }, id: { notIn: [...jaAvaliei] }, conteudoExtraido: { not: null } },
+      orderBy: { createdAt: "asc" },
+    });
+    if (colega) paresPorTrabalho.set(s.id, { id: colega.id, excerto: (colega.conteudoExtraido ?? "").slice(0, 600) });
+  }
+
   const works: Work[] = subs.map((s) => {
     const ev = s.evaluation;
     const aprovado = ev?.estado === "APROVADO";
@@ -45,6 +59,7 @@ export default async function AlunoDashboard() {
       defesaPerguntas: (ev?.perguntasDefesa as string[] | null) ?? [],
       defesaRespostas: (s.respostasDefesa as { pergunta: string; resposta: string }[] | null) ?? [],
       escala: (s.assignment.escala ?? "vinte") as any,
+      parPorAvaliar: paresPorTrabalho.get(s.id) ?? null,
       recurso: (s.recurso as { pedido: string; estado: "aberto" | "respondido"; resposta?: string } | null) ?? null,
       testResult: (s.testResult as { total: number; passed: number; gateMet: boolean; duracaoMs?: number; tests: { nome: string; ok: boolean; obrigatorio: boolean; ms?: number }[] } | null) ?? null,
     };

@@ -9,7 +9,7 @@ interface Crit { nome: string; descricao: string; peso: number; pontosMax: numbe
 const TIPOS = ["pdf", "docx", "txt", "zip"];
 
 export default function EditarTrabalho({
-  assignmentId, titulo, enunciado, tipos, instrucoes, solucaoModelo, feedbackImediato, escala, prazo, politicaAtraso, rubrica, testSuite,
+  assignmentId, titulo, enunciado, tipos, instrucoes, solucaoModelo, feedbackImediato, escala, prazo, politicaAtraso, penalizacaoAtraso, grupo, avaliacaoPares, rubrica, testSuite,
 }: {
   assignmentId: string;
   titulo: string;
@@ -21,6 +21,9 @@ export default function EditarTrabalho({
   escala: string;
   prazo: string; // datetime-local ("" se nenhum)
   politicaAtraso: string;
+  penalizacaoAtraso: number;
+  grupo: boolean;
+  avaliacaoPares: boolean;
   rubrica: Crit[];
   testSuite: TestSuiteValor | null;
 }) {
@@ -92,6 +95,12 @@ export default function EditarTrabalho({
               <option value="bloquear">Bloquear entregas após o prazo</option>
             </select>
           </div>
+          <div className="field">
+            <label>Penalização por dia de atraso <span className="help">(%)</span></label>
+            <input name="penalizacaoAtraso" type="number" min={0} max={100} defaultValue={penalizacaoAtraso} />
+          </div>
+          <label className="checkbox"><input type="checkbox" name="grupo" defaultChecked={grupo} /> Trabalho de grupo (o aluno indica os membros)</label>
+          <label className="checkbox"><input type="checkbox" name="avaliacaoPares" defaultChecked={avaliacaoPares} /> Ativar avaliação por pares</label>
           <label className="checkbox"><input type="checkbox" name="feedbackImediato" defaultChecked={feedbackImediato} /> Mostrar feedback ao aluno logo após submeter</label>
         </div>
       </details>

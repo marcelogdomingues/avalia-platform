@@ -42,6 +42,9 @@ export default async function EditarPage({
           escala={a.escala}
           prazo={a.prazo ? new Date(a.prazo.getTime() - a.prazo.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
           politicaAtraso={a.politicaAtraso}
+          penalizacaoAtraso={a.penalizacaoAtraso}
+          grupo={a.grupo}
+          avaliacaoPares={a.avaliacaoPares}
           rubrica={a.rubrica as any}
           testSuite={(a.testSuite as any) ?? null}
         />

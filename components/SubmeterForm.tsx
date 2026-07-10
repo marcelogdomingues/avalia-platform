@@ -11,6 +11,7 @@ export default function SubmeterForm({
   temAluno,
   alunoNome,
   tipos,
+  grupo,
 }: {
   token: string;
   temTestes: boolean;
@@ -18,6 +19,7 @@ export default function SubmeterForm({
   temAluno: boolean;
   alunoNome?: string;
   tipos: string;
+  grupo?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -47,6 +49,15 @@ export default function SubmeterForm({
           <div className="field"><label>Nome</label><input name="alunoNome" required /></div>
           <div className="field"><label>Número de aluno</label><input name="alunoNumero" /></div>
         </>
+      )}
+
+      <div className="field"><label>Turma / turno <span className="help">(opcional)</span></label><input name="turma" placeholder="ex: PL2" /></div>
+
+      {grupo && (
+        <div className="field">
+          <label>Membros do grupo <span className="help">(um por linha: nome, número)</span></label>
+          <textarea name="membros" placeholder={"Ana Silva, 20211234\nJoão Dias, 20215678"} style={{ minHeight: 70 }} />
+        </div>
       )}
 
       {temTestes && (

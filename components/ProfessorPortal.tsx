@@ -42,18 +42,23 @@ export type Sub = {
   } | null;
   simIA: number;
   simNome: string | null;
+  simId: string | null;
   simScore: number;
   modelo: string | null;
   ressubmissao: { anteriorData: string; adicionadas: number; removidas: number; segs: { tipo: "igual" | "add" | "rem"; texto: string }[] } | null;
   recurso: { pedido: string; estado: "aberto" | "respondido"; resposta?: string } | null;
   atrasada?: boolean;
+  diasAtraso?: number;
+  membros?: { nome: string; numero?: string }[] | null;
+  turma?: string | null;
+  pares?: { media: number; n: number; comentarios: string[] } | null;
 };
 export type PortalProps = {
   prof: { nome: string; initials: string };
   courses: { id: string; nome: string }[];
   assignment: {
     id: string; titulo: string; courseId: string; courseNome: string;
-    submitToken: string; temBaseline: boolean; temAutograder?: boolean; autograderLang?: string | null; escala?: string;
+    submitToken: string; temBaseline: boolean; temAutograder?: boolean; autograderLang?: string | null; escala?: string; penalizacaoAtraso?: number;
     rubrica: { nome: string; peso: number; pontosMax: number; descricao: string }[];
   };
   subs: Sub[];
@@ -291,7 +296,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
       const motivos: string[] = [];
       if (s.nota != null && s.nota < 9.5) motivos.push("nota baixa");
       if ((s.deteccaoIA?.probabilidade ?? 0) >= 60) motivos.push("sinal de IA");
-      if (s.simScore >= 0.35) motivos.push(`semelhante a ${s.simNome ?? "outro"}`);
+      if (s.simScore >= 0.35) motivos.push(`semelhante a ${(anon && s.simId ? anonNome.get(s.simId) : s.simNome) ?? "outro"}`);
       if (s.simIA >= 0.12) motivos.push("perto da resposta-tipo IA");
       if (s.testResult && !s.testResult.gateMet) motivos.push("chumbou nos testes");
       return { s, motivos };
@@ -449,7 +454,14 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                           <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: `${st.color}22`, color: st.color, fontSize: 12, fontWeight: 500, padding: "6px 12px", borderRadius: 999 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: st.color }} />{st.label}</div>
                         </div>
                       </div>
-                      <h2 className="serif" style={{ fontWeight: 500, fontSize: 32, margin: "0 0 20px", color: INK }}>{nomeDe(sel)}</h2>
+                      <h2 className="serif" style={{ fontWeight: 500, fontSize: 32, margin: "0 0 6px", color: INK }}>{nomeDe(sel)}</h2>
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20, fontSize: 12.5, color: "rgba(29,26,19,0.6)" }}>
+                        {sel.turma && <span className="badge" style={{ background: "var(--surface-2)" }}>Turma {sel.turma}</span>}
+                        {sel.membros && sel.membros.length > 0 && !anon && (
+                          <span>👥 Grupo: {sel.membros.map((m) => m.nome).join(", ")}</span>
+                        )}
+                        {sel.membros && sel.membros.length > 0 && anon && <span>👥 Grupo de {sel.membros.length + 1}</span>}
+                      </div>
 
                       {/* Recurso / pedido de revisão do aluno */}
                       {sel.recurso && (() => {
@@ -565,10 +577,23 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                             <div style={{ fontSize: 13.5, fontWeight: 600, color: AMBER, marginBottom: 3 }}>Sinal de integridade para reveres</div>
                             <div style={{ fontSize: 13, lineHeight: 1.55, color: "rgba(29,26,19,0.72)" }}>
                               {sel.simIA >= 0.12 && <>Proximidade de {Math.round(sel.simIA * 100)}% com a resposta-tipo da IA{altaIA ? " (alta)" : ""}. </>}
-                              {sel.simScore >= 0.35 && <>Semelhança de {Math.round(sel.simScore * 100)}% com a submissão de {sel.simNome}. </>}
+                              {sel.simScore >= 0.35 && <>Semelhança de {Math.round(sel.simScore * 100)}% com a submissão de {anon && sel.simId ? anonNome.get(sel.simId) ?? "outro aluno" : sel.simNome}. </>}
                               É contexto, não um veredicto — confirma com as perguntas de defesa.
                             </div>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Avaliação por pares */}
+                      {sel.pares && sel.pares.n > 0 && (
+                        <div style={{ marginBottom: 20, background: "var(--surface-2)", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 12, padding: "14px 16px" }}>
+                          <div className="row-between" style={{ marginBottom: sel.pares.comentarios.length ? 10 : 0 }}>
+                            <span style={{ fontSize: 13.5, fontWeight: 600 }}>👥 Avaliação por pares</span>
+                            <span className="mono" style={{ fontSize: 13, fontWeight: 700, color: TEAL }}>{sel.pares.media}/20 <span style={{ color: "rgba(29,26,19,0.45)", fontWeight: 400 }}>({sel.pares.n} {sel.pares.n === 1 ? "colega" : "colegas"})</span></span>
+                          </div>
+                          {sel.pares.comentarios.map((c, i) => (
+                            <div key={i} style={{ fontSize: 13, color: "rgba(29,26,19,0.72)", lineHeight: 1.5, paddingLeft: 12, borderLeft: `2px solid ${TEAL}44`, marginTop: 6 }}>“{c}”</div>
+                          ))}
                         </div>
                       )}
 
@@ -701,13 +726,26 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                               )}
                             </div>
                           </div>
-                          <div style={{ display: "flex", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
-                            <div className="field" style={{ margin: 0, width: 100 }}>
-                              <label>Nota final</label>
-                              <input name="notaFinal" type="number" step="0.1" min="0" max="20" defaultValue={sel.notaIA ?? undefined} />
-                            </div>
-                            <SubmitBtn className="btn" style={{ padding: "13px 22px" }} pendingLabel="A publicar…">Aprovar &amp; publicar</SubmitBtn>
-                          </div>
+                          {(() => {
+                            const penalPct = sel.atrasada ? (assignment.penalizacaoAtraso ?? 0) * (sel.diasAtraso ?? 1) : 0;
+                            const penalizada = sel.notaIA != null && penalPct > 0 ? Math.max(0, Math.round(sel.notaIA * (1 - Math.min(100, penalPct) / 100) * 10) / 10) : sel.notaIA;
+                            return (
+                              <>
+                                {penalPct > 0 && sel.notaIA != null && (
+                                  <div style={{ fontSize: 13, color: AMBER, marginBottom: 10 }}>
+                                    ⏰ Fora de prazo {sel.diasAtraso} dia(s) · penalização de {Math.min(100, penalPct)}% → nota sugerida <b>{penalizada}</b> (era {sel.notaIA}).
+                                  </div>
+                                )}
+                                <div style={{ display: "flex", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
+                                  <div className="field" style={{ margin: 0, width: 100 }}>
+                                    <label>Nota final</label>
+                                    <input key={sel.id} name="notaFinal" type="number" step="0.1" min="0" max="20" defaultValue={penalizada ?? undefined} />
+                                  </div>
+                                  <SubmitBtn className="btn" style={{ padding: "13px 22px" }} pendingLabel="A publicar…">Aprovar &amp; publicar</SubmitBtn>
+                                </div>
+                              </>
+                            );
+                          })()}
                         </form>
                       ) : (
                         <div style={{ fontSize: 14, color: "rgba(29,26,19,0.6)", fontWeight: 500 }}>
@@ -849,7 +887,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                         {heatRows.map((r) => (
                           <tr key={r.id}>
                             <td style={{ padding: "0 10px 0 0", whiteSpace: "nowrap", color: "rgba(29,26,19,0.8)" }}>
-                              <button onClick={() => { setView("queue"); setSelId(r.id); }} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 12.5, color: INK, padding: 0 }}>{r.nome}</button>
+                              <button onClick={() => { setView("queue"); setSelId(r.id); }} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 12.5, color: INK, padding: 0 }}>{anon ? anonNome.get(r.id) ?? r.nome : r.nome}</button>
                             </td>
                             {r.celulas.map((v, j) => {
                               const cor = v == null ? "rgba(29,26,19,0.05)" : v < 9.5 ? "#9f1d1d" : v < 14 ? AMBER : TEAL;
@@ -879,9 +917,9 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                     {emRisco.map(({ s, motivos }) => (
                       <button key={s.id} onClick={() => { setView("queue"); setSelId(s.id); }}
                         style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", borderRadius: 12, background: "var(--surface-2)", border: "1px solid rgba(29,26,19,0.08)", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
-                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: SAND, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.5, fontWeight: 600, flexShrink: 0 }}>{s.initials}</div>
+                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: SAND, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.5, fontWeight: 600, flexShrink: 0 }}>{iniciaisDe(s)}</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 500 }}>{s.alunoNome}</div>
+                          <div style={{ fontSize: 14, fontWeight: 500 }}>{nomeDe(s)}</div>
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
                             {motivos.map((m) => (
                               <span key={m} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 999, background: "rgba(159,29,29,0.09)", color: "#9f1d1d" }}>{m}</span>

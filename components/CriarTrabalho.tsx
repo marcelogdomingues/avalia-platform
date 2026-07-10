@@ -268,6 +268,12 @@ export default function CriarTrabalho({ courseId }: { courseId: string }) {
               <option value="bloquear">Bloquear entregas após o prazo</option>
             </select>
           </div>
+          <div className="field">
+            <label>Penalização por dia de atraso <span className="help">(%)</span></label>
+            <input name="penalizacaoAtraso" type="number" min={0} max={100} defaultValue={0} placeholder="ex: 10" />
+          </div>
+          <label className="checkbox"><input type="checkbox" name="grupo" /> Trabalho de grupo (o aluno indica os membros)</label>
+          <label className="checkbox"><input type="checkbox" name="avaliacaoPares" /> Ativar avaliação por pares</label>
           <label className="checkbox">
             <input type="checkbox" name="feedbackImediato" /> Mostrar feedback ao aluno logo após submeter
           </label>

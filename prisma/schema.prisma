@@ -65,6 +65,9 @@ model Assignment {
   escala           String   @default("vinte") // vinte|cem|letra|ects|passa — escala de notação
   prazo            DateTime? // data-limite de entrega (opcional)
   politicaAtraso   String   @default("aceitar") // bloquear | aceitar (marca como fora de prazo)
+  penalizacaoAtraso Float   @default(0) // % de penalização por dia de atraso (0 = nenhuma)
+  grupo            Boolean  @default(false) // permite submissão em grupo (vários membros)
+  avaliacaoPares   Boolean  @default(false) // avaliação por pares ativada
   submitToken      String   @unique @default(cuid())
   createdAt        DateTime @default(now())
 
@@ -97,6 +100,9 @@ model Submission {
   testResult       Json? // autograder: { total, passed, obrigatoriosTotal, obrigatoriosPassed, gateMet, tests:[{nome,ok,obrigatorio}] }
   respostasDefesa  Json? // [{ pergunta, resposta }] — respostas do aluno à entrevista de defesa
   atrasada         Boolean  @default(false) // entregue depois do prazo
+  diasAtraso       Int      @default(0) // dias de atraso (para penalização)
+  membros          Json? // [{ nome, numero }] — outros membros do grupo (além do submissor)
+  turma            String? // turma/turno do aluno (ex.: "PL2")
   recurso          Json? // { pedido, criadoEm, estado:"aberto"|"respondido", resposta?, respondidoEm? }
   createdAt        DateTime @default(now())
 
@@ -127,4 +133,19 @@ model Evaluation {
   aprovadoEm     DateTime?
 
   submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+}
+
+// Avaliação por pares: um aluno avalia a submissão de um colega (anonimamente).
+model PeerReview {
+  id            String   @id @default(cuid())
+  assignmentId  String
+  revisorSubId  String // submissão de quem avalia
+  alvoSubId     String // submissão avaliada
+  nota          Float // 0–20
+  comentario    String?
+  criadoEm      DateTime @default(now())
+
+  @@unique([revisorSubId, alvoSubId])
+  @@index([assignmentId])
+  @@index([alvoSubId])
 }

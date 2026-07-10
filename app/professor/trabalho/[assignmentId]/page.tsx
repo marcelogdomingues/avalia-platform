@@ -26,6 +26,18 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
   ]);
   if (!a) notFound();
 
+  // Avaliações por pares — agregadas por submissão avaliada.
+  const peer = a.avaliacaoPares ? await db.peerReview.findMany({ where: { assignmentId: a.id } }) : [];
+  const paresPorSub = new Map<string, { media: number; n: number; comentarios: string[] }>();
+  for (const alvo of new Set(peer.map((p) => p.alvoSubId))) {
+    const revs = peer.filter((p) => p.alvoSubId === alvo);
+    paresPorSub.set(alvo, {
+      media: Math.round((revs.reduce((s, r) => s + r.nota, 0) / revs.length) * 10) / 10,
+      n: revs.length,
+      comentarios: revs.map((r) => r.comentario ?? "").filter(Boolean),
+    });
+  }
+
   const stats = calcularStats(a.submissions.map((s) => s.evaluation ?? { estado: "PENDENTE", notaIA: null, notaFinal: null }));
   const infoSubs = a.submissions.map((s) => ({ id: s.id, alunoNome: s.alunoNome, conteudoExtraido: s.conteudoExtraido }));
   const sims = calcularSimilaridades(infoSubs);
@@ -81,11 +93,16 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
       testResult: (s.testResult as Sub["testResult"]) ?? null,
       simIA: similaridadeComTexto(s.conteudoExtraido, a.respostaIA),
       simNome: sim?.outroNome ?? null,
+      simId: sim?.outroId ?? null,
       simScore: sim?.score ?? 0,
       modelo: ev?.modelo ?? null,
       ressubmissao,
       recurso: (s.recurso as Sub["recurso"]) ?? null,
       atrasada: s.atrasada,
+      diasAtraso: s.diasAtraso,
+      membros: (s.membros as { nome: string; numero?: string }[] | null) ?? null,
+      turma: s.turma,
+      pares: paresPorSub.get(s.id) ?? null,
     };
   });
 
@@ -100,7 +117,8 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
       assignment={{
         id: a.id, titulo: a.titulo, courseId: a.courseId, courseNome: a.course.nome,
         submitToken: a.submitToken, temBaseline: !!a.respostaIA, temAutograder: !!a.testSuite,
-        autograderLang: (a.testSuite as { lang?: string } | null)?.lang ?? null, escala: a.escala, rubrica,
+        autograderLang: (a.testSuite as { lang?: string } | null)?.lang ?? null, escala: a.escala,
+        penalizacaoAtraso: a.penalizacaoAtraso, rubrica,
       }}
       subs={subs}
       stats={stats}

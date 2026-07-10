@@ -75,6 +75,7 @@ export default async function SubmeterPage({ params }: { params: Promise<{ token
             temAluno={!!aluno}
             alunoNome={aluno ? `${aluno.nome}${aluno.numero ? ` (nº ${aluno.numero})` : ""}` : undefined}
             tipos={tipos.join(", ") || "pdf, docx, txt, zip"}
+            grupo={assignment.grupo}
           />
         </div>
       </div>
