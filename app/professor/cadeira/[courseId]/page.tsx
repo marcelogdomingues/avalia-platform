@@ -133,7 +133,10 @@ export default async function CadeiraPage({
 
       {linhasAluno.length > 0 && cols.length > 0 && (
         <div className="card" style={{ marginBottom: 24 }}>
-          <span className="eyebrow">Progresso dos alunos · {linhasAluno.length} alunos × {cols.length} trabalhos</span>
+          <div className="row-between">
+            <span className="eyebrow">Progresso dos alunos · {linhasAluno.length} alunos × {cols.length} trabalhos</span>
+            <a href={`/professor/cadeira/${course.id}/pauta`} className="btn ghost sm" title="Descarregar pauta consolidada (CSV)">⬇ Pauta (CSV)</a>
+          </div>
           <div style={{ overflowX: "auto", marginTop: 16 }}>
             <table style={{ borderCollapse: "separate", borderSpacing: 3, fontSize: 13, width: "100%" }}>
               <thead>
