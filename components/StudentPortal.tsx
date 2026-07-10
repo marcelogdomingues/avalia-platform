@@ -528,6 +528,10 @@ export default function StudentPortal({
             /* GRADES VIEW */
             <div style={{ padding: "34px 40px 48px" }}>
               <div style={{ maxWidth: 900 }}>
+                <div className="row-between" style={{ marginBottom: 18 }}>
+                  <span className="serif" style={{ fontSize: 20, color: INK }}>As tuas notas</span>
+                  <a href="/aluno/notas" className="btn secondary sm" style={{ textDecoration: "none" }}>⎙ Boletim / PDF</a>
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18, marginBottom: 30 }}>
                   {(() => {
                     const graded = works.filter((w) => w.released && w.score != null);
