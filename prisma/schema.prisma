@@ -19,9 +19,24 @@ model Professor {
   password  String // scrypt: "salt:hash"
   createdAt DateTime @default(now())
 
-  courses  Course[]
-  snippets CommentSnippet[]
-  rubricas RubricaTemplate[]
+  courses     Course[]
+  snippets    CommentSnippet[]
+  rubricas    RubricaTemplate[]
+  coDocencias CoDocente[]
+}
+
+// Co-docência: professores adicionais com acesso a uma cadeira (além do dono).
+model CoDocente {
+  id          String   @id @default(cuid())
+  courseId    String
+  professorId String
+  criadoEm    DateTime @default(now())
+
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  professor Professor @relation(fields: [professorId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, professorId])
+  @@index([professorId])
 }
 
 // Modelo de rubrica reutilizável do professor.
@@ -61,6 +76,7 @@ model Course {
 
   professor   Professor    @relation(fields: [professorId], references: [id], onDelete: Cascade)
   assignments Assignment[]
+  coDocentes  CoDocente[]
 
   @@index([professorId])
 }

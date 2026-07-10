@@ -1,5 +1,6 @@
 import { requireProfessor } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { cadeiraAcesso } from "@/lib/acesso";
 import { notFound } from "next/navigation";
 import { calcularStats } from "@/lib/stats";
 import { analisarIntegridade } from "@/lib/similaridade";
@@ -14,7 +15,7 @@ export default async function RelatorioPage({ params }: { params: Promise<{ assi
   const { assignmentId } = await params;
 
   const a = await db.assignment.findFirst({
-    where: { id: assignmentId, course: { professorId: prof.id } },
+    where: { id: assignmentId, course: cadeiraAcesso(prof.id) },
     include: { course: true, submissions: { include: { evaluation: true }, orderBy: { createdAt: "desc" } } },
   });
   if (!a) notFound();

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireProfessor } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { cadeiraAcesso } from "@/lib/acesso";
 import { notaTexto, type Escala } from "@/lib/escala";
 
 // GET /professor/trabalho/[assignmentId]/export → CSV de notas.
@@ -13,7 +14,7 @@ export async function GET(
   const { assignmentId } = await params;
 
   const a = await db.assignment.findFirst({
-    where: { id: assignmentId, course: { professorId: prof.id } },
+    where: { id: assignmentId, course: cadeiraAcesso(prof.id) },
     include: { submissions: { include: { evaluation: true } } },
   });
   if (!a) return new NextResponse("Não encontrado", { status: 404 });

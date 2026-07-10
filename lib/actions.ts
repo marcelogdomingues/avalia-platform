@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "./db";
+import { cadeiraAcesso } from "./acesso";
 import { processarSubmissao, aprovarAvaliacao } from "./pipeline";
 import { runTests, avaliarGate, extrairCodigo, collectTests, runnerAtivo, LANG_LABELS, EXT, type Lang, type TestFile, type GateResult } from "./runner";
 import {
@@ -126,6 +127,30 @@ export async function apagarCadeira(formData: FormData) {
   revalidatePath("/professor");
 }
 
+// ── Co-docência (só o dono da cadeira gere) ───────────────────────────────────
+export async function convidarCoDocente(courseId: string, email: string): Promise<{ ok: boolean; erro?: string }> {
+  const prof = await requireProfessor();
+  const c = await db.course.findFirst({ where: { id: courseId, professorId: prof.id } }); // só o dono
+  if (!c) return { ok: false, erro: "Sem permissão." };
+  const alvo = await db.professor.findUnique({ where: { email: email.trim().toLowerCase() } });
+  if (!alvo) return { ok: false, erro: "Não há nenhum professor registado com esse email." };
+  if (alvo.id === prof.id) return { ok: false, erro: "Já és o docente responsável." };
+  await db.coDocente.upsert({
+    where: { courseId_professorId: { courseId, professorId: alvo.id } },
+    update: {}, create: { courseId, professorId: alvo.id },
+  });
+  revalidatePath(`/professor/cadeira/${courseId}`);
+  return { ok: true };
+}
+
+export async function removerCoDocente(courseId: string, professorId: string): Promise<void> {
+  const prof = await requireProfessor();
+  const c = await db.course.findFirst({ where: { id: courseId, professorId: prof.id } }); // só o dono
+  if (!c) return;
+  await db.coDocente.deleteMany({ where: { courseId, professorId } });
+  revalidatePath(`/professor/cadeira/${courseId}`);
+}
+
 // Arquiva / desarquiva uma cadeira.
 export async function alternarArquivada(formData: FormData) {
   const prof = await requireProfessor();
@@ -151,7 +176,7 @@ function parseTestSuite(formData: FormData): object | null {
 export async function criarTrabalho(formData: FormData) {
   const prof = await requireProfessor();
   const courseId = String(formData.get("courseId"));
-  const course = await db.course.findFirst({ where: { id: courseId, professorId: prof.id } });
+  const course = await db.course.findFirst({ where: { id: courseId, ...cadeiraAcesso(prof.id) } });
   if (!course) redirect("/professor");
 
   const titulo = String(formData.get("titulo") ?? "").trim();
@@ -245,7 +270,7 @@ export async function gerarEnunciadoAction(titulo: string, cadeira?: string): Pr
 export async function gerarInsightsAction(assignmentId: string): Promise<InsightsTurma | null> {
   const prof = await requireProfessor();
   const a = await db.assignment.findFirst({
-    where: { id: assignmentId, course: { professorId: prof.id } },
+    where: { id: assignmentId, course: cadeiraAcesso(prof.id) },
     include: { submissions: { include: { evaluation: true } } },
   });
   if (!a) return null;
@@ -296,7 +321,7 @@ export async function tutorAction(submissionId: string, historico: MensagemTutor
 // sem ficheiro. Cria uma submissão + avaliação em RASCUNHO com a nota/feedback dados.
 export async function criarAvaliacaoManual(assignmentId: string, alunoNome: string, alunoNumero: string, nota: number, feedback: string): Promise<{ ok: boolean }> {
   const prof = await requireProfessor();
-  const a = await db.assignment.findFirst({ where: { id: assignmentId, course: { professorId: prof.id } } });
+  const a = await db.assignment.findFirst({ where: { id: assignmentId, course: cadeiraAcesso(prof.id) } });
   if (!a || !alunoNome.trim()) return { ok: false };
   const n = Math.max(0, Math.min(20, Number(nota) || 0));
   const sub = await db.submission.create({
@@ -315,7 +340,7 @@ export async function criarAvaliacaoManual(assignmentId: string, alunoNome: stri
 // Abre/fecha as submissões de um trabalho.
 export async function alternarAberto(assignmentId: string) {
   const prof = await requireProfessor();
-  const a = await db.assignment.findFirst({ where: { id: assignmentId, course: { professorId: prof.id } } });
+  const a = await db.assignment.findFirst({ where: { id: assignmentId, course: cadeiraAcesso(prof.id) } });
   if (!a) return;
   await db.assignment.update({ where: { id: a.id }, data: { aberto: !a.aberto } });
   revalidatePath(`/professor/trabalho/${a.id}`);
@@ -324,7 +349,7 @@ export async function alternarAberto(assignmentId: string) {
 // Duplica um trabalho (rubrica, testes, configurações) — sem submissões.
 export async function duplicarTrabalho(assignmentId: string) {
   const prof = await requireProfessor();
-  const a = await db.assignment.findFirst({ where: { id: assignmentId, course: { professorId: prof.id } } });
+  const a = await db.assignment.findFirst({ where: { id: assignmentId, course: cadeiraAcesso(prof.id) } });
   if (!a) redirect("/professor");
   const nova = await db.assignment.create({
     data: {
@@ -392,7 +417,7 @@ export async function responderRecurso(submissionId: string, resposta: string): 
   const t = resposta.trim();
   if (!t) return { ok: false };
   const sub = await db.submission.findFirst({
-    where: { id: submissionId, assignment: { course: { professorId: prof.id } } },
+    where: { id: submissionId, assignment: { course: cadeiraAcesso(prof.id) } },
   });
   const atual = sub?.recurso as Recurso | null;
   if (!sub || !atual) return { ok: false };
@@ -424,7 +449,7 @@ export async function responderDefesa(submissionId: string, respostas: string[])
 export async function avaliarDefesaAction(submissionId: string): Promise<DefesaAvaliacao | null> {
   const prof = await requireProfessor();
   const sub = await db.submission.findFirst({
-    where: { id: submissionId, assignment: { course: { professorId: prof.id } } },
+    where: { id: submissionId, assignment: { course: cadeiraAcesso(prof.id) } },
     include: { assignment: true, evaluation: true },
   });
   if (!sub || !sub.evaluation) return null;
@@ -496,7 +521,7 @@ export async function usarSnippet(id: string): Promise<void> {
 export async function recorrerTestesAction(submissionId: string): Promise<GateResult | null> {
   const prof = await requireProfessor();
   const sub = await db.submission.findFirst({
-    where: { id: submissionId, assignment: { course: { professorId: prof.id } } },
+    where: { id: submissionId, assignment: { course: cadeiraAcesso(prof.id) } },
     include: { assignment: true },
   });
   if (!sub || !sub.conteudoExtraido) return null;
@@ -513,7 +538,7 @@ export async function recorrerTestesAction(submissionId: string): Promise<GateRe
 // Re-corre o autograder em TODAS as submissões de código de um trabalho.
 export async function recorrerTodosAction(assignmentId: string): Promise<{ corridas: number }> {
   const prof = await requireProfessor();
-  const a = await db.assignment.findFirst({ where: { id: assignmentId, course: { professorId: prof.id } } });
+  const a = await db.assignment.findFirst({ where: { id: assignmentId, course: cadeiraAcesso(prof.id) } });
   const suite = a?.testSuite as { lang: Lang; testFiles: TestFile[]; obrigatorios: "todos" | string[] } | null;
   if (!a || !runnerAtivo || !suite?.testFiles?.length) return { corridas: 0 };
   const subs = await db.submission.findMany({ where: { assignmentId: a.id, conteudoExtraido: { not: null } } });

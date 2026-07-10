@@ -1,5 +1,6 @@
 import { requireProfessor } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { cadeiraAcesso } from "@/lib/acesso";
 import { criarCadeira, apagarCadeira, alternarArquivada } from "@/lib/actions";
 import ProfShell from "@/components/ProfShell";
 
@@ -8,12 +9,12 @@ export const dynamic = "force-dynamic";
 export default async function Dashboard() {
   const prof = await requireProfessor();
 
-  const assignmentWhere = { course: { professorId: prof.id } };
+  const assignmentWhere = { course: cadeiraAcesso(prof.id) };
   const [cursos, porAprovar, evals] = await Promise.all([
     db.course.findMany({
-      where: { professorId: prof.id },
+      where: cadeiraAcesso(prof.id),
       orderBy: { createdAt: "desc" },
-      include: { assignments: { select: { id: true, _count: { select: { submissions: true } } } } },
+      include: { assignments: { select: { id: true, _count: { select: { submissions: true } } } }, coDocentes: { select: { professorId: true } } },
     }),
     db.evaluation.count({ where: { estado: "RASCUNHO", submission: { assignment: assignmentWhere } } }),
     db.evaluation.findMany({
@@ -34,7 +35,7 @@ export default async function Dashboard() {
 
   // "Precisa de atenção": trabalhos com revisões por aprovar ou recursos abertos.
   const trabalhosAtencao = await db.assignment.findMany({
-    where: { course: { professorId: prof.id } },
+    where: { course: cadeiraAcesso(prof.id) },
     select: {
       id: true, titulo: true, course: { select: { nome: true } },
       submissions: { select: { recurso: true, evaluation: { select: { estado: true } } } },

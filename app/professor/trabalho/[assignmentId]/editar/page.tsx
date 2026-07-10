@@ -1,5 +1,6 @@
 import { requireProfessor } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { cadeiraAcesso } from "@/lib/acesso";
 import { notFound } from "next/navigation";
 import EditarTrabalho from "@/components/EditarTrabalho";
 import ProfShell from "@/components/ProfShell";
@@ -14,7 +15,7 @@ export default async function EditarPage({
   const prof = await requireProfessor();
   const { assignmentId } = await params;
   const a = await db.assignment.findFirst({
-    where: { id: assignmentId, course: { professorId: prof.id } },
+    where: { id: assignmentId, course: cadeiraAcesso(prof.id) },
     include: { course: true },
   });
   if (!a) notFound();

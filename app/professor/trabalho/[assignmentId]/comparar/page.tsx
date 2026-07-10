@@ -1,5 +1,6 @@
 import { requireProfessor } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { cadeiraAcesso } from "@/lib/acesso";
 import { notFound } from "next/navigation";
 import { diffPalavras } from "@/lib/diff";
 import { similaridadeComTexto } from "@/lib/similaridade";
@@ -19,7 +20,7 @@ export default async function CompararPage({
   const { a: aId, b: bId } = await searchParams;
 
   const a = await db.assignment.findFirst({
-    where: { id: assignmentId, course: { professorId: prof.id } },
+    where: { id: assignmentId, course: cadeiraAcesso(prof.id) },
     include: { course: true, submissions: { include: { evaluation: true }, orderBy: { createdAt: "desc" } } },
   });
   if (!a) notFound();

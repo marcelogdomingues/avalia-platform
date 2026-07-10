@@ -1,5 +1,6 @@
 import { requireProfessor } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { cadeiraAcesso } from "@/lib/acesso";
 import { notFound } from "next/navigation";
 import { temLLM } from "@/lib/evaluate";
 import { calcularStats } from "@/lib/stats";
@@ -18,10 +19,10 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
 
   const [a, courses, snippets] = await Promise.all([
     db.assignment.findFirst({
-      where: { id: assignmentId, course: { professorId: prof.id } },
+      where: { id: assignmentId, course: cadeiraAcesso(prof.id) },
       include: { course: true, submissions: { include: { evaluation: true }, orderBy: { createdAt: "desc" } } },
     }),
-    db.course.findMany({ where: { professorId: prof.id }, orderBy: { createdAt: "desc" }, select: { id: true, nome: true } }),
+    db.course.findMany({ where: cadeiraAcesso(prof.id), orderBy: { createdAt: "desc" }, select: { id: true, nome: true } }),
     db.commentSnippet.findMany({ where: { professorId: prof.id }, orderBy: [{ usos: "desc" }, { createdAt: "desc" }], select: { id: true, atalho: true, texto: true, usos: true } }),
   ]);
   if (!a) notFound();

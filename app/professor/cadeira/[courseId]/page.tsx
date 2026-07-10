@@ -1,7 +1,9 @@
 import { requireProfessor } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { cadeiraAcesso } from "@/lib/acesso";
 import { notFound } from "next/navigation";
 import CriarTrabalho from "@/components/CriarTrabalho";
+import CoDocentes from "@/components/CoDocentes";
 import ProfShell from "@/components/ProfShell";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +16,7 @@ export default async function CadeiraPage({
   const prof = await requireProfessor();
   const { courseId } = await params;
   const course = await db.course.findFirst({
-    where: { id: courseId, professorId: prof.id },
+    where: { id: courseId, ...cadeiraAcesso(prof.id) },
     include: {
       assignments: {
         orderBy: { createdAt: "desc" },
@@ -28,9 +30,11 @@ export default async function CadeiraPage({
           },
         },
       },
+      coDocentes: { include: { professor: { select: { id: true, nome: true, email: true } } } },
     },
   });
   if (!course) notFound();
+  const isOwner = course.professorId === prof.id;
 
   const todasNotas: number[] = [];
   let totalSubs = 0;
@@ -222,6 +226,8 @@ export default async function CadeiraPage({
           <CriarTrabalho courseId={course.id} modelos={(await db.rubricaTemplate.findMany({ where: { professorId: prof.id }, orderBy: { createdAt: "desc" }, select: { id: true, nome: true, criterios: true } })).map((m) => ({ id: m.id, nome: m.nome, criterios: m.criterios as any }))} />
         </div>
       </details>
+
+      <CoDocentes courseId={course.id} isOwner={isOwner} iniciais={course.coDocentes.map((cd) => ({ id: cd.professor.id, nome: cd.professor.nome, email: cd.professor.email }))} />
     </ProfShell>
   );
 }
