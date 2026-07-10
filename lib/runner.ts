@@ -30,8 +30,8 @@ export const LANG_LABELS: Record<Lang, string> = {
   cpp: "C++ (g++ + TAP)",
   php: "PHP (TAP)",
   rust: "Rust (rustc --test)",
-  dart: "Dart (dart test)",
-  kotlin: "Kotlin (Gradle)",
+  dart: "Dart (TAP)",
+  kotlin: "Kotlin (TAP)",
 };
 // Config de execução por linguagem — juntar uma = imagem Docker + comando + parser.
 // O comando corre em `sh -c` dentro do contentor: aluno em /work (rw), testes em
@@ -102,6 +102,18 @@ const RUN_CFG: Partial<Record<Lang, LangRun>> = {
     // Junta solução + testes num ficheiro e compila com rustc --test (#[test]).
     cmd: "cd /work; cat /work/*.rs /tests/*.rs > all.rs 2>/dev/null; timeout 30 sh -c 'rustc --test all.rs -o prog 2>/dev/null && ./prog' 2>/dev/null || true",
     parse: parseRustTest,
+  },
+  dart: {
+    image: "avalia-runner-dart",
+    // O teste importa a solução (import 'solution.dart') e o main() imprime TAP.
+    cmd: "cp /tests/*.dart /work/ 2>/dev/null; cd /work; f=$(ls tests.dart *_test.dart 2>/dev/null | head -1); timeout 20 dart \"$f\" 2>/dev/null || true",
+    parse: parseTapJs,
+  },
+  kotlin: {
+    image: "avalia-runner-kotlin",
+    // Compila solução + teste (o teste tem fun main() que imprime TAP) e corre.
+    cmd: "cp /tests/*.kt /work/ 2>/dev/null; cd /work; timeout 90 sh -c 'kotlinc *.kt -include-runtime -d prog.jar 2>/dev/null && java -jar prog.jar' 2>/dev/null || true",
+    parse: parseTapJs,
   },
 };
 

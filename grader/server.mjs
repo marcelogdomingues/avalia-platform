@@ -153,6 +153,16 @@ const LANGS = {
       return tests;
     },
   },
+  dart: {
+    image: "avalia-runner-dart",
+    cmd: "cp /tests/*.dart /work/ 2>/dev/null; cd /work; f=$(ls tests.dart *_test.dart 2>/dev/null | head -1); timeout 20 dart \"$f\" 2>/dev/null || true",
+    parse: tapParse,
+  },
+  kotlin: {
+    image: "avalia-runner-kotlin",
+    cmd: "cp /tests/*.kt /work/ 2>/dev/null; cd /work; timeout 90 sh -c 'kotlinc *.kt -include-runtime -d prog.jar 2>/dev/null && java -jar prog.jar' 2>/dev/null || true",
+    parse: tapParse,
+  },
 };
 
 // Semáforo — nunca mais do que CONC contentores em paralelo (protege a RAM).

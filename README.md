@@ -69,10 +69,10 @@ Trabalhos de código correm os **testes do professor** contra o código do aluno
 timeout). O aluno **tem de passar os testes obrigatórios para submeter**; os opcionais contam para
 a nota mas não bloqueiam. Tempo de execução (total e por-teste) mostrado no UI.
 
-- **10 linguagens**: Python (pytest), Java (JUnit 5), JavaScript e TypeScript (node:test),
-  Go (go test), Ruby (minitest), C e C++ (gcc/g++, TAP), PHP (TAP) e Rust (rustc --test).
-  Juntar outra = imagem `runner/Dockerfile.<lang>` + entrada em `lib/runner.ts` (e `grader/server.mjs`).
-  Constrói todas com `bash scripts/build-runners.sh`.
+- **12 linguagens**: Python (pytest), Java (JUnit 5), JavaScript e TypeScript (node:test),
+  Go (go test), Ruby (minitest), C e C++ (gcc/g++, TAP), PHP (TAP), Rust (rustc --test),
+  Dart e Kotlin (TAP). Juntar outra = imagem `runner/Dockerfile.<lang>` + entrada em
+  `lib/runner.ts` (e `grader/server.mjs`). Constrói todas com `bash scripts/build-runners.sh`.
 - **Deteção exata** de testes (ex.: `pytest --collect-only`) além da heurística por regex.
 - **Sandbox comprovado**: loop infinito (timeout), fork bomb (pids-limit), memory bomb (OOM),
   acesso à rede (network none) e erros de compilação → todos bloqueados.

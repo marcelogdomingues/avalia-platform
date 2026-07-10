@@ -56,6 +56,20 @@ export default async function RelatorioPage({ params }: { params: Promise<{ assi
   }
   const criterios = [...critAgg.entries()].map(([nome, v]) => ({ nome, media: v.soma / v.n })).sort((x, y) => x.media - y.media);
 
+  // Autograder: testes mais falhados.
+  const testAgg = new Map<string, { falhas: number; total: number }>();
+  for (const s of a.submissions) {
+    const tr = s.testResult as { tests?: { nome: string; ok: boolean }[] } | null;
+    for (const t of tr?.tests ?? []) {
+      const cur = testAgg.get(t.nome) ?? { falhas: 0, total: 0 };
+      cur.total++; if (!t.ok) cur.falhas++;
+      testAgg.set(t.nome, cur);
+    }
+  }
+  const testesFalhados = [...testAgg.entries()]
+    .map(([nome, v]) => ({ nome, ...v, taxa: v.total ? v.falhas / v.total : 0 }))
+    .filter((t) => t.falhas > 0).sort((x, y) => y.taxa - x.taxa);
+
   const risco = linhas.filter((l) => (l.nota != null && l.nota < 9.5) || (l.deteccao ?? 0) >= 60);
   const dataStr = new Intl.DateTimeFormat("pt-PT", { day: "2-digit", month: "long", year: "numeric" }).format(new Date());
 
@@ -165,6 +179,28 @@ export default async function RelatorioPage({ params }: { params: Promise<{ assi
                 ))}
               </tbody>
             </table>
+          </>
+        )}
+
+        {/* Autograder: testes mais falhados */}
+        {testAgg.size > 0 && (
+          <>
+            <div className="rel-sec">Autograder · testes mais falhados</div>
+            {testesFalhados.length === 0 ? (
+              <p style={{ fontSize: 13.5, margin: 0, color: "#0f766e" }}>Toda a gente passou todos os testes que correram.</p>
+            ) : (
+              <table className="rel-table">
+                <tbody>
+                  {testesFalhados.slice(0, 12).map((t) => (
+                    <tr key={t.nome}>
+                      <td style={{ width: 240 }}>{t.nome}</td>
+                      <td><div className="rel-bar"><span style={{ width: `${Math.round(t.taxa * 100)}%`, background: t.taxa >= 0.6 ? "#9f1d1d" : t.taxa >= 0.3 ? "#b45309" : "#0f766e" }} /></div></td>
+                      <td style={{ width: 90, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{t.falhas}/{t.total} falhou</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </>
         )}
 

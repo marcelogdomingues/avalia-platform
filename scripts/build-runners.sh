@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-LANGS="${LANGS:-python java node typescript go ruby c cpp php rust}"
+LANGS="${LANGS:-python java node typescript go ruby c cpp php rust dart kotlin}"
 for lang in $LANGS; do
   echo "── a construir avalia-runner-$lang ──"
   docker build -t "avalia-runner-$lang" -f "runner/Dockerfile.$lang" runner

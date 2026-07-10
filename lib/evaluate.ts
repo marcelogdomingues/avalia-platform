@@ -292,6 +292,8 @@ const FRAMEWORK_TESTES: Record<string, string> = {
   cpp: "Convenção TAP em C++: `#include <iostream>`, declara as funções da solução, e `int main()` que imprime UMA linha por teste com `std::cout << (<cond> ? \"ok N - <nome>\" : \"not ok N - <nome>\") << \"\\n\";`. Numera N a partir de 1.",
   php: "Convenção TAP em PHP: `<?php require 'solution.php';` e depois, para cada teste, `echo (<cond> ? \"ok N - <nome>\" : \"not ok N - <nome>\"), \"\\n\";`. Numera N a partir de 1.",
   rust: "rustc --test: escreve funções `#[test] fn <nome>() { assert_eq!(...); }` que chamam as funções da solução (mesmo ficheiro/módulo). Não escrevas `fn main`.",
+  dart: "Convenção TAP em Dart: `import 'solution.dart';` e `void main() {` que imprime UMA linha por teste com `print(<cond> ? 'ok N - <nome>' : 'not ok N - <nome>');`. Numera N a partir de 1.",
+  kotlin: "Convenção TAP em Kotlin: `fun main() {` que chama as funções da solução e imprime UMA linha por teste com `println(if (<cond>) \"ok N - <nome>\" else \"not ok N - <nome>\")`. Numera N a partir de 1.",
 };
 
 export async function gerarTestes(p: { enunciado: string; lang: string; instrucoes?: string | null }): Promise<string | null> {

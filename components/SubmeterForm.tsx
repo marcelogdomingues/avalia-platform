@@ -50,10 +50,10 @@ export default function SubmeterForm({
       )}
 
       {temTestes && (
-        <div className="demo-banner" style={{ marginBottom: 16 }}>
-          <span>🧪</span>
+        <div className="demo-banner" style={{ marginBottom: 16, alignItems: "center" }}>
+          <span className="badge" style={{ background: "rgba(15,118,110,0.14)", color: "#0f766e", fontWeight: 600, whiteSpace: "nowrap" }}>🧪 {langLabel}</span>
           <span>
-            Este trabalho corre <b>testes automáticos</b> ({langLabel}). Submete um <code>.zip</code> ou ficheiro de
+            Este trabalho corre <b>testes automáticos</b>. Submete um <code>.zip</code> ou ficheiro de
             código — tens de passar todos os testes <b>obrigatórios</b> para submeter.
           </span>
         </div>
@@ -61,7 +61,7 @@ export default function SubmeterForm({
 
       <div className="field">
         <label>Ficheiro <span className="help">({tipos})</span></label>
-        <input name="ficheiro" type="file" required accept=".pdf,.docx,.txt,.md,.zip,.py,.java,.dart,.kt,.png,.jpg,.jpeg,.webp" />
+        <input name="ficheiro" type="file" required accept=".pdf,.docx,.txt,.md,.zip,.py,.java,.js,.ts,.go,.rb,.c,.h,.cpp,.cc,.php,.rs,.dart,.kt,.png,.jpg,.jpeg,.webp" />
       </div>
 
       <button className="btn" type="submit" disabled={pending}>

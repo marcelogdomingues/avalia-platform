@@ -1,0 +1,13 @@
+# Autograder para Kotlin (kotlinc + convenção TAP; o teste tem fun main()).
+# docker build -t avalia-runner-kotlin -f runner/Dockerfile.kotlin runner
+# Isolado em runtime: --network none --memory 512m --cpus 1 --pids-limit 128.
+FROM eclipse-temurin:21-jdk-jammy
+ARG KOTLIN_VERSION=2.0.20
+RUN apt-get update && apt-get install -y --no-install-recommends curl unzip && \
+    curl -fsSL -o /tmp/k.zip "https://github.com/JetBrains/kotlin/releases/download/v${KOTLIN_VERSION}/kotlin-compiler-${KOTLIN_VERSION}.zip" && \
+    unzip -q /tmp/k.zip -d /opt && rm /tmp/k.zip && \
+    apt-get purge -y unzip && apt-get clean && rm -rf /var/lib/apt/lists/*
+ENV PATH="/opt/kotlinc/bin:${PATH}"
+RUN useradd -m runner
+USER runner
+WORKDIR /work

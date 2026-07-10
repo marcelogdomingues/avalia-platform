@@ -762,6 +762,39 @@ int maior(int* xs, int n) {
 }
 `, "solution.c");
 
+    // — Projeto 9: Utilitários (Dart) —
+    const dartTests = `import 'solution.dart';
+void main() {
+  print(soma(2, 3) == 5 ? "ok 1 - soma" : "not ok 1 - soma");
+  print(maior([3, 7, 2]) == 7 ? "ok 2 - maior" : "not ok 2 - maior");
+}
+`;
+    const dartA = await db.assignment.create({ data: {
+      courseId: proj.id, titulo: "Utilitários (Dart)",
+      enunciado: "Em solution.dart, define int soma(int a, int b) e int maior(List<int> xs).",
+      tiposFicheiro: ["dart", "zip"], rubrica: rubCod as unknown as object,
+      testSuite: { lang: "dart", testFiles: [{ path: "tests.dart", content: dartTests }], obrigatorios: "todos" } as unknown as object,
+    } });
+    await submeterCodigo(dartA, "Ana Silva", `int soma(int a, int b) => a + b;
+int maior(List<int> xs) => xs.reduce((a, b) => a > b ? a : b);
+`, "solution.dart");
+
+    // — Projeto 10: Utilitários (Kotlin) —
+    const ktTests = `fun main() {
+    println(if (soma(2, 3) == 5) "ok 1 - soma" else "not ok 1 - soma")
+    println(if (maior(listOf(3, 7, 2)) == 7) "ok 2 - maior" else "not ok 2 - maior")
+}
+`;
+    const ktA = await db.assignment.create({ data: {
+      courseId: proj.id, titulo: "Utilitários (Kotlin)",
+      enunciado: "Em solution.kt, define fun soma(a: Int, b: Int): Int e fun maior(xs: List<Int>): Int.",
+      tiposFicheiro: ["kt", "zip"], rubrica: rubCod as unknown as object,
+      testSuite: { lang: "kotlin", testFiles: [{ path: "tests.kt", content: ktTests }], obrigatorios: "todos" } as unknown as object,
+    } });
+    await submeterCodigo(ktA, "Eduardo Pinto", `fun soma(a: Int, b: Int) = a + b
+fun maior(xs: List<Int>) = xs.max()
+`, "solution.kt");
+
     // — Cenários de sandbox: crash e loop infinito (demonstram a proteção) —
     console.log("  Cenários de sandbox (esperado: bloqueados):");
     // erro de sintaxe → não importa → nenhum teste corre
