@@ -32,10 +32,42 @@ export default async function Dashboard() {
     0
   );
 
+  // "Precisa de atenção": trabalhos com revisões por aprovar ou recursos abertos.
+  const trabalhosAtencao = await db.assignment.findMany({
+    where: { course: { professorId: prof.id } },
+    select: {
+      id: true, titulo: true, course: { select: { nome: true } },
+      submissions: { select: { recurso: true, evaluation: { select: { estado: true } } } },
+    },
+  });
+  const atencao = trabalhosAtencao.map((a) => {
+    const porAprovar = a.submissions.filter((s) => s.evaluation?.estado === "RASCUNHO").length;
+    const recursos = a.submissions.filter((s) => (s.recurso as { estado?: string } | null)?.estado === "aberto").length;
+    return { id: a.id, titulo: a.titulo, cadeira: a.course.nome, porAprovar, recursos };
+  }).filter((a) => a.porAprovar > 0 || a.recursos > 0)
+    .sort((x, y) => (y.recursos - x.recursos) || (y.porAprovar - x.porAprovar));
+
   return (
     <ProfShell>
       <h1 className="page-title">Painel</h1>
       <p className="page-sub">Olá, {prof.nome.split(/\s+/)[0]} — aqui está o resumo das tuas cadeiras.</p>
+
+      {atencao.length > 0 && (
+        <div className="card" style={{ marginBottom: 24, borderColor: "rgba(180,83,9,0.25)" }}>
+          <span className="eyebrow" style={{ color: "var(--amber)" }}>Precisa da tua atenção</span>
+          <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+            {atencao.slice(0, 8).map((a) => (
+              <a key={a.id} href={`/professor/trabalho/${a.id}`} className="row-between" style={{ color: "inherit", fontSize: 14, padding: "8px 10px", borderRadius: 8, background: "var(--surface-2)" }}>
+                <span><b>{a.titulo}</b> <span className="faint">· {a.cadeira}</span></span>
+                <span style={{ display: "flex", gap: 8 }}>
+                  {a.porAprovar > 0 && <span className="badge s-rascunho">{a.porAprovar} por aprovar</span>}
+                  {a.recursos > 0 && <span className="badge" style={{ background: "rgba(180,83,9,0.12)", color: "var(--amber)", fontWeight: 600 }}>⚖️ {a.recursos}</span>}
+                </span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {cursos.length > 0 && (
         <div className="card" style={{ marginBottom: 24 }}>
