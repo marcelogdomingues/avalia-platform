@@ -17,18 +17,28 @@ export async function GET(
   });
   if (!a) return new NextResponse("Não encontrado", { status: 404 });
 
-  const linhas = [["Numero", "Nome", "Email", "Nota"]];
+  const temAutograder = !!a.testSuite;
+  const cabecalho = ["Numero", "Nome", "Email", "Nota", "Estado", "Sinal IA %"];
+  if (temAutograder) cabecalho.push("Testes");
+  const linhas = [cabecalho];
   for (const s of a.submissions) {
     const ev = s.evaluation;
     // exporta a nota final (aprovada) ou, se ainda não aprovada, a nota da IA
     const nota = ev?.notaFinal ?? ev?.notaIA;
     if (nota == null) continue;
-    linhas.push([
+    const estado = ev?.estado === "APROVADO" ? "Publicado" : ev?.estado === "RASCUNHO" ? "Por rever" : ev?.estado ?? "";
+    const sinalIA = (ev?.deteccaoIA as { probabilidade?: number } | null)?.probabilidade;
+    const tr = s.testResult as { passed?: number; total?: number } | null;
+    const linha = [
       s.alunoNumero ?? "",
       s.alunoNome,
       s.alunoEmail ?? "",
       String(nota).replace(".", ","), // vírgula decimal (Excel PT)
-    ]);
+      estado,
+      sinalIA != null ? String(sinalIA) : "",
+    ];
+    if (temAutograder) linha.push(tr?.total != null ? `${tr.passed}/${tr.total}` : "");
+    linhas.push(linha);
   }
 
   const csv = linhas.map((l) => l.map(escaparCsv).join(",")).join("\r\n");
