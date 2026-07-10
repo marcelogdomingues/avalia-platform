@@ -44,6 +44,7 @@ export type Sub = {
   simNome: string | null;
   simId: string | null;
   simScore: number;
+  arquivo: { score: number; alunoNome: string; origem: string } | null;
   modelo: string | null;
   revisorNome: string | null;
   ressubmissao: { anteriorData: string; adicionadas: number; removidas: number; segs: { tipo: "igual" | "add" | "rem"; texto: string }[] } | null;
@@ -351,6 +352,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
       if ((s.deteccaoIA?.probabilidade ?? 0) >= 60) motivos.push("sinal de IA");
       if (s.simScore >= 0.35) motivos.push(`semelhante a ${(anon && s.simId ? anonNome.get(s.simId) : s.simNome) ?? "outro"}`);
       if (s.simIA >= 0.12) motivos.push("perto da resposta-tipo IA");
+      if (s.arquivo && s.arquivo.score >= 0.2) motivos.push("igual a edição anterior");
       if (s.testResult && !s.testResult.gateMet) motivos.push("chumbou nos testes");
       return { s, motivos };
     })
@@ -493,6 +495,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                           <div style={{ fontSize: 14, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
                             {nomeDe(s)}
                             {(s.simIA >= 0.12 || (s.deteccaoIA?.probabilidade ?? 0) >= 60) && <span title="Sinal de uso de IA" style={{ width: 6, height: 6, borderRadius: "50%", background: AMBER }} />}
+                            {s.arquivo && s.arquivo.score >= 0.2 && <span title={`Semelhante a edição anterior (${Math.round(s.arquivo.score * 100)}%)`} style={{ fontSize: 10.5 }}>🗄</span>}
                             {s.recurso?.estado === "aberto" && <span title="Pedido de revisão por responder" style={{ fontSize: 11 }}>⚖️</span>}
                             {s.atrasada && <span title="Entregue fora de prazo" style={{ fontSize: 10.5 }}>⏰</span>}
                           </div>
@@ -679,6 +682,18 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                               {sel.simIA >= 0.12 && <>Proximidade de {Math.round(sel.simIA * 100)}% com a resposta-tipo da IA{altaIA ? " (alta)" : ""}. </>}
                               {sel.simScore >= 0.35 && <>Semelhança de {Math.round(sel.simScore * 100)}% com a submissão de {anon && sel.simId ? anonNome.get(sel.simId) ?? "outro aluno" : sel.simNome}. </>}
                               É contexto, não um veredicto — confirma com as perguntas de defesa.
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {sel.arquivo && sel.arquivo.score >= 0.2 && (
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 11, background: "rgba(159,29,29,0.08)", border: "1px solid rgba(159,29,29,0.28)", borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
+                          <span style={{ fontSize: 15, marginTop: 1 }}>🗄</span>
+                          <div>
+                            <div style={{ fontSize: 13.5, fontWeight: 600, color: "#9f1d1d", marginBottom: 3 }}>Semelhança com edição anterior — {Math.round(sel.arquivo.score * 100)}%</div>
+                            <div style={{ fontSize: 13, lineHeight: 1.55, color: "rgba(29,26,19,0.72)" }}>
+                              Muito parecida com a entrega de <b>{anon ? "um aluno de outra edição" : sel.arquivo.alunoNome}</b> em <b>{sel.arquivo.origem}</b>. Possível reutilização de um trabalho antigo — confirma com as perguntas de defesa.
                             </div>
                           </div>
                         </div>

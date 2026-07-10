@@ -863,6 +863,14 @@ class Pilha:
           create: { assignmentId: ord.id, revisorSubId: r.id, alvoSubId: carlos.id, nota: [14, 16, 15][i], comentario: ["Boa análise, mas faltou o exemplo.", "Muito claro e bem estruturado.", "Correto; podia aprofundar a fase de merge."][i] },
         });
       }
+      // Plágio entre edições: edição do ano anterior (cadeira arquivada) com o
+      // mesmo trabalho e uma entrega quase idêntica à da Ana — dispara o alerta 🗄.
+      const anaSub = sords.find((s) => s.alunoNome.includes("Ana"));
+      if (anaSub?.conteudoExtraido) {
+        const cursoAnterior = await db.course.create({ data: { professorId: professor.id, nome: `${(await db.course.findUnique({ where: { id: ord.courseId } }))?.nome ?? "AED"} (2023/2024)`, ano: "2023/2024", arquivada: true } });
+        const ordAnterior = await db.assignment.create({ data: { courseId: cursoAnterior.id, titulo: ord.titulo, enunciado: ord.enunciado, tiposFicheiro: [] as object, rubrica: ord.rubrica as object, instrucoes: ord.instrucoes } });
+        await db.submission.create({ data: { assignmentId: ordAnterior.id, alunoNome: "Tiago Ferreira", alunoNumero: "20191234", ficheiros: [] as object, conteudoExtraido: anaSub.conteudoExtraido } });
+      }
     }
     // Modelo de rubrica reutilizável.
     await db.rubricaTemplate.create({ data: { professorId: professor.id, nome: "Ensaio argumentativo", criterios: [
@@ -872,7 +880,7 @@ class Pilha:
     ] as object } });
     // Cadeira arquivada (exemplo).
     await db.course.updateMany({ where: { nome: { contains: "Sistemas" } }, data: { arquivada: true } });
-    console.log("  Showcase configurado: prazos, grupo, pares, turmas, modelo de rubrica, cadeira arquivada.");
+    console.log("  Showcase configurado: prazos, grupo, pares, turmas, modelo de rubrica, cadeira arquivada, plágio entre edições.");
   }
 
   const [nSubs, nCad, nTrab] = await Promise.all([db.submission.count(), db.course.count(), db.assignment.count()]);

@@ -4,13 +4,14 @@ import { cadeiraAcesso } from "@/lib/acesso";
 import { notFound } from "next/navigation";
 import { temLLM } from "@/lib/evaluate";
 import { calcularStats } from "@/lib/stats";
-import { calcularSimilaridades, similaridadeComTexto, analisarIntegridade } from "@/lib/similaridade";
+import { calcularSimilaridades, similaridadeComTexto, analisarIntegridade, compararComArquivo } from "@/lib/similaridade";
 import { diffPalavras } from "@/lib/diff";
 import ProfessorPortal, { type Sub } from "@/components/ProfessorPortal";
 
 export const dynamic = "force-dynamic";
 
 const iniciais = (nome: string) => nome.split(/\s+/).map((s) => s[0]).slice(0, 2).join("").toUpperCase();
+const tituloNorm = (t: string) => t.toLowerCase().replace(/\(c[óo]pia\)/g, "").replace(/\s+/g, " ").trim();
 const round1 = (n: number | null | undefined) => (n != null ? Math.round(n * 10) / 10 : null);
 
 export default async function TrabalhoPage({ params }: { params: Promise<{ assignmentId: string }> }) {
@@ -43,6 +44,28 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
   const infoSubs = a.submissions.map((s) => ({ id: s.id, alunoNome: s.alunoNome, conteudoExtraido: s.conteudoExtraido }));
   const sims = calcularSimilaridades(infoSubs);
   const integridade = analisarIntegridade(infoSubs, a.respostaIA);
+
+  // ── Plágio entre edições: compara com entregas de trabalhos com o mesmo título
+  // (outras edições/anos) a que este docente tem acesso. ────────────────────────
+  const alvo = tituloNorm(a.titulo);
+  const outrosTrab = await db.assignment.findMany({
+    where: { id: { not: a.id }, course: cadeiraAcesso(prof.id) },
+    select: {
+      titulo: true, createdAt: true,
+      course: { select: { nome: true, ano: true } },
+      submissions: { select: { alunoNome: true, conteudoExtraido: true } },
+    },
+  });
+  const arquivo = outrosTrab
+    .filter((t) => tituloNorm(t.titulo) === alvo)
+    .flatMap((t) =>
+      t.submissions.map((s) => ({
+        alunoNome: s.alunoNome,
+        conteudoExtraido: s.conteudoExtraido,
+        origem: t.course.ano ? `${t.course.nome} · ${t.course.ano}` : t.course.nome,
+      })),
+    );
+  const arquivoMatches = arquivo.length > 0 ? compararComArquivo(infoSubs, arquivo) : new Map();
 
   // Ressubmissões: para cada submissão, a anterior do mesmo aluno (submissions vêm desc).
   const identidade = (s: (typeof a.submissions)[number]) => s.studentId ?? s.alunoNumero ?? s.alunoNome;
@@ -96,6 +119,7 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
       simNome: sim?.outroNome ?? null,
       simId: sim?.outroId ?? null,
       simScore: sim?.score ?? 0,
+      arquivo: (arquivoMatches.get(s.id) as { score: number; alunoNome: string; origem: string } | null) ?? null,
       modelo: ev?.modelo ?? null,
       revisorNome: ev?.revisorNome ?? null,
       ressubmissao,

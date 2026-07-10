@@ -57,6 +57,39 @@ export function calcularSimilaridades(
   return out;
 }
 
+// ── Plágio entre edições: comparação com um arquivo de entregas passadas ──────
+
+export interface AlertaArquivo {
+  score: number;      // 0..1
+  alunoNome: string;  // autor da entrega arquivada mais parecida
+  origem: string;     // ex: "Relatório de Ordenação · 2024/2025"
+}
+
+// Para cada submissão atual, a entrega mais parecida no arquivo (outras edições).
+// Só reporta acima de `limiar`. O arquivo já vem "shinglado" fora se necessário;
+// aqui recalcula-se para manter a API simples (escala POC).
+export function compararComArquivo(
+  subs: { id: string; conteudoExtraido: string | null }[],
+  arquivo: { alunoNome: string; conteudoExtraido: string | null; origem: string }[],
+  limiar = 0.2,
+): Map<string, AlertaArquivo | null> {
+  const arq = arquivo
+    .filter((a) => a.conteudoExtraido)
+    .map((a) => ({ ...a, sh: shingles(a.conteudoExtraido ?? "") }));
+  const out = new Map<string, AlertaArquivo | null>();
+  for (const s of subs) {
+    if (!s.conteudoExtraido) { out.set(s.id, null); continue; }
+    const sh = shingles(s.conteudoExtraido);
+    let melhor: AlertaArquivo | null = null;
+    for (const a of arq) {
+      const score = jaccard(sh, a.sh);
+      if (!melhor || score > melhor.score) melhor = { score, alunoNome: a.alunoNome, origem: a.origem };
+    }
+    out.set(s.id, melhor && melhor.score >= limiar ? melhor : null);
+  }
+  return out;
+}
+
 // ── Análise de integridade da turma (grafo + clusters) ────────────────────────
 
 export interface SubInfo { id: string; alunoNome: string; conteudoExtraido: string | null }
