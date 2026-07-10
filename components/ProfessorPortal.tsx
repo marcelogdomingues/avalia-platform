@@ -242,6 +242,24 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
     .map(([nome, { soma, n }]) => ({ nome, media: soma / n, n }))
     .sort((a, b) => a.media - b.media);
 
+  // Autograder: testes mais falhados + duração média (dos que têm testResult).
+  const comTestes = subs.filter((s) => s.testResult && s.testResult.tests.length);
+  const testAgg = new Map<string, { falhas: number; total: number; obrig: boolean }>();
+  let somaDur = 0, nDur = 0;
+  for (const s of comTestes) {
+    if (s.testResult!.duracaoMs != null) { somaDur += s.testResult!.duracaoMs; nDur++; }
+    for (const t of s.testResult!.tests) {
+      const cur = testAgg.get(t.nome) ?? { falhas: 0, total: 0, obrig: t.obrigatorio };
+      cur.total++; if (!t.ok) cur.falhas++; cur.obrig = cur.obrig || t.obrigatorio;
+      testAgg.set(t.nome, cur);
+    }
+  }
+  const testesFalhados = [...testAgg.entries()]
+    .map(([nome, v]) => ({ nome, ...v, taxa: v.total ? v.falhas / v.total : 0 }))
+    .filter((t) => t.falhas > 0)
+    .sort((a, b) => b.taxa - a.taxa);
+  const durMedia = nDur ? somaDur / nDur : null;
+
   // Heatmap aluno×critério: matriz de desempenho (em /20) por critério.
   const heatCols = assignment.rubrica.map((c) => c.nome);
   const heatRows = subs
@@ -720,6 +738,35 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                   })}
                 </div>
               </div>
+
+              {/* Autograder: testes mais falhados */}
+              {comTestes.length > 0 && (
+                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
+                  <div className="row-between" style={{ marginBottom: 4 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>🧪 Autograder · testes mais falhados</div>
+                    {durMedia != null && <span className="mono" style={{ fontSize: 12, color: "rgba(29,26,19,0.5)" }}>{(durMedia / 1000).toFixed(1)}s em média</span>}
+                  </div>
+                  <div style={{ fontSize: 13, color: "rgba(29,26,19,0.5)", marginBottom: 18 }}>Onde os alunos mais tropeçam ({comTestes.length} submissões com testes). Bloqueadas pelo gate não aparecem.</div>
+                  {testesFalhados.length === 0 ? (
+                    <div style={{ fontSize: 14, color: TEAL }}>✓ Toda a gente passou todos os testes que correram.</div>
+                  ) : (
+                    <div style={{ display: "grid", gap: 12 }}>
+                      {testesFalhados.slice(0, 10).map((t) => {
+                        const cor = t.taxa >= 0.6 ? "#9f1d1d" : t.taxa >= 0.3 ? AMBER : TEAL;
+                        return (
+                          <div key={t.nome} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                            <div style={{ width: 230, fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {t.nome} {t.obrig && <span className="mono" style={{ fontSize: 9.5, color: "rgba(29,26,19,0.4)" }}>obrig.</span>}
+                            </div>
+                            <div className="bar" style={{ flex: 1 }}><span style={{ width: `${Math.round(t.taxa * 100)}%`, background: cor }} /></div>
+                            <div className="mono" style={{ width: 74, textAlign: "right", fontSize: 12.5, color: cor, fontWeight: 600 }}>{t.falhas}/{t.total} falhou</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Calibração IA vs professor */}
               {calibPares.length > 0 && calibDelta != null && (
