@@ -1,6 +1,6 @@
 import { requireProfessor } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { criarCadeira, apagarCadeira } from "@/lib/actions";
+import { criarCadeira, apagarCadeira, alternarArquivada } from "@/lib/actions";
 import ProfShell from "@/components/ProfShell";
 
 export const dynamic = "force-dynamic";
@@ -77,8 +77,9 @@ export default async function Dashboard() {
           <p>Ainda não tens cadeiras. Cria a primeira em baixo.</p>
         </div>
       ) : (
+        <>
         <div className="grid cols-2">
-          {cursos.map((c) => {
+          {cursos.filter((c) => !c.arquivada).map((c) => {
             const subsC = c.assignments.reduce((x, as) => x + as._count.submissions, 0);
             return (
               <div key={c.id} className="card hover tile">
@@ -90,15 +91,38 @@ export default async function Dashboard() {
                       {c.assignments.length} trabalho(s) · {subsC} submissão(ões)
                     </div>
                   </a>
-                  <form action={apagarCadeira}>
-                    <input type="hidden" name="courseId" value={c.id} />
-                    <button className="btn ghost sm" type="submit" title="Apagar">🗑</button>
-                  </form>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <form action={alternarArquivada}>
+                      <input type="hidden" name="courseId" value={c.id} />
+                      <button className="btn ghost sm" type="submit" title="Arquivar">🗄</button>
+                    </form>
+                    <form action={apagarCadeira}>
+                      <input type="hidden" name="courseId" value={c.id} />
+                      <button className="btn ghost sm" type="submit" title="Apagar">🗑</button>
+                    </form>
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
+        {cursos.some((c) => c.arquivada) && (
+          <details className="disclosure card" style={{ marginTop: 20 }}>
+            <summary style={{ fontSize: 14 }}>🗄 Cadeiras arquivadas ({cursos.filter((c) => c.arquivada).length})</summary>
+            <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+              {cursos.filter((c) => c.arquivada).map((c) => (
+                <div key={c.id} className="row-between" style={{ fontSize: 14 }}>
+                  <a href={`/professor/cadeira/${c.id}`} style={{ color: "var(--muted)" }}>{c.nome} <span className="faint">· {c.ano ?? "—"}</span></a>
+                  <form action={alternarArquivada}>
+                    <input type="hidden" name="courseId" value={c.id} />
+                    <button className="btn ghost sm" type="submit" title="Desarquivar">↩ Desarquivar</button>
+                  </form>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
+        </>
       )}
 
       <details className="disclosure card" style={{ marginTop: 28 }} open={cursos.length === 0}>

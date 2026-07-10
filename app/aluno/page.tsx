@@ -30,11 +30,21 @@ export default async function AlunoDashboard() {
   const paresPorTrabalho = new Map<string, { id: string; excerto: string }>();
   for (const s of subs) {
     if (!s.assignment.avaliacaoPares) continue;
-    const colega = await db.submission.findFirst({
-      where: { assignmentId: s.assignmentId, studentId: { not: aluno.id }, id: { notIn: [...jaAvaliei] }, conteudoExtraido: { not: null } },
-      orderBy: { createdAt: "asc" },
+    // Atribuição equilibrada (round-robin): a partir da minha posição, o próximo
+    // colega ainda não avaliado — distribui as revisões por igual, em vez de todos
+    // avaliarem a primeira submissão.
+    const todas = await db.submission.findMany({
+      where: { assignmentId: s.assignmentId, conteudoExtraido: { not: null } },
+      orderBy: { createdAt: "asc" }, select: { id: true, studentId: true, conteudoExtraido: true },
     });
-    if (colega) paresPorTrabalho.set(s.id, { id: colega.id, excerto: (colega.conteudoExtraido ?? "").slice(0, 600) });
+    const meu = todas.findIndex((x) => x.id === s.id);
+    if (meu < 0 || todas.length < 2) continue;
+    for (let off = 1; off < todas.length; off++) {
+      const cand = todas[(meu + off) % todas.length];
+      if (cand.studentId === aluno.id || jaAvaliei.has(cand.id)) continue;
+      paresPorTrabalho.set(s.id, { id: cand.id, excerto: (cand.conteudoExtraido ?? "").slice(0, 600) });
+      break;
+    }
   }
 
   const works: Work[] = subs.map((s) => {

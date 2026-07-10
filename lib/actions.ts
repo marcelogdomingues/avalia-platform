@@ -126,6 +126,15 @@ export async function apagarCadeira(formData: FormData) {
   revalidatePath("/professor");
 }
 
+// Arquiva / desarquiva uma cadeira.
+export async function alternarArquivada(formData: FormData) {
+  const prof = await requireProfessor();
+  const id = String(formData.get("courseId"));
+  const c = await db.course.findFirst({ where: { id, professorId: prof.id } });
+  if (c) await db.course.update({ where: { id: c.id }, data: { arquivada: !c.arquivada } });
+  revalidatePath("/professor");
+}
+
 // ── Trabalhos (com rubric builder) ───────────────────────────────────────────
 function parseTestSuite(formData: FormData): object | null {
   const raw = String(formData.get("testSuite") ?? "").trim();
