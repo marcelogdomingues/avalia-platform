@@ -39,15 +39,28 @@ Logins de exemplo criados pelo seed:
 - **Analytics profundos** — calibração IA-vs-professor, critérios mais fracos, alunos em risco,
   **mapa de calor aluno×critério**, insights da turma (IA), e **analytics ao nível da cadeira**
   (matriz de progresso, médias, tendência).
-- **Relatório imprimível/PDF** e **export CSV** (formato para o gradebook do Moodle).
+- **Fila** — pesquisa, ordenação (nota/sinal/data), filtro por turma, navegação J/K;
+  **ver a submissão** do aluno (conteúdo extraído) e **correção anónima** (blind marking).
+- **Avaliação manual** — lançar nota sem ficheiro (oral, apresentação, participação).
+- **Relatório imprimível/PDF** e **export CSV** (Moodle); **duplicar trabalho**;
+  **modelos de rubrica** reutilizáveis; **abrir/fechar** submissões.
+- **Simulador de curva** de notas; painel **"Precisa de atenção"** (por aprovar / recursos).
+
+**Configuração por trabalho, para qualquer faculdade**
+- **Escalas de notação**: 0–20, 0–100, letras A–F, ECTS, aprovado/reprovado (a IA/rubrica
+  mantém-se em 0–20 interno; só a apresentação muda).
+- **Prazos** + política de fora de prazo (bloquear / aceitar marcando) + **penalização** %/dia.
+- **Trabalhos de grupo** (membros), **turmas/turnos** (filtro + estatísticas), **avaliação por pares**.
 
 **Aluno**
 - **Contas de aluno** — registo/login; submissões associadas à conta.
-- **Portal** — trabalhos, notas, feedback e linha do tempo (submetido → IA → validação → publicado).
-- **Tutor socrático (IA)** — ajuda a melhorar com pistas, **sem dar a resposta**.
-- **Entrevista de defesa** — responde às perguntas geradas pela IA (confirma autoria).
-- **Pedido de revisão** — recurso ao professor, com resposta no próprio portal.
-- **Recibo** por link (`/recibo/[id]`).
+- **Portal** — trabalhos, notas, feedback, linha do tempo e **feed de notificações**.
+- **Tutor socrático (IA)** — ajuda a melhorar com pistas, **sem dar a resposta**; a IA
+  **explica testes falhados** sem dar a solução.
+- **Entrevista de defesa** · **avaliação por pares** (avaliar colega anónimo) · **pedido de revisão**.
+- **Boletim de notas** imprimível/PDF · **recibo** por link (`/recibo/[id]`).
+
+**Cadeiras**: multi-tenant, **arquiváveis**; analytics ao nível da cadeira (matriz de progresso).
 
 **Motor**
 - **Pré-avaliação IA** — nota e justificação por critério (modelo demo OU LLM real).
