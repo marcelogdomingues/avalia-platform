@@ -257,6 +257,17 @@ export default function CriarTrabalho({ courseId }: { courseId: string }) {
               {ESCALAS.map((e) => <option key={e.v} value={e.v}>{e.l} — ex: {e.ex}</option>)}
             </select>
           </div>
+          <div className="field">
+            <label>Prazo de entrega <span className="help">(opcional)</span></label>
+            <input name="prazo" type="datetime-local" />
+          </div>
+          <div className="field">
+            <label>Fora de prazo</label>
+            <select name="politicaAtraso" defaultValue="aceitar">
+              <option value="aceitar">Aceitar, marcando como fora de prazo</option>
+              <option value="bloquear">Bloquear entregas após o prazo</option>
+            </select>
+          </div>
           <label className="checkbox">
             <input type="checkbox" name="feedbackImediato" /> Mostrar feedback ao aluno logo após submeter
           </label>

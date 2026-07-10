@@ -38,6 +38,23 @@ export default async function SubmeterPage({ params }: { params: Promise<{ token
       <h1 className="page-title" style={{ marginTop: 4 }}>{assignment.titulo}</h1>
       <p className="page-sub">{assignment.enunciado}</p>
 
+      {assignment.prazo && (() => {
+        const fechado = Date.now() > assignment.prazo.getTime();
+        const bloqueia = assignment.politicaAtraso === "bloquear";
+        const cor = fechado ? (bloqueia ? "var(--red)" : "var(--amber)") : "var(--accent)";
+        const data = assignment.prazo.toLocaleString("pt-PT", { dateStyle: "long", timeStyle: "short" });
+        return (
+          <div className="card" style={{ marginBottom: 16, borderColor: cor, display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 18 }}>{fechado ? (bloqueia ? "🔒" : "⏰") : "🗓️"}</span>
+            <span style={{ fontSize: 14, color: "var(--text)" }}>
+              <b>Prazo:</b> {data}. {fechado
+                ? bloqueia ? "O prazo terminou — este trabalho já não aceita entregas." : "Prazo terminado — a tua entrega será marcada como fora de prazo."
+                : "Ainda a tempo."}
+            </span>
+          </div>
+        );
+      })()}
+
       {!aluno && (
         <div className="card" style={{ marginBottom: 16, background: "var(--surface-2)" }}>
           <p className="hint" style={{ margin: 0 }}>

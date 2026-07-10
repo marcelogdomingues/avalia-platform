@@ -85,6 +85,7 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
       modelo: ev?.modelo ?? null,
       ressubmissao,
       recurso: (s.recurso as Sub["recurso"]) ?? null,
+      atrasada: s.atrasada,
     };
   });
 

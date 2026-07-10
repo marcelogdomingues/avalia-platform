@@ -63,6 +63,8 @@ model Assignment {
   testSuite        Json? // autograder: { lang, testFiles:[{path,content}], obrigatorios:"todos"|[nomes] }
   feedbackImediato Boolean  @default(false)
   escala           String   @default("vinte") // vinte|cem|letra|ects|passa — escala de notação
+  prazo            DateTime? // data-limite de entrega (opcional)
+  politicaAtraso   String   @default("aceitar") // bloquear | aceitar (marca como fora de prazo)
   submitToken      String   @unique @default(cuid())
   createdAt        DateTime @default(now())
 
@@ -94,6 +96,7 @@ model Submission {
   conteudoExtraido String?
   testResult       Json? // autograder: { total, passed, obrigatoriosTotal, obrigatoriosPassed, gateMet, tests:[{nome,ok,obrigatorio}] }
   respostasDefesa  Json? // [{ pergunta, resposta }] — respostas do aluno à entrevista de defesa
+  atrasada         Boolean  @default(false) // entregue depois do prazo
   recurso          Json? // { pedido, criadoEm, estado:"aberto"|"respondido", resposta?, respondidoEm? }
   createdAt        DateTime @default(now())
 

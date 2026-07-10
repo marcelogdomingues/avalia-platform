@@ -151,6 +151,9 @@ export async function criarTrabalho(formData: FormData) {
   const solucaoModelo = String(formData.get("solucaoModelo") ?? "").trim() || null;
   const feedbackImediato = formData.get("feedbackImediato") === "on";
   const escala = String(formData.get("escala") ?? "vinte");
+  const prazoRaw = String(formData.get("prazo") ?? "").trim();
+  const prazo = prazoRaw ? new Date(prazoRaw) : null;
+  const politicaAtraso = String(formData.get("politicaAtraso") ?? "aceitar");
   const tiposFicheiro = formData.getAll("tiposFicheiro").map(String);
 
   let rubrica: Criterio[] = [];
@@ -183,6 +186,8 @@ export async function criarTrabalho(formData: FormData) {
       solucaoModelo,
       feedbackImediato,
       escala,
+      prazo: prazo && !isNaN(prazo.getTime()) ? prazo : null,
+      politicaAtraso,
       tiposFicheiro: tiposFicheiro.length ? tiposFicheiro : ["pdf", "docx", "txt"],
       rubrica: rubrica as any,
       testSuite: parseTestSuite(formData) as any,
@@ -477,6 +482,12 @@ export async function submeterTrabalho(token: string, formData: FormData): Promi
   const alunoNumero = aluno?.numero ?? (String(formData.get("alunoNumero") ?? "").trim() || undefined);
   const buffer = Buffer.from(await file.arrayBuffer());
 
+  // Prazo: se expirou, bloqueia ou aceita marcando como fora de prazo.
+  const atrasada = !!(assignment.prazo && Date.now() > assignment.prazo.getTime());
+  if (atrasada && assignment.politicaAtraso === "bloquear") {
+    return { ok: false, erro: `O prazo terminou em ${assignment.prazo!.toLocaleString("pt-PT")}. Este trabalho não aceita entregas fora de prazo.` };
+  }
+
   // Autograder: se o trabalho tem testes, correm ANTES de aceitar a submissão.
   let gate: GateResult | undefined;
   const suite = assignment.testSuite as { lang: Lang; testFiles: TestFile[]; obrigatorios: "todos" | string[] } | null;
@@ -501,6 +512,7 @@ export async function submeterTrabalho(token: string, formData: FormData): Promi
     alunoNumero,
     ficheiros: [{ nome: file.name, mime: file.type, buffer }],
     testResult: gate,
+    atrasada,
   });
 
   revalidatePath(`/professor/trabalho/${assignment.id}`);
@@ -520,6 +532,9 @@ export async function editarTrabalho(formData: FormData) {
   const solucaoModelo = String(formData.get("solucaoModelo") ?? "").trim() || null;
   const feedbackImediato = formData.get("feedbackImediato") === "on";
   const escala = String(formData.get("escala") ?? "vinte");
+  const prazoRaw = String(formData.get("prazo") ?? "").trim();
+  const prazo = prazoRaw ? new Date(prazoRaw) : null;
+  const politicaAtraso = String(formData.get("politicaAtraso") ?? "aceitar");
   const tiposFicheiro = formData.getAll("tiposFicheiro").map(String);
 
   let rubrica: Criterio[] = [];
@@ -539,7 +554,8 @@ export async function editarTrabalho(formData: FormData) {
   await db.assignment.update({
     where: { id },
     data: {
-      titulo, enunciado, instrucoes, solucaoModelo, feedbackImediato, escala,
+      titulo, enunciado, instrucoes, solucaoModelo, feedbackImediato, escala, politicaAtraso,
+      prazo: prazo && !isNaN(prazo.getTime()) ? prazo : null,
       tiposFicheiro: tiposFicheiro.length ? tiposFicheiro : ["pdf", "docx", "txt"],
       rubrica: rubrica as any,
       testSuite: parseTestSuite(formData) as any,

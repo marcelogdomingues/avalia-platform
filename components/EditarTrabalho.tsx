@@ -9,7 +9,7 @@ interface Crit { nome: string; descricao: string; peso: number; pontosMax: numbe
 const TIPOS = ["pdf", "docx", "txt", "zip"];
 
 export default function EditarTrabalho({
-  assignmentId, titulo, enunciado, tipos, instrucoes, solucaoModelo, feedbackImediato, escala, rubrica, testSuite,
+  assignmentId, titulo, enunciado, tipos, instrucoes, solucaoModelo, feedbackImediato, escala, prazo, politicaAtraso, rubrica, testSuite,
 }: {
   assignmentId: string;
   titulo: string;
@@ -19,6 +19,8 @@ export default function EditarTrabalho({
   solucaoModelo: string;
   feedbackImediato: boolean;
   escala: string;
+  prazo: string; // datetime-local ("" se nenhum)
+  politicaAtraso: string;
   rubrica: Crit[];
   testSuite: TestSuiteValor | null;
 }) {
@@ -77,6 +79,17 @@ export default function EditarTrabalho({
             <label>Escala de notação</label>
             <select name="escala" defaultValue={escala}>
               {ESCALAS.map((e) => <option key={e.v} value={e.v}>{e.l} — ex: {e.ex}</option>)}
+            </select>
+          </div>
+          <div className="field">
+            <label>Prazo de entrega <span className="help">(opcional)</span></label>
+            <input name="prazo" type="datetime-local" defaultValue={prazo} />
+          </div>
+          <div className="field">
+            <label>Fora de prazo</label>
+            <select name="politicaAtraso" defaultValue={politicaAtraso}>
+              <option value="aceitar">Aceitar, marcando como fora de prazo</option>
+              <option value="bloquear">Bloquear entregas após o prazo</option>
             </select>
           </div>
           <label className="checkbox"><input type="checkbox" name="feedbackImediato" defaultChecked={feedbackImediato} /> Mostrar feedback ao aluno logo após submeter</label>

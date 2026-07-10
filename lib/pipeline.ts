@@ -14,6 +14,7 @@ export async function processarSubmissao(params: {
   studentId?: string;
   ficheiros: FicheiroSubmissao[];
   testResult?: object;
+  atrasada?: boolean;
 }): Promise<{ submissionId: string; evaluationId: string }> {
   const assignment = await db.assignment.findUniqueOrThrow({
     where: { id: params.assignmentId },
@@ -35,6 +36,7 @@ export async function processarSubmissao(params: {
       })),
       conteudoExtraido,
       testResult: (params.testResult ?? undefined) as object | undefined,
+      atrasada: params.atrasada ?? false,
     },
   });
 

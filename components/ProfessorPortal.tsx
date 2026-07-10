@@ -46,6 +46,7 @@ export type Sub = {
   modelo: string | null;
   ressubmissao: { anteriorData: string; adicionadas: number; removidas: number; segs: { tipo: "igual" | "add" | "rem"; texto: string }[] } | null;
   recurso: { pedido: string; estado: "aberto" | "respondido"; resposta?: string } | null;
+  atrasada?: boolean;
 };
 export type PortalProps = {
   prof: { nome: string; initials: string };
@@ -412,6 +413,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                             {s.alunoNome}
                             {(s.simIA >= 0.12 || (s.deteccaoIA?.probabilidade ?? 0) >= 60) && <span title="Sinal de uso de IA" style={{ width: 6, height: 6, borderRadius: "50%", background: AMBER }} />}
                             {s.recurso?.estado === "aberto" && <span title="Pedido de revisão por responder" style={{ fontSize: 11 }}>⚖️</span>}
+                            {s.atrasada && <span title="Entregue fora de prazo" style={{ fontSize: 10.5 }}>⏰</span>}
                           </div>
                           <div style={{ fontSize: 12, color: "rgba(29,26,19,0.5)" }}>{s.date}</div>
                         </div>
@@ -434,7 +436,10 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                     <div style={{ maxWidth: 640 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, gap: 12, flexWrap: "wrap" }}>
                         <div className="mono" style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)" }}>Submissão · {sel.date}{sel.alunoNumero ? ` · nº ${sel.alunoNumero}` : ""}</div>
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: `${st.color}22`, color: st.color, fontSize: 12, fontWeight: 500, padding: "6px 12px", borderRadius: 999 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: st.color }} />{st.label}</div>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          {sel.atrasada && <span className="badge" style={{ background: "rgba(180,83,9,0.12)", color: AMBER, fontWeight: 600 }}>⏰ Fora de prazo</span>}
+                          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: `${st.color}22`, color: st.color, fontSize: 12, fontWeight: 500, padding: "6px 12px", borderRadius: 999 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: st.color }} />{st.label}</div>
+                        </div>
                       </div>
                       <h2 className="serif" style={{ fontWeight: 500, fontSize: 32, margin: "0 0 20px", color: INK }}>{sel.alunoNome}</h2>
 
