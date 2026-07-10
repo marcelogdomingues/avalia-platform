@@ -77,8 +77,23 @@ model Course {
   professor   Professor    @relation(fields: [professorId], references: [id], onDelete: Cascade)
   assignments Assignment[]
   coDocentes  CoDocente[]
+  atividade   ActivityLog[]
 
   @@index([professorId])
+}
+
+// Registo de atividade: histórico de ações por cadeira (útil com co-docência).
+model ActivityLog {
+  id        String   @id @default(cuid())
+  courseId  String
+  actorNome String // professor que fez a ação
+  acao      String // aprovou | reavaliou | avaliacao-manual | convidou | removeu | criou-trabalho | abriu | fechou
+  alvo      String? // descrição curta: nome do aluno, título do trabalho, email do colega…
+  criadoEm  DateTime @default(now())
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId, criadoEm])
 }
 
 model Assignment {

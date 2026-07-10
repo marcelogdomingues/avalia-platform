@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "./db";
-import { cadeiraAcesso } from "./acesso";
+import { cadeiraAcesso, registarAtividade } from "./acesso";
 import { processarSubmissao, aprovarAvaliacao } from "./pipeline";
 import { runTests, avaliarGate, extrairCodigo, collectTests, runnerAtivo, LANG_LABELS, EXT, type Lang, type TestFile, type GateResult } from "./runner";
 import {
@@ -139,6 +139,7 @@ export async function convidarCoDocente(courseId: string, email: string): Promis
     where: { courseId_professorId: { courseId, professorId: alvo.id } },
     update: {}, create: { courseId, professorId: alvo.id },
   });
+  await registarAtividade(courseId, prof.nome, "convidou", `co-docente ${alvo.nome}`);
   revalidatePath(`/professor/cadeira/${courseId}`);
   return { ok: true };
 }
@@ -147,7 +148,9 @@ export async function removerCoDocente(courseId: string, professorId: string): P
   const prof = await requireProfessor();
   const c = await db.course.findFirst({ where: { id: courseId, professorId: prof.id } }); // só o dono
   if (!c) return;
+  const alvo = await db.professor.findUnique({ where: { id: professorId }, select: { nome: true } });
   await db.coDocente.deleteMany({ where: { courseId, professorId } });
+  await registarAtividade(courseId, prof.nome, "removeu", `co-docente ${alvo?.nome ?? ""}`.trim());
   revalidatePath(`/professor/cadeira/${courseId}`);
 }
 
@@ -239,6 +242,7 @@ export async function criarTrabalho(formData: FormData) {
     /* segue sem linha-base; pode gerar-se depois na página do trabalho */
   }
 
+  await registarAtividade(courseId, prof.nome, "criou-trabalho", titulo);
   redirect(`/professor/trabalho/${a.id}`);
 }
 
@@ -333,6 +337,7 @@ export async function criarAvaliacaoManual(assignmentId: string, alunoNome: stri
   await db.evaluation.create({
     data: { submissionId: sub.id, estado: "RASCUNHO", notaIA: n, feedbackGlobal: feedback.trim() || null, modelo: "manual", avaliadoEm: new Date(), revisorNome: prof.nome },
   });
+  await registarAtividade(a.courseId, prof.nome, "avaliacao-manual", alunoNome.trim());
   revalidatePath(`/professor/trabalho/${a.id}`);
   return { ok: true };
 }
@@ -343,6 +348,7 @@ export async function alternarAberto(assignmentId: string) {
   const a = await db.assignment.findFirst({ where: { id: assignmentId, course: cadeiraAcesso(prof.id) } });
   if (!a) return;
   await db.assignment.update({ where: { id: a.id }, data: { aberto: !a.aberto } });
+  await registarAtividade(a.courseId, prof.nome, a.aberto ? "fechou" : "abriu", a.titulo);
   revalidatePath(`/professor/trabalho/${a.id}`);
 }
 
@@ -734,6 +740,10 @@ export async function aprovarTodas(formData: FormData) {
       data: { estado: "APROVADO", notaFinal: ev.notaIA, aprovadoEm: new Date(), revisorNome: prof.nome },
     });
   }
+  if (evals.length > 0) {
+    const a = await db.assignment.findUnique({ where: { id: assignmentId }, select: { courseId: true, titulo: true } });
+    await registarAtividade(a?.courseId, prof.nome, "aprovou", `${evals.length} de "${a?.titulo ?? ""}"`);
+  }
   revalidatePath(`/professor/trabalho/${assignmentId}`);
 }
 
@@ -751,13 +761,16 @@ export async function aprovar(formData: FormData) {
   });
   const ev = await db.evaluation.findUnique({
     where: { id: evaluationId },
-    include: { submission: true },
+    include: { submission: { include: { assignment: { select: { courseId: true } } } } },
   });
-  if (ev) revalidatePath(`/professor/trabalho/${ev.submission.assignmentId}`);
+  if (ev) {
+    await registarAtividade(ev.submission.assignment.courseId, prof.nome, "aprovou", ev.submission.alunoNome);
+    revalidatePath(`/professor/trabalho/${ev.submission.assignmentId}`);
+  }
 }
 
 export async function reavaliar(formData: FormData) {
-  await requireProfessor();
+  const prof = await requireProfessor();
   const submissionId = String(formData.get("submissionId"));
   const sub = await db.submission.findUnique({
     where: { id: submissionId },
@@ -790,5 +803,6 @@ export async function reavaliar(formData: FormData) {
       aprovadoEm: null,
     },
   });
+  await registarAtividade(sub.assignment.courseId, prof.nome, "reavaliou", sub.alunoNome);
   revalidatePath(`/professor/trabalho/${sub.assignmentId}`);
 }

@@ -8,6 +8,17 @@ import ProfShell from "@/components/ProfShell";
 
 export const dynamic = "force-dynamic";
 
+const ACAO_LABEL: Record<string, { txt: string; cor: string }> = {
+  aprovou: { txt: "aprovou", cor: "#0f766e" },
+  reavaliou: { txt: "re-avaliou", cor: "#b45309" },
+  "avaliacao-manual": { txt: "avaliou manualmente", cor: "#0f766e" },
+  "criou-trabalho": { txt: "criou o trabalho", cor: "var(--ink)" },
+  abriu: { txt: "abriu submissões de", cor: "#0f766e" },
+  fechou: { txt: "fechou submissões de", cor: "#9f1d1d" },
+  convidou: { txt: "convidou", cor: "var(--ink)" },
+  removeu: { txt: "removeu", cor: "#9f1d1d" },
+};
+
 export default async function CadeiraPage({
   params,
 }: {
@@ -35,6 +46,12 @@ export default async function CadeiraPage({
   });
   if (!course) notFound();
   const isOwner = course.professorId === prof.id;
+
+  const atividade = await db.activityLog.findMany({
+    where: { courseId: course.id },
+    orderBy: { criadoEm: "desc" },
+    take: 20,
+  });
 
   const todasNotas: number[] = [];
   let totalSubs = 0;
@@ -229,6 +246,28 @@ export default async function CadeiraPage({
           <CriarTrabalho courseId={course.id} modelos={(await db.rubricaTemplate.findMany({ where: { professorId: prof.id }, orderBy: { createdAt: "desc" }, select: { id: true, nome: true, criterios: true } })).map((m) => ({ id: m.id, nome: m.nome, criterios: m.criterios as any }))} />
         </div>
       </details>
+
+      {atividade.length > 0 && (
+        <details className="disclosure card" style={{ marginTop: 20 }}>
+          <summary style={{ fontSize: 15 }}>🕘 Registo de atividade ({atividade.length})</summary>
+          <div style={{ display: "grid", gap: 2, marginTop: 14 }}>
+            {atividade.map((ev) => {
+              const acao = ACAO_LABEL[ev.acao] ?? { txt: ev.acao, cor: "var(--muted)" };
+              const quando = new Intl.DateTimeFormat("pt-PT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(ev.criadoEm);
+              return (
+                <div key={ev.id} className="row-between" style={{ fontSize: 13.5, padding: "7px 0", borderBottom: "1px solid var(--border)" }}>
+                  <span>
+                    <b style={{ fontWeight: 600 }}>{ev.actorNome}</b>{" "}
+                    <span style={{ color: acao.cor }}>{acao.txt}</span>
+                    {ev.alvo ? <span className="faint"> · {ev.alvo}</span> : null}
+                  </span>
+                  <span className="faint mono" style={{ fontSize: 11.5, whiteSpace: "nowrap" }}>{quando}</span>
+                </div>
+              );
+            })}
+          </div>
+        </details>
+      )}
 
       <CoDocentes courseId={course.id} isOwner={isOwner} iniciais={course.coDocentes.map((cd) => ({ id: cd.professor.id, nome: cd.professor.nome, email: cd.professor.email }))} />
     </ProfShell>
