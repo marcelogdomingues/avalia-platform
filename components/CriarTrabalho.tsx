@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { criarTrabalho, analisarEnunciadoAction, gerarRubricaAction, gerarEnunciadoAction } from "@/lib/actions";
+import { criarTrabalho, analisarEnunciadoAction, gerarRubricaAction, gerarEnunciadoAction, guardarRubricaModelo, type RubricaModelo } from "@/lib/actions";
 import TestSuiteEditor from "./TestSuiteEditor";
 import type { AnaliseEnunciado } from "@/lib/evaluate";
 import { ESCALAS } from "@/lib/escala";
@@ -22,7 +22,8 @@ const CRITERIOS_IA_HARD: Crit[] = [
   { nome: "Ligação ao contexto da aula", descricao: "Refere conteúdos, exemplos ou dados específicos dados na aula ou pela turma.", peso: 0, pontosMax: 20 },
 ];
 
-export default function CriarTrabalho({ courseId }: { courseId: string }) {
+export default function CriarTrabalho({ courseId, modelos = [] }: { courseId: string; modelos?: RubricaModelo[] }) {
+  const [modelosLista, setModelosLista] = useState<RubricaModelo[]>(modelos);
   const [criterios, setCriterios] = useState<Crit[]>([
     { nome: "Correção técnica", descricao: "", peso: 50, pontosMax: 20 },
     { nome: "Clareza e estrutura", descricao: "", peso: 30, pontosMax: 20 },
@@ -231,6 +232,20 @@ export default function CriarTrabalho({ courseId }: { courseId: string }) {
             <button type="button" className="btn secondary sm" onClick={addIAHard} title="Critérios que a IA faz mal">
               🛡️ + Resistentes a IA
             </button>
+            {modelosLista.length > 0 && (
+              <select defaultValue="" onChange={(e) => { const m = modelosLista.find((x) => x.id === e.target.value); if (m) setCriterios(m.criterios.map((c) => ({ nome: c.nome, descricao: c.descricao, peso: c.peso, pontosMax: c.pontosMax }))); e.target.value = ""; }}
+                className="btn secondary sm" style={{ appearance: "auto" }} title="Carregar uma rubrica-modelo">
+                <option value="" disabled>📋 Usar modelo</option>
+                {modelosLista.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+              </select>
+            )}
+            <button type="button" className="btn secondary sm" title="Guardar esta rubrica como modelo reutilizável"
+              onClick={async () => {
+                const nome = window.prompt("Nome do modelo de rubrica:");
+                if (!nome?.trim()) return;
+                const m = await guardarRubricaModelo(nome, criterios.filter((c) => c.nome.trim()));
+                if (m) setModelosLista((ms) => [m, ...ms]);
+              }}>💾 Guardar modelo</button>
           </div>
           <span className={`weight-note ${somaPesos === 100 ? "ok" : "warn"}`}>
             Soma dos pesos: {somaPesos}% {somaPesos === 100 ? "✓" : "(recomendado 100%)"}

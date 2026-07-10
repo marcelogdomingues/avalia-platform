@@ -219,7 +219,7 @@ export default async function CadeiraPage({
       <details className="disclosure card" style={{ marginTop: 28 }} open={!temTrabalhos}>
         <summary style={{ fontSize: 15 }}>＋ Novo trabalho e rubrica</summary>
         <div style={{ marginTop: 18 }}>
-          <CriarTrabalho courseId={course.id} />
+          <CriarTrabalho courseId={course.id} modelos={(await db.rubricaTemplate.findMany({ where: { professorId: prof.id }, orderBy: { createdAt: "desc" }, select: { id: true, nome: true, criterios: true } })).map((m) => ({ id: m.id, nome: m.nome, criterios: m.criterios as any }))} />
         </div>
       </details>
     </ProfShell>

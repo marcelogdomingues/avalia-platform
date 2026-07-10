@@ -21,6 +21,20 @@ model Professor {
 
   courses  Course[]
   snippets CommentSnippet[]
+  rubricas RubricaTemplate[]
+}
+
+// Modelo de rubrica reutilizável do professor.
+model RubricaTemplate {
+  id          String   @id @default(cuid())
+  professorId String
+  nome        String
+  criterios   Json // [{ nome, descricao, peso, pontosMax }]
+  createdAt   DateTime @default(now())
+
+  professor Professor @relation(fields: [professorId], references: [id], onDelete: Cascade)
+
+  @@index([professorId])
 }
 
 // Banco de comentários reutilizáveis do professor (superpoder de correção).

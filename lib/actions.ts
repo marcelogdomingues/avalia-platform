@@ -429,6 +429,27 @@ export async function avaliarDefesaAction(submissionId: string): Promise<DefesaA
   return res;
 }
 
+// ── Modelos de rubrica ────────────────────────────────────────────────────────
+export interface RubricaModelo { id: string; nome: string; criterios: { nome: string; descricao: string; peso: number; pontosMax: number }[] }
+
+export async function listarRubricaModelos(): Promise<RubricaModelo[]> {
+  const prof = await requireProfessor();
+  const ms = await db.rubricaTemplate.findMany({ where: { professorId: prof.id }, orderBy: { createdAt: "desc" }, select: { id: true, nome: true, criterios: true } });
+  return ms.map((m) => ({ id: m.id, nome: m.nome, criterios: m.criterios as RubricaModelo["criterios"] }));
+}
+
+export async function guardarRubricaModelo(nome: string, criterios: RubricaModelo["criterios"]): Promise<RubricaModelo | null> {
+  const prof = await requireProfessor();
+  if (!nome.trim() || !Array.isArray(criterios) || criterios.length === 0) return null;
+  const m = await db.rubricaTemplate.create({ data: { professorId: prof.id, nome: nome.trim().slice(0, 80), criterios: criterios as object } });
+  return { id: m.id, nome: m.nome, criterios };
+}
+
+export async function apagarRubricaModelo(id: string): Promise<void> {
+  const prof = await requireProfessor();
+  await db.rubricaTemplate.deleteMany({ where: { id, professorId: prof.id } });
+}
+
 // ── Banco de comentários (snippets reutilizáveis do professor) ────────────────
 export interface Snippet { id: string; atalho: string; texto: string; usos: number }
 
