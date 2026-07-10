@@ -9,6 +9,10 @@ import type { AnaliseIntegridade } from "@/lib/similaridade";
 
 const TEAL = "#0f766e";
 const INK = "#1d1a13";
+const LANG_NOME: Record<string, string> = {
+  python: "Python", java: "Java", javascript: "JavaScript", typescript: "TypeScript",
+  go: "Go", ruby: "Ruby", c: "C", cpp: "C++", php: "PHP", rust: "Rust",
+};
 const CREAM = "#faf7f1";
 const SAND = "#efe8da";
 const AMBER = "#b45309";
@@ -47,7 +51,7 @@ export type PortalProps = {
   courses: { id: string; nome: string }[];
   assignment: {
     id: string; titulo: string; courseId: string; courseNome: string;
-    submitToken: string; temBaseline: boolean; temAutograder?: boolean;
+    submitToken: string; temBaseline: boolean; temAutograder?: boolean; autograderLang?: string | null;
     rubrica: { nome: string; peso: number; pontosMax: number; descricao: string }[];
   };
   subs: Sub[];
@@ -356,6 +360,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span className="serif" style={{ fontSize: 22, color: INK }}>{crumb}</span>
             <span className="mono" style={{ fontSize: 12, color: "rgba(29,26,19,0.5)", background: SAND, padding: "4px 9px", borderRadius: 6 }}>{assignment.courseNome} · {assignment.titulo}</span>
+            {assignment.autograderLang && <span className="mono" style={{ fontSize: 11, fontWeight: 600, color: TEAL, background: "rgba(15,118,110,0.12)", padding: "4px 9px", borderRadius: 6 }}>🧪 {LANG_NOME[assignment.autograderLang] ?? assignment.autograderLang}</span>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {temLLM && (

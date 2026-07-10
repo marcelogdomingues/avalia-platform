@@ -35,7 +35,13 @@ export default async function CadeiraPage({
   const todasNotas: number[] = [];
   let totalSubs = 0;
   let totalPend = 0;
+  const LANG_LABEL: Record<string, string> = {
+    python: "Python", java: "Java", javascript: "JavaScript", typescript: "TypeScript",
+    go: "Go", ruby: "Ruby", c: "C", cpp: "C++", php: "PHP", rust: "Rust",
+  };
   const trabalhos = course.assignments.map((a) => {
+    const suite = a.testSuite as { lang?: string } | null;
+    const autograder = suite?.lang ? LANG_LABEL[suite.lang] ?? suite.lang : null;
     const subs = a.submissions.length;
     const pend = a.submissions.filter((s) => s.evaluation?.estado === "RASCUNHO").length;
     const notas = a.submissions
@@ -48,7 +54,7 @@ export default async function CadeiraPage({
     totalSubs += subs;
     totalPend += pend;
     const media = notas.length ? notas.reduce((x, y) => x + y, 0) / notas.length : null;
-    return { a, subs, pend, media };
+    return { a, subs, pend, media, autograder };
   });
   const mediaCurso = todasNotas.length
     ? todasNotas.reduce((x, y) => x + y, 0) / todasNotas.length
@@ -185,7 +191,7 @@ export default async function CadeiraPage({
         </div>
       ) : (
         <div className="grid cols-2">
-          {trabalhos.map(({ a, subs, pend, media }) => (
+          {trabalhos.map(({ a, subs, pend, media, autograder }) => (
             <a
               key={a.id}
               href={`/professor/trabalho/${a.id}`}
@@ -194,7 +200,10 @@ export default async function CadeiraPage({
             >
               <div className="row-between" style={{ alignItems: "start" }}>
                 <span className="eyebrow">{(a.tiposFicheiro as string[]).join(" · ")}</span>
-                {pend > 0 && <span className="badge s-rascunho">{pend} por aprovar</span>}
+                <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  {autograder && <span className="badge" style={{ background: "rgba(15,118,110,0.12)", color: "#0f766e", fontWeight: 600 }}>🧪 {autograder}</span>}
+                  {pend > 0 && <span className="badge s-rascunho">{pend} por aprovar</span>}
+                </span>
               </div>
               <h3>{a.titulo}</h3>
               <div className="count">
