@@ -103,6 +103,8 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
       membros: (s.membros as { nome: string; numero?: string }[] | null) ?? null,
       turma: s.turma,
       pares: paresPorSub.get(s.id) ?? null,
+      conteudo: s.conteudoExtraido ?? null,
+      ficheiros: ((s.ficheiros as { nome?: string }[] | null) ?? []).map((f) => f.nome ?? "ficheiro"),
     };
   });
 

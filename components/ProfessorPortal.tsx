@@ -52,6 +52,8 @@ export type Sub = {
   membros?: { nome: string; numero?: string }[] | null;
   turma?: string | null;
   pares?: { media: number; n: number; comentarios: string[] } | null;
+  conteudo?: string | null;
+  ficheiros?: string[];
 };
 export type PortalProps = {
   prof: { nome: string; initials: string };
@@ -574,6 +576,18 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                           </div>
                         );
                       })()}
+
+                      {/* Ver a submissão do aluno (conteúdo extraído) */}
+                      {(sel.conteudo || (sel.ficheiros && sel.ficheiros.length > 0)) && (
+                        <details className="disclosure" style={{ marginBottom: 20 }}>
+                          <summary>📄 Ver submissão{sel.ficheiros && sel.ficheiros.length ? ` · ${sel.ficheiros.join(", ")}` : ""}</summary>
+                          {sel.conteudo ? (
+                            <div style={{ marginTop: 10, background: "var(--surface-2)", borderRadius: 10, padding: "14px 16px", fontSize: 13.5, lineHeight: 1.65, maxHeight: 360, overflowY: "auto", whiteSpace: "pre-wrap", color: "rgba(29,26,19,0.82)" }}>{sel.conteudo}</div>
+                          ) : (
+                            <p className="hint" style={{ marginTop: 8 }}>Sem texto extraído (ex.: imagem ou ficheiro binário). Ficheiros: {sel.ficheiros?.join(", ") || "—"}.</p>
+                          )}
+                        </details>
+                      )}
 
                       <div style={{ display: "flex", alignItems: "flex-end", gap: 28, marginBottom: 24, flexWrap: "wrap" }}>
                         <div>
