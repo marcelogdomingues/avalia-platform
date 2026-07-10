@@ -119,6 +119,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
   const turmas = [...new Set(subs.map((s) => s.turma).filter((t): t is string => !!t))].sort();
   const [selId, setSelId] = useState<string | null>(subs[0]?.id ?? null);
   const [diffOpen, setDiffOpen] = useState(false);
+  const [alvoMedia, setAlvoMedia] = useState<string>("");
   // Correção anónima (blind marking): esconde a identidade durante a revisão.
   const [anon, setAnon] = useState(false);
   const anonNome = new Map(subs.map((s, i) => [s.id, `Aluno ${i + 1}`]));
@@ -300,6 +301,19 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
     .filter((t) => t.falhas > 0)
     .sort((a, b) => b.taxa - a.taxa);
   const durMedia = nDur ? somaDur / nDur : null;
+
+  // Simulador de curva de notas (deslocação linear até uma média-alvo). Só pré-visualiza.
+  const notasSim = subs.map((s) => s.nota).filter((n): n is number => n != null);
+  const mediaAtual = notasSim.length ? notasSim.reduce((a, b) => a + b, 0) / notasSim.length : null;
+  const alvo = Number(alvoMedia);
+  const delta = mediaAtual != null && alvoMedia.trim() && !isNaN(alvo) ? alvo - mediaAtual : null;
+  const notasCurva = delta != null ? notasSim.map((n) => Math.max(0, Math.min(20, Math.round((n + delta) * 10) / 10))) : [];
+  const curvaStats = notasCurva.length ? {
+    media: notasCurva.reduce((a, b) => a + b, 0) / notasCurva.length,
+    min: Math.min(...notasCurva), max: Math.max(...notasCurva),
+    aprovados: notasCurva.filter((n) => n >= 9.5).length,
+    aprovadosAntes: notasSim.filter((n) => n >= 9.5).length,
+  } : null;
 
   // Estatísticas por turma (média + contagem).
   const turmaAgg = new Map<string, { soma: number; n: number; total: number }>();
@@ -868,6 +882,25 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                   })}
                 </div>
               </div>
+
+              {/* Simulador de curva de notas */}
+              {mediaAtual != null && (
+                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Simulador de curva</div>
+                  <div style={{ fontSize: 13, color: "rgba(29,26,19,0.5)", marginBottom: 16 }}>Média atual <b>{mediaAtual.toFixed(1)}</b>. Escolhe uma média-alvo para ver o efeito de uma deslocação linear (só pré-visualização).</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                    <div className="field" style={{ margin: 0, width: 130 }}>
+                      <label>Média-alvo /20</label>
+                      <input type="number" min={0} max={20} step={0.5} value={alvoMedia} onChange={(e) => setAlvoMedia(e.target.value)} placeholder="ex: 12" />
+                    </div>
+                    {curvaStats && delta != null && (
+                      <div style={{ fontSize: 13.5, color: "rgba(29,26,19,0.8)" }}>
+                        Deslocação de <b style={{ color: delta >= 0 ? TEAL : "#9f1d1d" }}>{delta > 0 ? "+" : ""}{delta.toFixed(1)}</b> → nova média <b>{curvaStats.media.toFixed(1)}</b> · intervalo {curvaStats.min.toFixed(1)}–{curvaStats.max.toFixed(1)} · aprovados <b>{curvaStats.aprovadosAntes}→{curvaStats.aprovados}</b>.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Estatísticas por turma */}
               {turmaStats.length > 0 && (
