@@ -14,7 +14,7 @@ import AdmZip from "adm-zip";
 
 const execFileP = promisify(execFile);
 
-export type Lang = "python" | "java" | "javascript" | "typescript" | "go" | "ruby" | "c" | "cpp" | "dart" | "kotlin";
+export type Lang = "python" | "java" | "javascript" | "typescript" | "go" | "ruby" | "c" | "cpp" | "php" | "rust" | "dart" | "kotlin";
 export interface TestFile { path: string; content: string }
 export interface TestOutcome { nome: string; ok: boolean; ms?: number }
 export interface RunResult { tests: TestOutcome[]; erro?: string; duracaoMs?: number }
@@ -28,6 +28,8 @@ export const LANG_LABELS: Record<Lang, string> = {
   ruby: "Ruby (minitest)",
   c: "C (gcc + TAP)",
   cpp: "C++ (g++ + TAP)",
+  php: "PHP (TAP)",
+  rust: "Rust (rustc --test)",
   dart: "Dart (dart test)",
   kotlin: "Kotlin (Gradle)",
 };
@@ -89,13 +91,26 @@ const RUN_CFG: Partial<Record<Lang, LangRun>> = {
     cmd: "cp /tests/*.cpp /work/ 2>/dev/null; cd /work; timeout 15 sh -c 'g++ -O0 -o prog *.cpp 2>/dev/null && ./prog' 2>/dev/null || true",
     parse: parseTapJs,
   },
+  php: {
+    image: "avalia-runner-php",
+    // O teste inclui a solução (require 'solution.php') e imprime TAP.
+    cmd: "cp /tests/*.php /work/ 2>/dev/null; cd /work; f=$(ls tests.php *_test.php 2>/dev/null | head -1); timeout 15 php \"$f\" 2>/dev/null || true",
+    parse: parseTapJs,
+  },
+  rust: {
+    image: "avalia-runner-rust",
+    // Junta solução + testes num ficheiro e compila com rustc --test (#[test]).
+    cmd: "cd /work; cat /work/*.rs /tests/*.rs > all.rs 2>/dev/null; timeout 30 sh -c 'rustc --test all.rs -o prog 2>/dev/null && ./prog' 2>/dev/null || true",
+    parse: parseRustTest,
+  },
 };
 
 // Linguagens com imagem de runner pronta nesta instância (derivado da config).
 export const LANGS_PRONTAS: Lang[] = Object.keys(RUN_CFG) as Lang[];
 export const EXT: Record<Lang, string[]> = {
   python: [".py"], java: [".java"], javascript: [".js"], typescript: [".ts"],
-  go: [".go"], ruby: [".rb"], c: [".c", ".h"], cpp: [".cpp", ".cc", ".hpp", ".h"], dart: [".dart"], kotlin: [".kt"],
+  go: [".go"], ruby: [".rb"], c: [".c", ".h"], cpp: [".cpp", ".cc", ".hpp", ".h"],
+  php: [".php"], rust: [".rs"], dart: [".dart"], kotlin: [".kt"],
 };
 
 // Modo de execução — resolve os problemas de memória e de deploy:
@@ -195,6 +210,16 @@ export function parseGoTest(raw: string): TestOutcome[] {
   for (const linha of String(raw).split("\n")) {
     const m = linha.match(/^\s*--- (PASS|FAIL):\s+(\w+)\s*(?:\(([\d.]+)s\))?/);
     if (m) tests.push({ nome: m[2], ok: m[1] === "PASS", ms: m[3] ? Math.round(Number(m[3]) * 1000) || undefined : undefined });
+  }
+  return tests;
+}
+
+// Faz parse do `rustc --test`: linhas 'test nome ... ok' / 'test nome ... FAILED'.
+export function parseRustTest(raw: string): TestOutcome[] {
+  const tests: TestOutcome[] = [];
+  for (const linha of String(raw).split("\n")) {
+    const m = linha.match(/^test\s+(\S+)\s+\.\.\.\s+(ok|FAILED)/);
+    if (m) tests.push({ nome: m[1].replace(/^.*::/, ""), ok: m[2] === "ok" });
   }
   return tests;
 }

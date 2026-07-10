@@ -407,7 +407,7 @@ export async function detetarTestesAction(lang: Lang, conteudo: string): Promise
   if (!conteudo.trim()) return { nomes: [] };
   const path = ({
     python: "test_trabalho.py", javascript: "solution.test.js", typescript: "solution.test.ts",
-    go: "solution_test.go", ruby: "solution_test.rb", c: "tests.c", cpp: "tests.cpp", dart: "trabalho_test.dart", kotlin: "TrabalhoTest.kt", java: "TrabalhoTest.java",
+    go: "solution_test.go", ruby: "solution_test.rb", c: "tests.c", cpp: "tests.cpp", php: "tests.php", rust: "tests.rs", dart: "trabalho_test.dart", kotlin: "TrabalhoTest.kt", java: "TrabalhoTest.java",
   } as Record<Lang, string>)[lang];
   return collectTests(lang, [{ path, content: conteudo }]);
 }

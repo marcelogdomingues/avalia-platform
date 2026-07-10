@@ -1,0 +1,7 @@
+# Autograder para Rust (rustc --test — testes #[test] no mesmo ficheiro).
+# docker build -t avalia-runner-rust -f runner/Dockerfile.rust runner
+# Isolado em runtime: --network none --memory 512m --cpus 1 --pids-limit 128.
+FROM rust:1-slim
+RUN useradd -m runner
+USER runner
+WORKDIR /work

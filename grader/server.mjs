@@ -136,6 +136,23 @@ const LANGS = {
     cmd: "cp /tests/*.cpp /work/ 2>/dev/null; cd /work; timeout 15 sh -c 'g++ -O0 -o prog *.cpp 2>/dev/null && ./prog' 2>/dev/null || true",
     parse: tapParse,
   },
+  php: {
+    image: "avalia-runner-php",
+    cmd: "cp /tests/*.php /work/ 2>/dev/null; cd /work; f=$(ls tests.php *_test.php 2>/dev/null | head -1); timeout 15 php \"$f\" 2>/dev/null || true",
+    parse: tapParse,
+  },
+  rust: {
+    image: "avalia-runner-rust",
+    cmd: "cd /work; cat /work/*.rs /tests/*.rs > all.rs 2>/dev/null; timeout 30 sh -c 'rustc --test all.rs -o prog 2>/dev/null && ./prog' 2>/dev/null || true",
+    parse: (raw) => {
+      const tests = [];
+      for (const l of String(raw).split("\n")) {
+        const m = l.match(/^test\s+(\S+)\s+\.\.\.\s+(ok|FAILED)/);
+        if (m) tests.push({ nome: m[1].replace(/^.*::/, ""), ok: m[2] === "ok" });
+      }
+      return tests;
+    },
+  },
 };
 
 // Semáforo — nunca mais do que CONC contentores em paralelo (protege a RAM).
