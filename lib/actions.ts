@@ -283,6 +283,34 @@ export async function tutorAction(submissionId: string, historico: MensagemTutor
   });
 }
 
+// Duplica um trabalho (rubrica, testes, configurações) — sem submissões.
+export async function duplicarTrabalho(assignmentId: string) {
+  const prof = await requireProfessor();
+  const a = await db.assignment.findFirst({ where: { id: assignmentId, course: { professorId: prof.id } } });
+  if (!a) redirect("/professor");
+  const nova = await db.assignment.create({
+    data: {
+      courseId: a.courseId,
+      titulo: `${a.titulo} (cópia)`,
+      enunciado: a.enunciado,
+      tiposFicheiro: a.tiposFicheiro as object,
+      rubrica: a.rubrica as object,
+      instrucoes: a.instrucoes,
+      solucaoModelo: a.solucaoModelo,
+      respostaIA: a.respostaIA,
+      testSuite: (a.testSuite ?? undefined) as object | undefined,
+      feedbackImediato: a.feedbackImediato,
+      escala: a.escala,
+      politicaAtraso: a.politicaAtraso,
+      penalizacaoAtraso: a.penalizacaoAtraso,
+      grupo: a.grupo,
+      avaliacaoPares: a.avaliacaoPares,
+      // prazo NÃO é copiado (cada edição define o seu)
+    },
+  });
+  redirect(`/professor/trabalho/${nova.id}/editar`);
+}
+
 // ── Avaliação por pares ───────────────────────────────────────────────────────
 // O aluno avalia a submissão (anonimizada) de um colega. Uma avaliação por par.
 export async function submeterAvaliacaoPar(alvoSubId: string, nota: number, comentario: string): Promise<{ ok: boolean }> {

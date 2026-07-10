@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, avaliarDefesaAction, responderRecurso, recorrerTestesAction, recorrerTodosAction, type Snippet } from "@/lib/actions";
+import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, avaliarDefesaAction, responderRecurso, recorrerTestesAction, recorrerTodosAction, duplicarTrabalho, type Snippet } from "@/lib/actions";
 import type { DefesaAvaliacao } from "@/lib/evaluate";
 import type { InsightsTurma, TomFeedback } from "@/lib/evaluate";
 import type { AnaliseIntegridade } from "@/lib/similaridade";
@@ -99,6 +99,9 @@ function statusOf(s: Sub): { label: string; color: string } {
 export default function ProfessorPortal({ prof, courses, assignment, subs, stats, integridade, snippets: snippetsIniciais, temLLM }: PortalProps) {
   const [view, setView] = useState<"queue" | "rubrics" | "analytics" | "integrity">("queue");
   const [filtro, setFiltro] = useState<"todas" | "rever" | "publicadas" | "recursos">("todas");
+  const [turmaFiltro, setTurmaFiltro] = useState<string>("");
+  const [busca, setBusca] = useState("");
+  const turmas = [...new Set(subs.map((s) => s.turma).filter((t): t is string => !!t))].sort();
   const [selId, setSelId] = useState<string | null>(subs[0]?.id ?? null);
   const [diffOpen, setDiffOpen] = useState(false);
   // Correção anónima (blind marking): esconde a identidade durante a revisão.
@@ -235,7 +238,9 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
   }
 
   const visiveis = subs.filter((s) =>
-    filtro === "todas" ? true : filtro === "rever" ? !s.aprovado : filtro === "recursos" ? s.recurso?.estado === "aberto" : s.aprovado
+    (filtro === "todas" ? true : filtro === "rever" ? !s.aprovado : filtro === "recursos" ? s.recurso?.estado === "aberto" : s.aprovado)
+    && (!turmaFiltro || s.turma === turmaFiltro)
+    && (!busca.trim() || s.alunoNome.toLowerCase().includes(busca.trim().toLowerCase()) || (s.alunoNumero ?? "").includes(busca.trim()))
   );
   const recursosAbertos = subs.filter((s) => s.recurso?.estado === "aberto").length;
   const sel = subs.find((s) => s.id === selId) ?? null;
@@ -275,6 +280,17 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
     .filter((t) => t.falhas > 0)
     .sort((a, b) => b.taxa - a.taxa);
   const durMedia = nDur ? somaDur / nDur : null;
+
+  // Estatísticas por turma (média + contagem).
+  const turmaAgg = new Map<string, { soma: number; n: number; total: number }>();
+  for (const s of subs) {
+    if (!s.turma) continue;
+    const cur = turmaAgg.get(s.turma) ?? { soma: 0, n: 0, total: 0 };
+    cur.total++;
+    if (s.nota != null) { cur.soma += s.nota; cur.n++; }
+    turmaAgg.set(s.turma, cur);
+  }
+  const turmaStats = [...turmaAgg.entries()].map(([turma, v]) => ({ turma, media: v.n ? v.soma / v.n : null, total: v.total })).sort((a, b) => a.turma.localeCompare(b.turma));
 
   // Heatmap aluno×critério: matriz de desempenho (em /20) por critério.
   const heatCols = assignment.rubrica.map((c) => c.nome);
@@ -386,6 +402,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                 {rerunAllLoading ? "↻ a correr…" : rerunAllMsg ? `✓ ${rerunAllMsg}` : "↻ Re-correr testes"}
               </button>
             )}
+            <form action={duplicarTrabalho.bind(null, assignment.id)}><button type="submit" className="btn secondary sm" title="Criar uma cópia deste trabalho">⎘ Duplicar</button></form>
             <a className="btn secondary sm" href={`/professor/trabalho/${assignment.id}/relatorio`}>▤ Relatório</a>
             <a className="btn sm" href={`/professor/trabalho/${assignment.id}/export`}>⬇ Exportar CSV</a>
           </div>
@@ -404,13 +421,20 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                       {anon ? "🕶️ Anónima" : "Correção anónima"}
                     </button>
                   </div>
-                  <div style={{ display: "flex", gap: 7 }}>
+                  <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="🔍 Procurar aluno ou nº…" style={{ width: "100%", fontSize: 13, padding: "7px 11px", marginBottom: 10, borderRadius: 8, border: "1px solid rgba(29,26,19,0.15)", background: "#fff" }} />
+                  <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
                     {([["todas", "Todas"], ["rever", `Por rever ${porRever}`], ["publicadas", "Publicadas"], ...(recursosAbertos > 0 ? [["recursos", `⚖️ Recursos ${recursosAbertos}`] as const] : [])] as const).map(([k, label]) => {
                       const on = filtro === k;
                       return (
                         <button key={k} onClick={() => setFiltro(k)} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 500, padding: "6px 11px", borderRadius: 99, border: `1px solid ${on ? TEAL : "rgba(29,26,19,0.18)"}`, background: on ? TEAL : "#fff", color: on ? CREAM : "rgba(29,26,19,0.7)", cursor: "pointer" }}>{label}</button>
                       );
                     })}
+                    {turmas.length > 0 && (
+                      <select value={turmaFiltro} onChange={(e) => setTurmaFiltro(e.target.value)} style={{ fontFamily: "inherit", fontSize: 12, padding: "6px 8px", borderRadius: 99, border: `1px solid ${turmaFiltro ? TEAL : "rgba(29,26,19,0.18)"}`, background: turmaFiltro ? "rgba(15,118,110,0.1)" : "#fff", color: turmaFiltro ? TEAL : "rgba(29,26,19,0.7)", cursor: "pointer" }}>
+                        <option value="">Todas as turmas</option>
+                        {turmas.map((t) => <option key={t} value={t}>Turma {t}</option>)}
+                      </select>
+                    )}
                   </div>
                 </div>
                 <div style={{ flex: 1, overflowY: "auto", padding: "0 12px 16px" }}>
@@ -798,6 +822,26 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                   })}
                 </div>
               </div>
+
+              {/* Estatísticas por turma */}
+              {turmaStats.length > 0 && (
+                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Desempenho por turma</div>
+                  <div style={{ fontSize: 13, color: "rgba(29,26,19,0.5)", marginBottom: 18 }}>Média e nº de submissões por turma/turno.</div>
+                  <div style={{ display: "grid", gap: 12 }}>
+                    {turmaStats.map((t) => {
+                      const cor = t.media == null ? "rgba(29,26,19,0.4)" : t.media < 9.5 ? "#9f1d1d" : t.media < 14 ? AMBER : TEAL;
+                      return (
+                        <div key={t.turma} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                          <div style={{ width: 120, fontSize: 13.5, fontWeight: 500 }}>Turma {t.turma} <span className="mono" style={{ fontSize: 11, color: "rgba(29,26,19,0.4)" }}>({t.total})</span></div>
+                          <div className="bar" style={{ flex: 1 }}><span style={{ width: `${t.media != null ? (t.media / 20) * 100 : 0}%`, background: cor }} /></div>
+                          <div className="mono" style={{ width: 52, textAlign: "right", fontSize: 13, color: cor, fontWeight: 600 }}>{t.media != null ? t.media.toFixed(1) : "—"}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Autograder: testes mais falhados */}
               {comTestes.length > 0 && (
