@@ -383,7 +383,7 @@ export interface GateResult {
   obrigatoriosTotal: number;
   obrigatoriosPassed: number;
   gateMet: boolean;
-  tests: { nome: string; ok: boolean; obrigatorio: boolean }[];
+  tests: { nome: string; ok: boolean; obrigatorio: boolean; ms?: number }[];
   duracaoMs?: number;
   erro?: string;
 }

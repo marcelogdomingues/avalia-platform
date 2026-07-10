@@ -77,7 +77,8 @@ export default function SubmeterForm({
           {gate && gate.total > 0 && (
             <>
               <div style={{ fontSize: 13.5, marginBottom: 10 }}>
-                Passaste <b>{gate.passed}/{gate.total}</b> testes · obrigatórios <b>{gate.obrigatoriosPassed}/{gate.obrigatoriosTotal}</b>.
+                Passaste <b>{gate.passed}/{gate.total}</b> testes · obrigatórios <b>{gate.obrigatoriosPassed}/{gate.obrigatoriosTotal}</b>
+                {gate.duracaoMs != null ? ` · ${(gate.duracaoMs / 1000).toFixed(1)}s` : ""}.
                 Corrige e volta a submeter.
               </div>
               <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 4, fontSize: 13 }}>
@@ -86,6 +87,7 @@ export default function SubmeterForm({
                     <span>{t.ok ? "✓" : "✗"}</span>
                     <span style={{ color: "var(--text)" }}>{t.nome}</span>
                     {t.obrigatorio && <span className="mono" style={{ fontSize: 10.5, color: "var(--faint)" }}>obrigatório</span>}
+                    {t.ms != null && <span className="mono" style={{ fontSize: 10, color: "var(--faint)", marginLeft: "auto" }}>{t.ms < 1 ? "<1" : t.ms}ms</span>}
                   </li>
                 ))}
               </ul>
