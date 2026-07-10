@@ -834,6 +834,46 @@ class Pilha:
     console.log("  (Projetos de código saltados — RUNNER_MODE=off ou Docker indisponível)");
   }
 
+  // ── Showcase das features cross-faculdade (configura entidades já criadas) ──
+  {
+    // AED "Ordenação": prazo passado + penalização, grupo, avaliação por pares, turmas.
+    const ord = await db.assignment.findFirst({ where: { titulo: { contains: "Ordena" } } });
+    if (ord) {
+      await db.assignment.update({
+        where: { id: ord.id },
+        data: { prazo: new Date(Date.now() - 3 * 86400000), politicaAtraso: "aceitar", penalizacaoAtraso: 10, grupo: true, avaliacaoPares: true },
+      });
+      const sords = await db.submission.findMany({ where: { assignmentId: ord.id }, orderBy: { createdAt: "asc" } });
+      // turmas PL1/PL2 alternadas
+      for (const [i, s] of sords.entries()) await db.submission.update({ where: { id: s.id }, data: { turma: i % 2 ? "PL2" : "PL1" } });
+      // Rui: fora de prazo há 3 dias
+      const rui = sords.find((s) => s.alunoNome.includes("Rui"));
+      if (rui) await db.submission.update({ where: { id: rui.id }, data: { atrasada: true, diasAtraso: 3 } });
+      // Ana: grupo com membros
+      const ana = sords.find((s) => s.alunoNome.includes("Ana"));
+      if (ana) await db.submission.update({ where: { id: ana.id }, data: { membros: [{ nome: "João Dias", numero: "20219999" }, { nome: "Marta Reis", numero: "20218888" }] as object } });
+      // pares: 3 colegas avaliam o Carlos
+      const carlos = sords.find((s) => s.alunoNome.includes("Carlos"));
+      const revs = sords.filter((s) => ["Ana", "Diana", "Eduardo"].some((n) => s.alunoNome.includes(n)));
+      if (carlos) for (const [i, r] of revs.entries()) {
+        if (r.id === carlos.id) continue;
+        await db.peerReview.upsert({
+          where: { revisorSubId_alvoSubId: { revisorSubId: r.id, alvoSubId: carlos.id } }, update: {},
+          create: { assignmentId: ord.id, revisorSubId: r.id, alvoSubId: carlos.id, nota: [14, 16, 15][i], comentario: ["Boa análise, mas faltou o exemplo.", "Muito claro e bem estruturado.", "Correto; podia aprofundar a fase de merge."][i] },
+        });
+      }
+    }
+    // Modelo de rubrica reutilizável.
+    await db.rubricaTemplate.create({ data: { professorId: professor.id, nome: "Ensaio argumentativo", criterios: [
+      { nome: "Tese e argumento", descricao: "Ideia central clara e defendida", peso: 40, pontosMax: 20 },
+      { nome: "Evidência", descricao: "Suporte relevante e integrado", peso: 35, pontosMax: 20 },
+      { nome: "Estrutura e clareza", descricao: "Organização lógica e prosa legível", peso: 25, pontosMax: 20 },
+    ] as object } });
+    // Cadeira arquivada (exemplo).
+    await db.course.updateMany({ where: { nome: { contains: "Sistemas" } }, data: { arquivada: true } });
+    console.log("  Showcase configurado: prazos, grupo, pares, turmas, modelo de rubrica, cadeira arquivada.");
+  }
+
   const [nSubs, nCad, nTrab] = await Promise.all([db.submission.count(), db.course.count(), db.assignment.count()]);
   console.log("\nSeed rico criado.");
   console.log(`  Professor: prof@exemplo.pt / demo1234 (${professor.nome})`);
