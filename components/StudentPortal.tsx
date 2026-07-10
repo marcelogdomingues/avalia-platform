@@ -154,6 +154,15 @@ export default function StudentPortal({
     setParNota(""); setParCom("");
   }
 
+  // Notificações — derivadas do estado dos trabalhos.
+  const notificacoes: { icone: string; texto: string; wid: string }[] = [];
+  for (const w of works) {
+    if (w.recurso?.estado === "respondido") notificacoes.push({ icone: "⚖️", texto: `O professor respondeu ao teu pedido de revisão — ${w.name}`, wid: w.id });
+    if (w.parPorAvaliar) notificacoes.push({ icone: "👥", texto: `Podes avaliar o trabalho de um colega — ${w.name}`, wid: w.id });
+    if (w.defesaPerguntas.length > 0 && !w.defesaRespostas.some((r) => r.resposta.trim())) notificacoes.push({ icone: "🎤", texto: `Responde à defesa — ${w.name}`, wid: w.id });
+    if (w.released && w.score != null) notificacoes.push({ icone: "✅", texto: `Nota publicada: ${notaTexto(w.score, w.escala)}${escalaSufixo(w.escala)} — ${w.name}`, wid: w.id });
+  }
+
   const navBtn = (v: "work" | "grades", icon: string, label: string) => {
     const on = view === v;
     return (
@@ -228,6 +237,18 @@ export default function StudentPortal({
               <div className="pwork-grid">
                 {/* LISTA */}
                 <div className="pwork-list">
+                  {notificacoes.length > 0 && (
+                    <details className="disclosure" style={{ margin: "12px 12px 0", background: "rgba(15,118,110,0.06)", border: "1px solid rgba(15,118,110,0.18)", borderRadius: 10, padding: "10px 12px" }} open>
+                      <summary style={{ fontSize: 13, fontWeight: 600, color: TEAL }}>🔔 Novidades ({notificacoes.length})</summary>
+                      <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
+                        {notificacoes.slice(0, 8).map((n, i) => (
+                          <button key={i} onClick={() => pick(n.wid)} style={{ display: "flex", gap: 8, alignItems: "flex-start", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 12.5, color: "rgba(29,26,19,0.78)", textAlign: "left", padding: "2px 0", lineHeight: 1.4 }}>
+                            <span>{n.icone}</span><span>{n.texto}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </details>
+                  )}
                   <div style={{ padding: "20px 22px 12px", fontSize: 13.5, color: "rgba(29,26,19,0.6)" }}>Trabalhos devolvidos</div>
                   <div style={{ flex: 1, overflowY: "auto", padding: "0 12px 16px" }}>
                     {works.map((w) => {
