@@ -96,6 +96,11 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
   const [filtro, setFiltro] = useState<"todas" | "rever" | "publicadas" | "recursos">("todas");
   const [selId, setSelId] = useState<string | null>(subs[0]?.id ?? null);
   const [diffOpen, setDiffOpen] = useState(false);
+  // Correção anónima (blind marking): esconde a identidade durante a revisão.
+  const [anon, setAnon] = useState(false);
+  const anonNome = new Map(subs.map((s, i) => [s.id, `Aluno ${i + 1}`]));
+  const nomeDe = (s: { id: string; alunoNome: string }) => (anon ? anonNome.get(s.id) ?? "Aluno" : s.alunoNome);
+  const iniciaisDe = (s: { id: string; initials: string }) => (anon ? "A" + (anonNome.get(s.id)?.replace("Aluno ", "") ?? "") : s.initials);
 
   // Features de IA no portal
   const [insights, setInsights] = useState<InsightsTurma | null>(null);
@@ -389,7 +394,10 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                 <div style={{ padding: "18px 22px 14px" }}>
                   <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
                     <div style={{ fontSize: 13.5, color: "rgba(29,26,19,0.6)" }}><strong style={{ color: INK }}>{stats.aprovadas}</strong> de {subs.length} publicadas</div>
-                    <div className="mono" style={{ fontSize: 11, color: "rgba(29,26,19,0.45)" }}>J / K para navegar</div>
+                    <button onClick={() => setAnon((a) => !a)} title="Esconde os nomes durante a correção (blind marking)"
+                      style={{ fontFamily: "inherit", fontSize: 11.5, fontWeight: 500, padding: "5px 10px", borderRadius: 99, border: `1px solid ${anon ? TEAL : "rgba(29,26,19,0.18)"}`, background: anon ? TEAL : "#fff", color: anon ? CREAM : "rgba(29,26,19,0.6)", cursor: "pointer" }}>
+                      {anon ? "🕶️ Anónima" : "Correção anónima"}
+                    </button>
                   </div>
                   <div style={{ display: "flex", gap: 7 }}>
                     {([["todas", "Todas"], ["rever", `Por rever ${porRever}`], ["publicadas", "Publicadas"], ...(recursosAbertos > 0 ? [["recursos", `⚖️ Recursos ${recursosAbertos}`] as const] : [])] as const).map(([k, label]) => {
@@ -407,10 +415,10 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                     const on = s.id === selId; const st = statusOf(s);
                     return (
                       <button key={s.id} onClick={() => setSelId(s.id)} className="prow" style={{ background: on ? "#fff" : "none", boxShadow: on ? `inset 3px 0 0 ${TEAL}, 0 1px 3px rgba(29,26,19,0.06)` : "none" }}>
-                        <div style={{ width: 36, height: 36, borderRadius: "50%", background: SAND, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.5, fontWeight: 600, color: "rgba(29,26,19,0.7)", flex: "none" }}>{s.initials}</div>
+                        <div style={{ width: 36, height: 36, borderRadius: "50%", background: SAND, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.5, fontWeight: 600, color: "rgba(29,26,19,0.7)", flex: "none" }}>{iniciaisDe(s)}</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 14, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
-                            {s.alunoNome}
+                            {nomeDe(s)}
                             {(s.simIA >= 0.12 || (s.deteccaoIA?.probabilidade ?? 0) >= 60) && <span title="Sinal de uso de IA" style={{ width: 6, height: 6, borderRadius: "50%", background: AMBER }} />}
                             {s.recurso?.estado === "aberto" && <span title="Pedido de revisão por responder" style={{ fontSize: 11 }}>⚖️</span>}
                             {s.atrasada && <span title="Entregue fora de prazo" style={{ fontSize: 10.5 }}>⏰</span>}
@@ -441,7 +449,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                           <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: `${st.color}22`, color: st.color, fontSize: 12, fontWeight: 500, padding: "6px 12px", borderRadius: 999 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: st.color }} />{st.label}</div>
                         </div>
                       </div>
-                      <h2 className="serif" style={{ fontWeight: 500, fontSize: 32, margin: "0 0 20px", color: INK }}>{sel.alunoNome}</h2>
+                      <h2 className="serif" style={{ fontWeight: 500, fontSize: 32, margin: "0 0 20px", color: INK }}>{nomeDe(sel)}</h2>
 
                       {/* Recurso / pedido de revisão do aluno */}
                       {sel.recurso && (() => {
