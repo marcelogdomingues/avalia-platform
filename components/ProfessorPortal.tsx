@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, avaliarDefesaAction, responderRecurso, recorrerTestesAction, type Snippet } from "@/lib/actions";
+import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, avaliarDefesaAction, responderRecurso, recorrerTestesAction, recorrerTodosAction, type Snippet } from "@/lib/actions";
 import type { DefesaAvaliacao } from "@/lib/evaluate";
 import type { InsightsTurma, TomFeedback } from "@/lib/evaluate";
 import type { AnaliseIntegridade } from "@/lib/similaridade";
@@ -47,7 +47,7 @@ export type PortalProps = {
   courses: { id: string; nome: string }[];
   assignment: {
     id: string; titulo: string; courseId: string; courseNome: string;
-    submitToken: string; temBaseline: boolean;
+    submitToken: string; temBaseline: boolean; temAutograder?: boolean;
     rubrica: { nome: string; peso: number; pontosMax: number; descricao: string }[];
   };
   subs: Sub[];
@@ -96,6 +96,21 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
   const [insightsLoading, setInsightsLoading] = useState(false);
   const feedbackRef = useRef<HTMLTextAreaElement>(null);
   const [melhorarLoading, setMelhorarLoading] = useState(false);
+
+  // Re-correr o autograder em todas as submissões (lote)
+  const [rerunAllLoading, setRerunAllLoading] = useState(false);
+  const [rerunAllMsg, setRerunAllMsg] = useState<string | null>(null);
+  async function recorrerTodos() {
+    if (rerunAllLoading) return;
+    setRerunAllLoading(true);
+    setRerunAllMsg(null);
+    try {
+      const r = await recorrerTodosAction(assignment.id);
+      setRerunAllMsg(`${r.corridas} submissões re-corridas`);
+    } finally {
+      setRerunAllLoading(false);
+    }
+  }
 
   // Re-correr o autograder (por submissão; sobrepõe o testResult localmente)
   const [rerunTR, setRerunTR] = useState<Record<string, Sub["testResult"]>>({});
@@ -330,6 +345,11 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                 <input type="hidden" name="assignmentId" value={assignment.id} />
                 <SubmitBtn className="btn secondary sm" pendingLabel="A gerar…">{assignment.temBaseline ? "↻ Linha-base" : "Gerar linha-base"}</SubmitBtn>
               </form>
+            )}
+            {assignment.temAutograder && (
+              <button type="button" className="btn secondary sm" onClick={recorrerTodos} disabled={rerunAllLoading} title="Corre os testes atuais contra todas as submissões">
+                {rerunAllLoading ? "↻ a correr…" : rerunAllMsg ? `✓ ${rerunAllMsg}` : "↻ Re-correr testes"}
+              </button>
             )}
             <a className="btn secondary sm" href={`/professor/trabalho/${assignment.id}/relatorio`}>▤ Relatório</a>
             <a className="btn sm" href={`/professor/trabalho/${assignment.id}/export`}>⬇ Exportar CSV</a>

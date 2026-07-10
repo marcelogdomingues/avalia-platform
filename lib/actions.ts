@@ -393,6 +393,25 @@ export async function recorrerTestesAction(submissionId: string): Promise<GateRe
   return gate;
 }
 
+// Re-corre o autograder em TODAS as submissões de código de um trabalho.
+export async function recorrerTodosAction(assignmentId: string): Promise<{ corridas: number }> {
+  const prof = await requireProfessor();
+  const a = await db.assignment.findFirst({ where: { id: assignmentId, course: { professorId: prof.id } } });
+  const suite = a?.testSuite as { lang: Lang; testFiles: TestFile[]; obrigatorios: "todos" | string[] } | null;
+  if (!a || !runnerAtivo || !suite?.testFiles?.length) return { corridas: 0 };
+  const subs = await db.submission.findMany({ where: { assignmentId: a.id, conteudoExtraido: { not: null } } });
+  let corridas = 0;
+  await Promise.all(subs.map(async (sub) => {
+    const filename = (sub.ficheiros as { nome?: string }[] | null)?.[0]?.nome ?? `solution.${EXT[suite.lang][0].replace(".", "")}`;
+    const run = await runTests(suite.lang, [{ path: filename, content: sub.conteudoExtraido! }], suite.testFiles);
+    const gate = avaliarGate(run, suite.obrigatorios);
+    await db.submission.update({ where: { id: sub.id }, data: { testResult: gate as object } });
+    corridas++;
+  }));
+  revalidatePath(`/professor/trabalho/${a.id}`);
+  return { corridas };
+}
+
 // Gera um ficheiro de testes com IA para a linguagem escolhida (autograder).
 export async function gerarTestesAction(enunciado: string, lang: Lang, instrucoes?: string): Promise<string | null> {
   await requireProfessor();
