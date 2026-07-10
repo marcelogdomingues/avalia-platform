@@ -36,6 +36,7 @@ export default async function ReciboPage({
   const mostrar = aprovado || s.assignment.feedbackImediato;
   const nota = aprovado ? ev?.notaFinal ?? ev?.notaIA : ev?.notaIA;
   const criterios = (ev?.porCriterio as any[]) ?? [];
+  const tr = s.testResult as { passed: number; total: number; duracaoMs?: number; tests: { nome: string; ok: boolean; obrigatorio: boolean }[] } | null;
 
   return wrapper(
     <>
@@ -67,6 +68,26 @@ export default async function ReciboPage({
           </>
         )}
       </div>
+
+      {/* Testes automáticos (sempre visível — corre na submissão) */}
+      {tr && tr.tests.length > 0 && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <div className="row-between">
+            <span className="eyebrow">🧪 Testes automáticos</span>
+            <span className="mono" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--accent)" }}>
+              {tr.passed}/{tr.total} passaram{tr.duracaoMs != null ? ` · ${(tr.duracaoMs / 1000).toFixed(1)}s` : ""}
+            </span>
+          </div>
+          <ul style={{ listStyle: "none", margin: "10px 0 0", padding: 0, display: "grid", gap: 4, fontSize: 13.5 }}>
+            {tr.tests.map((t, i) => (
+              <li key={i} style={{ display: "flex", alignItems: "center", gap: 8, color: t.ok ? "var(--green)" : "var(--red)" }}>
+                <span>{t.ok ? "✓" : "✗"}</span><span style={{ color: "var(--text)" }}>{t.nome}</span>
+                {!t.obrigatorio && <span className="mono" style={{ fontSize: 10.5, color: "var(--faint)" }}>opcional</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Detalhe por critério */}
       {mostrar && criterios.length > 0 && (
