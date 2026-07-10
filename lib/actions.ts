@@ -303,6 +303,15 @@ export async function criarAvaliacaoManual(assignmentId: string, alunoNome: stri
   return { ok: true };
 }
 
+// Abre/fecha as submissões de um trabalho.
+export async function alternarAberto(assignmentId: string) {
+  const prof = await requireProfessor();
+  const a = await db.assignment.findFirst({ where: { id: assignmentId, course: { professorId: prof.id } } });
+  if (!a) return;
+  await db.assignment.update({ where: { id: a.id }, data: { aberto: !a.aberto } });
+  revalidatePath(`/professor/trabalho/${a.id}`);
+}
+
 // Duplica um trabalho (rubrica, testes, configurações) — sem submissões.
 export async function duplicarTrabalho(assignmentId: string) {
   const prof = await requireProfessor();
@@ -544,6 +553,8 @@ export type SubmeterResultado =
 export async function submeterTrabalho(token: string, formData: FormData): Promise<SubmeterResultado> {
   const assignment = await db.assignment.findUnique({ where: { submitToken: token } });
   if (!assignment) return { ok: false, erro: "Link de submissão inválido." };
+
+  if (!assignment.aberto) return { ok: false, erro: "As submissões deste trabalho estão fechadas." };
 
   const file = formData.get("ficheiro") as File | null;
   if (!file || file.size === 0) return { ok: false, erro: "Nenhum ficheiro submetido." };

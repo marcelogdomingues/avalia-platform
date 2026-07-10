@@ -68,6 +68,7 @@ model Assignment {
   penalizacaoAtraso Float   @default(0) // % de penalização por dia de atraso (0 = nenhuma)
   grupo            Boolean  @default(false) // permite submissão em grupo (vários membros)
   avaliacaoPares   Boolean  @default(false) // avaliação por pares ativada
+  aberto           Boolean  @default(true) // aceita submissões (false = fechado)
   submitToken      String   @unique @default(cuid())
   createdAt        DateTime @default(now())
 

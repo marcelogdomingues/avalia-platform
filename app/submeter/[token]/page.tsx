@@ -65,6 +65,12 @@ export default async function SubmeterPage({ params }: { params: Promise<{ token
         </div>
       )}
 
+      {!assignment.aberto ? (
+        <div className="card" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 22 }}>🔒</span>
+          <span style={{ fontSize: 14.5 }}>As submissões deste trabalho estão <b>fechadas</b>. Fala com o teu professor se precisares de entregar.</span>
+        </div>
+      ) : (
       <div className="card">
         <span className="eyebrow">Submeter trabalho</span>
         <div style={{ marginTop: 12 }}>
@@ -79,6 +85,7 @@ export default async function SubmeterPage({ params }: { params: Promise<{ token
           />
         </div>
       </div>
+      )}
     </>,
   );
 }

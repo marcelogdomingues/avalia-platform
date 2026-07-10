@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, avaliarDefesaAction, responderRecurso, recorrerTestesAction, recorrerTodosAction, duplicarTrabalho, criarAvaliacaoManual, type Snippet } from "@/lib/actions";
+import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, avaliarDefesaAction, responderRecurso, recorrerTestesAction, recorrerTodosAction, duplicarTrabalho, criarAvaliacaoManual, alternarAberto, type Snippet } from "@/lib/actions";
 import type { DefesaAvaliacao } from "@/lib/evaluate";
 import type { InsightsTurma, TomFeedback } from "@/lib/evaluate";
 import type { AnaliseIntegridade } from "@/lib/similaridade";
@@ -58,7 +58,7 @@ export type PortalProps = {
   courses: { id: string; nome: string }[];
   assignment: {
     id: string; titulo: string; courseId: string; courseNome: string;
-    submitToken: string; temBaseline: boolean; temAutograder?: boolean; autograderLang?: string | null; escala?: string; penalizacaoAtraso?: number;
+    submitToken: string; temBaseline: boolean; temAutograder?: boolean; autograderLang?: string | null; escala?: string; penalizacaoAtraso?: number; aberto?: boolean;
     rubrica: { nome: string; peso: number; pontosMax: number; descricao: string }[];
   };
   subs: Sub[];
@@ -422,6 +422,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                 {rerunAllLoading ? "↻ a correr…" : rerunAllMsg ? `✓ ${rerunAllMsg}` : "↻ Re-correr testes"}
               </button>
             )}
+            <form action={alternarAberto.bind(null, assignment.id)}><button type="submit" className="btn secondary sm" title={assignment.aberto ? "Fechar submissões" : "Reabrir submissões"} style={assignment.aberto === false ? { color: "#9f1d1d", borderColor: "rgba(159,29,29,0.3)" } : undefined}>{assignment.aberto === false ? "🔒 Fechado" : "🔓 Aberto"}</button></form>
             <form action={duplicarTrabalho.bind(null, assignment.id)}><button type="submit" className="btn secondary sm" title="Criar uma cópia deste trabalho">⎘ Duplicar</button></form>
             <a className="btn secondary sm" href={`/professor/trabalho/${assignment.id}/relatorio`}>▤ Relatório</a>
             <a className="btn sm" href={`/professor/trabalho/${assignment.id}/export`}>⬇ Exportar CSV</a>

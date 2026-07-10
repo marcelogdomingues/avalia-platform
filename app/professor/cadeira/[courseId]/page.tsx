@@ -54,7 +54,7 @@ export default async function CadeiraPage({
     totalSubs += subs;
     totalPend += pend;
     const media = notas.length ? notas.reduce((x, y) => x + y, 0) / notas.length : null;
-    return { a, subs, pend, media, autograder };
+    return { a, subs, pend, media, autograder, fechado: !a.aberto };
   });
   const mediaCurso = todasNotas.length
     ? todasNotas.reduce((x, y) => x + y, 0) / todasNotas.length
@@ -191,7 +191,7 @@ export default async function CadeiraPage({
         </div>
       ) : (
         <div className="grid cols-2">
-          {trabalhos.map(({ a, subs, pend, media, autograder }) => (
+          {trabalhos.map(({ a, subs, pend, media, autograder, fechado }) => (
             <a
               key={a.id}
               href={`/professor/trabalho/${a.id}`}
@@ -201,6 +201,7 @@ export default async function CadeiraPage({
               <div className="row-between" style={{ alignItems: "start" }}>
                 <span className="eyebrow">{(a.tiposFicheiro as string[]).join(" · ")}</span>
                 <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  {fechado && <span className="badge" style={{ background: "rgba(159,29,29,0.1)", color: "#9f1d1d", fontWeight: 600 }}>🔒 Fechado</span>}
                   {autograder && <span className="badge" style={{ background: "rgba(15,118,110,0.12)", color: "#0f766e", fontWeight: 600 }}>🧪 {autograder}</span>}
                   {pend > 0 && <span className="badge s-rascunho">{pend} por aprovar</span>}
                 </span>
