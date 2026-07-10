@@ -163,6 +163,7 @@ model Evaluation {
   tokensOutput   Int?
   avaliadoEm     DateTime?
   aprovadoEm     DateTime?
+  revisorNome    String? // professor que aprovou/editou (relevante com co-docência)
 
   submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 }

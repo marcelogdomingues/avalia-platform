@@ -331,7 +331,7 @@ export async function criarAvaliacaoManual(assignmentId: string, alunoNome: stri
     },
   });
   await db.evaluation.create({
-    data: { submissionId: sub.id, estado: "RASCUNHO", notaIA: n, feedbackGlobal: feedback.trim() || null, modelo: "manual", avaliadoEm: new Date() },
+    data: { submissionId: sub.id, estado: "RASCUNHO", notaIA: n, feedbackGlobal: feedback.trim() || null, modelo: "manual", avaliadoEm: new Date(), revisorNome: prof.nome },
   });
   revalidatePath(`/professor/trabalho/${a.id}`);
   return { ok: true };
@@ -723,7 +723,7 @@ export async function editarTrabalho(formData: FormData) {
 
 // ── Ações em lote ────────────────────────────────────────────────────────────
 export async function aprovarTodas(formData: FormData) {
-  await requireProfessor();
+  const prof = await requireProfessor();
   const assignmentId = String(formData.get("assignmentId"));
   const evals = await db.evaluation.findMany({
     where: { estado: "RASCUNHO", submission: { assignmentId } },
@@ -731,7 +731,7 @@ export async function aprovarTodas(formData: FormData) {
   for (const ev of evals) {
     await db.evaluation.update({
       where: { id: ev.id },
-      data: { estado: "APROVADO", notaFinal: ev.notaIA, aprovadoEm: new Date() },
+      data: { estado: "APROVADO", notaFinal: ev.notaIA, aprovadoEm: new Date(), revisorNome: prof.nome },
     });
   }
   revalidatePath(`/professor/trabalho/${assignmentId}`);
@@ -739,15 +739,16 @@ export async function aprovarTodas(formData: FormData) {
 
 // ── Professor valida / re-avalia ─────────────────────────────────────────────
 export async function aprovar(formData: FormData) {
-  await requireProfessor();
+  const prof = await requireProfessor();
   const evaluationId = String(formData.get("evaluationId"));
   const notaRaw = String(formData.get("notaFinal") ?? "").trim();
   const feedback = String(formData.get("feedback") ?? "").trim();
   const notaFinal = notaRaw ? Number(notaRaw) : undefined;
   await aprovarAvaliacao(evaluationId, notaFinal);
-  if (feedback) {
-    await db.evaluation.update({ where: { id: evaluationId }, data: { feedbackGlobal: feedback } });
-  }
+  await db.evaluation.update({
+    where: { id: evaluationId },
+    data: { revisorNome: prof.nome, ...(feedback ? { feedbackGlobal: feedback } : {}) },
+  });
   const ev = await db.evaluation.findUnique({
     where: { id: evaluationId },
     include: { submission: true },

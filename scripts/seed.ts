@@ -58,6 +58,7 @@ function mkEval(
     modelo: "llama-3.3-70b-versatile",
     avaliadoEm: new Date(),
     aprovadoEm: estado === "APROVADO" ? new Date() : null,
+    revisorNome: estado === "APROVADO" ? "Prof. Marcelo Domingues" : null,
   };
 }
 

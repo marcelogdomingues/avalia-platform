@@ -23,7 +23,7 @@ export async function GET(
   const escala = (a.escala ?? "vinte") as Escala;
   const cabecalho = ["Numero", "Nome", "Email", "Nota"];
   if (escala !== "vinte") cabecalho.push("Nota (escala)");
-  cabecalho.push("Estado", "Sinal IA %");
+  cabecalho.push("Estado", "Sinal IA %", "Revisor");
   if (temAutograder) cabecalho.push("Testes");
   const linhas = [cabecalho];
   for (const s of a.submissions) {
@@ -41,7 +41,7 @@ export async function GET(
       String(nota).replace(".", ","), // vírgula decimal (Excel PT)
     ];
     if (escala !== "vinte") linha.push(notaTexto(nota, escala));
-    linha.push(estado, sinalIA != null ? String(sinalIA) : "");
+    linha.push(estado, sinalIA != null ? String(sinalIA) : "", ev?.revisorNome ?? "");
     if (temAutograder) linha.push(tr?.total != null ? `${tr.passed}/${tr.total}` : "");
     linhas.push(linha);
   }

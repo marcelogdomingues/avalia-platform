@@ -45,6 +45,7 @@ export type Sub = {
   simId: string | null;
   simScore: number;
   modelo: string | null;
+  revisorNome: string | null;
   ressubmissao: { anteriorData: string; adicionadas: number; removidas: number; segs: { tipo: "igual" | "add" | "rem"; texto: string }[] } | null;
   recurso: { pedido: string; estado: "aberto" | "respondido"; resposta?: string } | null;
   atrasada?: boolean;
@@ -543,6 +544,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                       <h2 className="serif" style={{ fontWeight: 500, fontSize: 32, margin: "0 0 6px", color: INK }}>{nomeDe(sel)}</h2>
                       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20, fontSize: 12.5, color: "rgba(29,26,19,0.6)" }}>
                         {sel.turma && <span className="badge" style={{ background: "var(--surface-2)" }}>Turma {sel.turma}</span>}
+                        {sel.aprovado && sel.revisorNome && <span className="badge" style={{ background: `${TEAL}18`, color: TEAL, fontWeight: 600 }}>✓ {sel.revisorNome}</span>}
                         {sel.membros && sel.membros.length > 0 && !anon && (
                           <span>👥 Grupo: {sel.membros.map((m) => m.nome).join(", ")}</span>
                         )}
@@ -847,7 +849,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                         </form>
                       ) : (
                         <div style={{ fontSize: 14, color: "rgba(29,26,19,0.6)", fontWeight: 500 }}>
-                          {sel.aprovado ? `✓ Publicado — nota final ${sel.nota}/20` : "Sem avaliação. Corre a re-avaliação."}
+                          {sel.aprovado ? `✓ Publicado — nota final ${sel.nota}/20${sel.revisorNome ? ` · por ${sel.revisorNome}` : ""}` : "Sem avaliação. Corre a re-avaliação."}
                         </div>
                       )}
 

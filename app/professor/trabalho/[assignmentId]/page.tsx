@@ -97,6 +97,7 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
       simId: sim?.outroId ?? null,
       simScore: sim?.score ?? 0,
       modelo: ev?.modelo ?? null,
+      revisorNome: ev?.revisorNome ?? null,
       ressubmissao,
       recurso: (s.recurso as Sub["recurso"]) ?? null,
       atrasada: s.atrasada,
