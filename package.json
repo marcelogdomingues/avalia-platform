@@ -10,7 +10,8 @@
     "db:studio": "prisma studio",
     "seed": "tsx scripts/seed.ts",
     "demo": "tsx scripts/demo.ts",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.2.0",
