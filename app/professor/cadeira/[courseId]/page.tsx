@@ -114,6 +114,21 @@ export default async function CadeiraPage({
 
   const corNota = (n: number | null) => (n == null ? "rgba(29,26,19,0.28)" : n < 9.5 ? "#9f1d1d" : n < 14 ? "#b45309" : "#0f766e");
 
+  // ── Vista de risco: consolida os sinais por aluno numa lista acionável ────────
+  const emRisco = linhasAluno.map((al) => {
+    const submetidos = al.cel.size;
+    const emFalta = cols.length - submetidos;
+    const sinaisIA = [...al.cel.values()].filter((c) => c.sinalIA).length;
+    const reprovado = al.media != null && al.media < 9.5;
+    const razoes: { txt: string; cor: string }[] = [];
+    if (reprovado) razoes.push({ txt: `média ${al.media!.toFixed(1)} (< 9,5)`, cor: "#9f1d1d" });
+    if (al.tendencia < -1.5) razoes.push({ txt: `notas a descer (${al.tendencia.toFixed(1)})`, cor: "#b45309" });
+    if (sinaisIA > 0) razoes.push({ txt: `${sinaisIA} sinal${sinaisIA > 1 ? "is" : ""} de IA`, cor: "#b45309" });
+    if (emFalta > 0 && cols.length > 1) razoes.push({ txt: `${emFalta} entrega${emFalta > 1 ? "s" : ""} em falta`, cor: "var(--muted)" });
+    const score = (reprovado ? 3 : 0) + sinaisIA * 2 + (al.tendencia < -1.5 ? 1 : 0) + emFalta;
+    return { nome: al.nome, media: al.media, razoes, score };
+  }).filter((x) => x.razoes.length > 0).sort((a, b) => b.score - a.score);
+
   return (
     <ProfShell>
       <div className="breadcrumb">
@@ -145,6 +160,28 @@ export default async function CadeiraPage({
               <div className="stat-l">Média /20</div>
             </div>
           </div>
+        </div>
+      )}
+
+      {emRisco.length > 0 && (
+        <div className="card" style={{ marginBottom: 24, borderColor: "rgba(159,29,29,0.22)" }}>
+          <span className="eyebrow" style={{ color: "#9f1d1d" }}>🚩 Alunos em risco · {emRisco.length}</span>
+          <div style={{ display: "grid", gap: 8, marginTop: 14 }}>
+            {emRisco.map((al, i) => (
+              <div key={i} className="row-between" style={{ fontSize: 14, padding: "9px 12px", borderRadius: 8, background: "var(--surface-2)", gap: 12, flexWrap: "wrap" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 140 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: al.score >= 4 ? "#9f1d1d" : "#b45309", flex: "none" }} />
+                  <b style={{ fontWeight: 600 }}>{al.nome}</b>
+                </span>
+                <span style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  {al.razoes.map((r, j) => (
+                    <span key={j} className="badge" style={{ background: `${r.cor === "var(--muted)" ? "rgba(29,26,19,0.06)" : r.cor + "18"}`, color: r.cor, fontWeight: 500, fontSize: 12 }}>{r.txt}</span>
+                  ))}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="hint" style={{ marginTop: 12, marginBottom: 0 }}>Sinais para intervenção pedagógica — não são veredictos. Combina com as perguntas de defesa e o registo de atividade.</p>
         </div>
       )}
 
