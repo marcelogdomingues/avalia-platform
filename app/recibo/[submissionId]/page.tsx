@@ -111,6 +111,23 @@ export default async function ReciboPage({
             })}
           </ul>
           {ev?.feedbackGlobal && <div className="feedback">{ev.feedbackGlobal}</div>}
+          {(() => {
+            const anot = (ev?.anotacoes as { trecho: string; comentario: string }[] | null) ?? [];
+            if (anot.length === 0) return null;
+            return (
+              <div style={{ marginTop: 20 }}>
+                <h3 style={{ fontSize: 15, margin: "0 0 10px" }}>💬 Comentários do docente ao teu texto</h3>
+                <div style={{ display: "grid", gap: 10 }}>
+                  {anot.map((an, i) => (
+                    <div key={i} style={{ borderLeft: "3px solid rgba(180,83,9,0.45)", paddingLeft: 12, fontSize: 14 }}>
+                      <div style={{ color: "rgba(29,26,19,0.55)", fontStyle: "italic", marginBottom: 3 }}>“{an.trecho}”</div>
+                      <div style={{ color: "rgba(29,26,19,0.85)" }}>{an.comentario}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </>,

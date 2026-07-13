@@ -769,6 +769,39 @@ export async function aprovar(formData: FormData) {
   }
 }
 
+// ── Comentários em linha (anotações do docente sobre trechos da submissão) ─────
+export type Anotacao = { trecho: string; comentario: string; autor: string };
+
+export async function adicionarAnotacao(submissionId: string, trecho: string, comentario: string): Promise<{ ok: boolean }> {
+  const prof = await requireProfessor();
+  const sub = await db.submission.findFirst({
+    where: { id: submissionId, assignment: { course: cadeiraAcesso(prof.id) } },
+    include: { evaluation: true, assignment: { select: { id: true } } },
+  });
+  if (!sub || !trecho.trim() || !comentario.trim()) return { ok: false };
+  const anot = ((sub.evaluation?.anotacoes as Anotacao[] | null) ?? []).slice();
+  anot.push({ trecho: trecho.trim().slice(0, 600), comentario: comentario.trim().slice(0, 1000), autor: prof.nome });
+  if (sub.evaluation) {
+    await db.evaluation.update({ where: { id: sub.evaluation.id }, data: { anotacoes: anot as object } });
+  } else {
+    await db.evaluation.create({ data: { submissionId, estado: "PENDENTE", anotacoes: anot as object } });
+  }
+  revalidatePath(`/professor/trabalho/${sub.assignment.id}`);
+  return { ok: true };
+}
+
+export async function removerAnotacao(submissionId: string, index: number): Promise<void> {
+  const prof = await requireProfessor();
+  const sub = await db.submission.findFirst({
+    where: { id: submissionId, assignment: { course: cadeiraAcesso(prof.id) } },
+    include: { evaluation: true, assignment: { select: { id: true } } },
+  });
+  if (!sub?.evaluation) return;
+  const anot = ((sub.evaluation.anotacoes as Anotacao[] | null) ?? []).filter((_, i) => i !== index);
+  await db.evaluation.update({ where: { id: sub.evaluation.id }, data: { anotacoes: anot as object } });
+  revalidatePath(`/professor/trabalho/${sub.assignment.id}`);
+}
+
 export async function reavaliar(formData: FormData) {
   const prof = await requireProfessor();
   const submissionId = String(formData.get("submissionId"));

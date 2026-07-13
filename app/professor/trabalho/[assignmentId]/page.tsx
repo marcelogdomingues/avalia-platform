@@ -122,6 +122,7 @@ export default async function TrabalhoPage({ params }: { params: Promise<{ assig
       arquivo: (arquivoMatches.get(s.id) as { score: number; alunoNome: string; origem: string } | null) ?? null,
       modelo: ev?.modelo ?? null,
       revisorNome: ev?.revisorNome ?? null,
+      anotacoes: (ev?.anotacoes as { trecho: string; comentario: string; autor: string }[] | null) ?? [],
       ressubmissao,
       recurso: (s.recurso as Sub["recurso"]) ?? null,
       atrasada: s.atrasada,

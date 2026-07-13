@@ -870,6 +870,9 @@ class Pilha:
         const cursoAnterior = await db.course.create({ data: { professorId: professor.id, nome: `${(await db.course.findUnique({ where: { id: ord.courseId } }))?.nome ?? "AED"} (2023/2024)`, ano: "2023/2024", arquivada: true } });
         const ordAnterior = await db.assignment.create({ data: { courseId: cursoAnterior.id, titulo: ord.titulo, enunciado: ord.enunciado, tiposFicheiro: [] as object, rubrica: ord.rubrica as object, instrucoes: ord.instrucoes } });
         await db.submission.create({ data: { assignmentId: ordAnterior.id, alunoNome: "Tiago Ferreira", alunoNumero: "20191234", ficheiros: [] as object, conteudoExtraido: anaSub.conteudoExtraido } });
+        // Comentário em linha do docente sobre um trecho da entrega da Ana.
+        const trecho = anaSub.conteudoExtraido.split(/\s+/).slice(0, 8).join(" ");
+        await db.evaluation.updateMany({ where: { submissionId: anaSub.id }, data: { anotacoes: [{ trecho, comentario: "Boa abertura — mas concretiza com um exemplo numérico.", autor: professor.nome }] as object } });
       }
     }
     // Modelo de rubrica reutilizável.

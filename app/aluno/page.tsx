@@ -65,6 +65,7 @@ export default async function AlunoDashboard() {
       statusColor: released ? "#0f766e" : "#b45309",
       bars: released ? criterios.map((c) => ({ label: c.nome, v: c.pontos, max: c.pontosMax })) : [],
       feedback: released ? ev?.feedbackGlobal ?? null : null,
+      anotacoes: released ? ((ev?.anotacoes as { trecho: string; comentario: string }[] | null) ?? []) : [],
       approvedBy: aprovado ? s.assignment.course.professor?.nome ?? null : null,
       defesaPerguntas: (ev?.perguntasDefesa as string[] | null) ?? [],
       defesaRespostas: (s.respostasDefesa as { pergunta: string; resposta: string }[] | null) ?? [],

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, avaliarDefesaAction, responderRecurso, recorrerTestesAction, recorrerTodosAction, duplicarTrabalho, criarAvaliacaoManual, alternarAberto, type Snippet } from "@/lib/actions";
+import { aprovar, reavaliar, gerarLinhaBase, sair, gerarInsightsAction, melhorarFeedbackAction, criarSnippet, apagarSnippet, usarSnippet, avaliarDefesaAction, responderRecurso, recorrerTestesAction, recorrerTodosAction, duplicarTrabalho, criarAvaliacaoManual, alternarAberto, adicionarAnotacao, removerAnotacao, type Snippet } from "@/lib/actions";
 import type { DefesaAvaliacao } from "@/lib/evaluate";
 import type { InsightsTurma, TomFeedback } from "@/lib/evaluate";
 import type { AnaliseIntegridade } from "@/lib/similaridade";
@@ -47,6 +47,7 @@ export type Sub = {
   arquivo: { score: number; alunoNome: string; origem: string } | null;
   modelo: string | null;
   revisorNome: string | null;
+  anotacoes: { trecho: string; comentario: string; autor: string }[];
   ressubmissao: { anteriorData: string; adicionadas: number; removidas: number; segs: { tipo: "igual" | "add" | "rem"; texto: string }[] } | null;
   recurso: { pedido: string; estado: "aberto" | "respondido"; resposta?: string } | null;
   atrasada?: boolean;
@@ -122,6 +123,9 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
   }
   const turmas = [...new Set(subs.map((s) => s.turma).filter((t): t is string => !!t))].sort();
   const [selId, setSelId] = useState<string | null>(subs[0]?.id ?? null);
+  const [trechoSel, setTrechoSel] = useState("");
+  const [comentAnot, setComentAnot] = useState("");
+  const [anotLoading, setAnotLoading] = useState(false);
   const [diffOpen, setDiffOpen] = useState(false);
   const [alvoMedia, setAlvoMedia] = useState<string>("");
   // Correção anónima (blind marking): esconde a identidade durante a revisão.
@@ -585,9 +589,45 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                       {/* Ver a submissão do aluno (conteúdo extraído) */}
                       {(sel.conteudo || (sel.ficheiros && sel.ficheiros.length > 0)) && (
                         <details className="disclosure" style={{ marginBottom: 20 }}>
-                          <summary>📄 Ver submissão{sel.ficheiros && sel.ficheiros.length ? ` · ${sel.ficheiros.join(", ")}` : ""}</summary>
+                          <summary>📄 Ver submissão{sel.ficheiros && sel.ficheiros.length ? ` · ${sel.ficheiros.join(", ")}` : ""}{sel.anotacoes.length > 0 ? ` · 💬 ${sel.anotacoes.length}` : ""}</summary>
                           {sel.conteudo ? (
-                            <div style={{ marginTop: 10, background: "var(--surface-2)", borderRadius: 10, padding: "14px 16px", fontSize: 13.5, lineHeight: 1.65, maxHeight: 360, overflowY: "auto", whiteSpace: "pre-wrap", color: "rgba(29,26,19,0.82)" }}>{sel.conteudo}</div>
+                            <>
+                              <div
+                                onMouseUp={() => { const t = (typeof window !== "undefined" ? window.getSelection()?.toString() : "")?.trim() ?? ""; if (t) setTrechoSel(t); }}
+                                style={{ marginTop: 10, background: "var(--surface-2)", borderRadius: 10, padding: "14px 16px", fontSize: 13.5, lineHeight: 1.65, maxHeight: 360, overflowY: "auto", whiteSpace: "pre-wrap", color: "rgba(29,26,19,0.82)" }}
+                              >{sel.conteudo}</div>
+                              <p className="hint" style={{ marginTop: 8 }}>Seleciona um trecho acima para o comentar.</p>
+
+                              {trechoSel && (
+                                <div style={{ marginTop: 10, border: "1px solid rgba(15,118,110,0.28)", borderRadius: 10, padding: "12px 14px", background: "rgba(15,118,110,0.05)" }}>
+                                  <div style={{ fontSize: 12.5, color: "rgba(29,26,19,0.7)", marginBottom: 8 }}>Comentar: <span style={{ background: "rgba(180,83,9,0.16)", borderRadius: 3, padding: "0 4px" }}>“{trechoSel.length > 120 ? trechoSel.slice(0, 120) + "…" : trechoSel}”</span></div>
+                                  <textarea value={comentAnot} onChange={(e) => setComentAnot(e.target.value)} placeholder="O teu comentário sobre este trecho…" rows={2} style={{ width: "100%", fontSize: 13.5, padding: "8px 10px", borderRadius: 8 }} />
+                                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                                    <button type="button" className="btn sm" disabled={anotLoading || !comentAnot.trim()} onClick={async () => {
+                                      if (anotLoading || !comentAnot.trim()) return;
+                                      setAnotLoading(true);
+                                      try { const r = await adicionarAnotacao(sel.id, trechoSel, comentAnot); if (r.ok) { setTrechoSel(""); setComentAnot(""); location.reload(); } }
+                                      finally { setAnotLoading(false); }
+                                    }}>{anotLoading ? "A guardar…" : "Adicionar comentário"}</button>
+                                    <button type="button" className="btn ghost sm" onClick={() => { setTrechoSel(""); setComentAnot(""); }}>Cancelar</button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {sel.anotacoes.length > 0 && (
+                                <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                                  {sel.anotacoes.map((an, i) => (
+                                    <div key={i} style={{ fontSize: 13, borderLeft: "3px solid rgba(180,83,9,0.45)", paddingLeft: 12 }}>
+                                      <div style={{ color: "rgba(29,26,19,0.55)", fontStyle: "italic", marginBottom: 2 }}>“{an.trecho.length > 140 ? an.trecho.slice(0, 140) + "…" : an.trecho}”</div>
+                                      <div className="row-between" style={{ gap: 10 }}>
+                                        <span style={{ color: "rgba(29,26,19,0.85)" }}>💬 {an.comentario} <span className="faint">— {an.autor}</span></span>
+                                        <button type="button" className="btn ghost sm" onClick={async () => { await removerAnotacao(sel.id, i); location.reload(); }}>✕</button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </>
                           ) : (
                             <p className="hint" style={{ marginTop: 8 }}>Sem texto extraído (ex.: imagem ou ficheiro binário). Ficheiros: {sel.ficheiros?.join(", ") || "—"}.</p>
                           )}

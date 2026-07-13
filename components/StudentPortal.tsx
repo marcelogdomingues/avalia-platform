@@ -18,6 +18,7 @@ export type Work = {
   statusColor: string;
   bars: Bar[];
   feedback: string | null;
+  anotacoes: { trecho: string; comentario: string }[];
   approvedBy: string | null;
   defesaPerguntas: string[];
   defesaRespostas: { pergunta: string; resposta: string }[];
@@ -442,7 +443,21 @@ export default function StudentPortal({
                           {sel.feedback && (
                             <>
                               <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 10 }}>Feedback do teu professor</div>
-                              <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 14, padding: "20px 22px", fontSize: 15, lineHeight: 1.65, color: "rgba(29,26,19,0.82)", marginBottom: 28 }}>{sel.feedback}</div>
+                              <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 14, padding: "20px 22px", fontSize: 15, lineHeight: 1.65, color: "rgba(29,26,19,0.82)", marginBottom: sel.anotacoes.length ? 16 : 28 }}>{sel.feedback}</div>
+                            </>
+                          )}
+
+                          {sel.anotacoes.length > 0 && (
+                            <>
+                              <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 10 }}>Comentários ao teu texto</div>
+                              <div style={{ display: "grid", gap: 10, marginBottom: 28 }}>
+                                {sel.anotacoes.map((an, i) => (
+                                  <div key={i} style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 12, padding: "14px 18px", borderLeft: "3px solid rgba(180,83,9,0.5)" }}>
+                                    <div style={{ color: "rgba(29,26,19,0.55)", fontStyle: "italic", fontSize: 13.5, marginBottom: 4 }}>“{an.trecho}”</div>
+                                    <div style={{ fontSize: 14.5, color: "rgba(29,26,19,0.85)" }}>💬 {an.comentario}</div>
+                                  </div>
+                                ))}
+                              </div>
                             </>
                           )}
 
