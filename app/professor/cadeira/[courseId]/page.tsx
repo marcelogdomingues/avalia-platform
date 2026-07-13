@@ -152,8 +152,15 @@ export default async function CadeiraPage({
       <div className="breadcrumb">
         <a href="/professor">Cadeiras</a> <span>/</span> <span>{course.nome}</span>
       </div>
-      <h1 className="page-title">{course.nome}</h1>
-      <p className="page-sub">{course.ano ?? "Sem ano definido"}</p>
+      <div className="row-between" style={{ alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <h1 className="page-title">{course.nome}</h1>
+          <p className="page-sub">{course.ano ?? "Sem ano definido"}</p>
+        </div>
+        {temTrabalhos && (
+          <a href={`/professor/cadeira/${course.id}/relatorio`} className="btn ghost sm" title="Relatório imprimível da cadeira">📄 Relatório (PDF)</a>
+        )}
+      </div>
 
       {temTrabalhos && (
         <div className="card" style={{ marginBottom: 24 }}>
