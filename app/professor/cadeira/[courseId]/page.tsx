@@ -36,7 +36,7 @@ export default async function CadeiraPage({
             orderBy: { createdAt: "desc" },
             select: {
               studentId: true, alunoNome: true, alunoNumero: true, createdAt: true,
-              evaluation: { select: { estado: true, notaIA: true, notaFinal: true, deteccaoIA: true } },
+              evaluation: { select: { estado: true, notaIA: true, notaFinal: true, deteccaoIA: true, revisorNome: true } },
             },
           },
         },
@@ -128,6 +128,24 @@ export default async function CadeiraPage({
     const score = (reprovado ? 3 : 0) + sinaisIA * 2 + (al.tendencia < -1.5 ? 1 : 0) + emFalta;
     return { nome: al.nome, media: al.media, razoes, score };
   }).filter((x) => x.razoes.length > 0).sort((a, b) => b.score - a.score);
+
+  // ── Calibração entre docentes: média por revisor vs média global aprovada ─────
+  const aprovadas: { nota: number; revisor: string }[] = [];
+  for (const a of course.assignments) {
+    for (const s of a.submissions) {
+      const ev = s.evaluation;
+      if (ev?.estado === "APROVADO" && ev.revisorNome && (ev.notaFinal ?? ev.notaIA) != null) {
+        aprovadas.push({ nota: ev.notaFinal ?? ev.notaIA!, revisor: ev.revisorNome });
+      }
+    }
+  }
+  const mediaAprovadas = aprovadas.length ? aprovadas.reduce((x, y) => x + y.nota, 0) / aprovadas.length : null;
+  const porRevisor = [...new Set(aprovadas.map((a) => a.revisor))].map((rev) => {
+    const notas = aprovadas.filter((a) => a.revisor === rev).map((a) => a.nota);
+    const media = notas.reduce((x, y) => x + y, 0) / notas.length;
+    return { rev, n: notas.length, media, delta: mediaAprovadas != null ? media - mediaAprovadas : 0 };
+  }).sort((a, b) => b.media - a.media);
+  const mostrarCalibracao = porRevisor.length >= 2;
 
   return (
     <ProfShell>
@@ -302,6 +320,34 @@ export default async function CadeiraPage({
                 </div>
               );
             })}
+          </div>
+        </details>
+      )}
+
+      {mostrarCalibracao && (
+        <details className="disclosure card" style={{ marginTop: 20 }}>
+          <summary style={{ fontSize: 15 }}>⚖️ Calibração entre docentes ({porRevisor.length})</summary>
+          <div style={{ marginTop: 14 }}>
+            <p className="hint" style={{ marginTop: 0 }}>
+              Média das notas publicadas por cada docente vs. média global da cadeira ({mediaAprovadas!.toFixed(1)}/20). Um desvio grande e consistente pode indicar critérios diferentes — vale conversar para alinhar.
+            </p>
+            <div style={{ display: "grid", gap: 8 }}>
+              {porRevisor.map((r) => {
+                const forte = Math.abs(r.delta) >= 1.5;
+                const cor = r.delta >= 0 ? "#0f766e" : "#9f1d1d";
+                return (
+                  <div key={r.rev} className="row-between" style={{ fontSize: 14, background: "var(--surface-2)", borderRadius: 8, padding: "9px 12px", gap: 12 }}>
+                    <span><b style={{ fontWeight: 600 }}>{r.rev}</b> <span className="faint">· {r.n} nota{r.n > 1 ? "s" : ""}</span></span>
+                    <span style={{ display: "inline-flex", gap: 10, alignItems: "center" }}>
+                      <span className="mono" style={{ fontWeight: 700 }}>{r.media.toFixed(1)}</span>
+                      <span className="badge" style={{ background: forte ? cor + "1f" : "rgba(29,26,19,0.06)", color: forte ? cor : "var(--muted)", fontWeight: 600, fontSize: 12, minWidth: 52, textAlign: "center" }}>
+                        {r.delta >= 0 ? "+" : ""}{r.delta.toFixed(1)}
+                      </span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </details>
       )}
