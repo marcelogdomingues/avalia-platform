@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { getCurrentStudent } from "@/lib/auth";
-import { LANG_LABELS, type Lang } from "@/lib/runner";
+import { LANG_LABELS, EXT, type Lang } from "@/lib/runner";
 import SubmeterForm from "@/components/SubmeterForm";
 
 export const dynamic = "force-dynamic";
@@ -84,6 +84,16 @@ export default async function SubmeterPage({ params }: { params: Promise<{ token
             grupo={assignment.grupo}
           />
         </div>
+        {temTestes && (
+          <details className="disclosure" style={{ marginTop: 16 }}>
+            <summary style={{ fontSize: 14 }}>🧪 Testar no teu editor antes de submeter</summary>
+            <div style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.6, color: "rgba(29,26,19,0.75)" }}>
+              <p style={{ marginTop: 0 }}>Corre os testes deste trabalho a partir do terminal, VSCode ou IntelliJ. No terminal:</p>
+              <pre style={{ background: "var(--surface-2)", borderRadius: 8, padding: "10px 12px", fontSize: 12.5, overflowX: "auto" }}>AVALIA_TOKEN={token} node editor/avalia-cli.mjs a-tua-solucao.{EXT[suite!.lang]?.[0]?.replace(".", "") ?? "txt"}</pre>
+              <p style={{ marginBottom: 0 }}>Extensão VSCode e plugin IntelliJ em <code>editor/</code>.</p>
+            </div>
+          </details>
+        )}
       </div>
       )}
     </>,

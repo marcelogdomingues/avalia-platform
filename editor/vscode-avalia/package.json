@@ -1,0 +1,32 @@
+{
+  "name": "avalia-testar",
+  "displayName": "Avalia — Testar submissão",
+  "description": "Corre o autograder da plataforma Avalia contra o ficheiro atual e mostra que testes passam.",
+  "version": "0.1.0",
+  "publisher": "avalia",
+  "engines": { "vscode": "^1.75.0" },
+  "categories": ["Testing", "Education"],
+  "activationEvents": [],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "avalia.testar", "title": "Avalia: Testar ficheiro atual" },
+      { "command": "avalia.definirToken", "title": "Avalia: Definir token do trabalho" }
+    ],
+    "configuration": {
+      "title": "Avalia",
+      "properties": {
+        "avalia.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "description": "URL base da plataforma Avalia."
+        },
+        "avalia.token": {
+          "type": "string",
+          "default": "",
+          "description": "Token do trabalho (do link de submissão). Também definível por comando ou ficheiro .avalia."
+        }
+      }
+    }
+  }
+}

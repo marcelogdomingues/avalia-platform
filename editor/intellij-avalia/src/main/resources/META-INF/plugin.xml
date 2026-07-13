@@ -1,0 +1,21 @@
+<idea-plugin>
+    <id>net.avalia.testar</id>
+    <name>Avalia — Testar submissão</name>
+    <vendor>Avalia</vendor>
+    <description><![CDATA[
+        Corre o autograder da plataforma Avalia contra o ficheiro atual e mostra
+        que testes passam, sem sair do IDE.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <actions>
+        <action id="Avalia.Testar"
+                class="net.avalia.TestarAction"
+                text="Avalia: Testar ficheiro atual"
+                description="Corre o autograder da Avalia contra o ficheiro atual">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="control alt A"/>
+        </action>
+    </actions>
+</idea-plugin>

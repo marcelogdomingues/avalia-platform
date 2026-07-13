@@ -105,6 +105,17 @@ docker build -t avalia-runner-c      -f runner/Dockerfile.c      runner
 docker build -t avalia-runner-cpp    -f runner/Dockerfile.cpp    runner
 ```
 
+## Testar do editor (VSCode, IntelliJ, CLI)
+
+Os alunos podem correr o autograder **antes de submeter**, a partir do editor ou do
+terminal, via o endpoint `POST /api/testar` (reutiliza o mesmo sandbox Docker e nunca
+devolve o código dos testes). Inclui **CLI** (bom para CI, sai 0/1 conforme o gate),
+**extensão VSCode** e **esqueleto de plugin IntelliJ**. Ver [`editor/README.md`](editor/README.md).
+
+```bash
+AVALIA_TOKEN=<token-do-trabalho> node editor/avalia-cli.mjs solucao.py
+```
+
 ## Avaliação real (opcional)
 
 Modo demo usa uma heurística. Para avaliação real com modelo open-source, mete uma chave
