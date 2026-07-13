@@ -4,6 +4,7 @@ import { useState } from "react";
 import { sairAluno, tutorAction, responderDefesa, pedirRevisao, explicarFalhaAction, submeterAvaliacaoPar } from "@/lib/actions";
 import type { MensagemTutor } from "@/lib/evaluate";
 import { notaTexto, escalaSufixo, type Escala } from "@/lib/escala";
+import GraficoProgresso from "@/components/GraficoProgresso";
 
 type Bar = { label: string; v: number; max: number };
 export type Work = {
@@ -48,12 +49,14 @@ export default function StudentPortal({
   courses,
   newCount,
   temLLM,
+  progresso = [],
 }: {
   works: Work[];
   studentName: string;
   courses: string[];
   newCount: number;
   temLLM: boolean;
+  progresso?: { label: string; nota: number }[];
 }) {
   const [view, setView] = useState<"work" | "grades">("work");
   const [selId, setSelId] = useState<string | null>(works[0]?.id ?? null);
@@ -585,6 +588,11 @@ export default function StudentPortal({
                     ));
                   })()}
                 </div>
+                {progresso.length >= 2 && (
+                  <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "20px 22px", marginBottom: 18 }}>
+                    <GraficoProgresso pontos={progresso} titulo="Evolução das notas" />
+                  </div>
+                )}
                 <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, overflow: "hidden" }}>
                   {works.map((w, i) => (
                     <div key={w.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "17px 22px", borderBottom: i < works.length - 1 ? "1px solid rgba(29,26,19,0.08)" : "none" }}>

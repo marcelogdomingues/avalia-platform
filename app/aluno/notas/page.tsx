@@ -2,6 +2,7 @@ import { requireStudent } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { notaTexto, escalaSufixo, aprovado20, type Escala } from "@/lib/escala";
 import PrintButton from "@/components/PrintButton";
+import GraficoProgresso from "@/components/GraficoProgresso";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,8 @@ export default async function BoletimPage() {
 
   const publicadas = linhas.filter((l) => l.nota20 != null);
   const media = publicadas.length ? publicadas.reduce((a, l) => a + (l.nota20 ?? 0), 0) / publicadas.length : null;
+  // Cronológico (linhas vêm desc); nota interna /20 para o gráfico.
+  const pontos = [...publicadas].reverse().map((l) => ({ label: l.trabalho, nota: l.nota20 as number }));
   const dataStr = new Intl.DateTimeFormat("pt-PT", { dateStyle: "long" }).format(new Date());
 
   const cor = (n: number | null) => (n == null ? "#999" : aprovado20(n) ? (n >= 14 ? "#0f766e" : "#b45309") : "#9f1d1d");
@@ -62,6 +65,12 @@ export default async function BoletimPage() {
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 22 }}>
             <span style={{ fontFamily: "var(--font-newsreader, Georgia), serif", fontSize: 34, fontWeight: 500, color: cor(media) }}>{Math.round(media * 10) / 10}</span>
             <span style={{ fontSize: 13.5, color: "rgba(29,26,19,0.6)" }}>média geral (/20) · {publicadas.length} nota(s) lançada(s)</span>
+          </div>
+        )}
+
+        {pontos.length >= 2 && (
+          <div style={{ marginBottom: 26 }}>
+            <GraficoProgresso pontos={pontos} titulo="Evolução das notas" />
           </div>
         )}
 

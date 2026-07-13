@@ -79,5 +79,8 @@ export default async function AlunoDashboard() {
   const courses = Array.from(new Set(works.map((w) => w.course)));
   const newCount = works.filter((w) => w.released).length;
 
-  return <StudentPortal works={works} studentName={aluno.nome} courses={courses} newCount={newCount} temLLM={temLLM} />;
+  // Progresso cronológico (works vêm desc → inverter) das notas publicadas.
+  const progresso = [...works].reverse().filter((w) => w.score != null).map((w) => ({ label: w.name, nota: w.score as number }));
+
+  return <StudentPortal works={works} studentName={aluno.nome} courses={courses} newCount={newCount} temLLM={temLLM} progresso={progresso} />;
 }
