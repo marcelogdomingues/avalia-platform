@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "./db";
 import { cadeiraAcesso, registarAtividade } from "./acesso";
-import { notificarNota } from "./notify";
+import { notificarNota, notificar, notificacoesAtivas } from "./notify";
 import { notaTexto, escalaSufixo, type Escala } from "./escala";
 import { processarSubmissao, aprovarAvaliacao } from "./pipeline";
 import { runTests, avaliarGate, extrairCodigo, collectTests, runnerAtivo, LANG_LABELS, EXT, type Lang, type TestFile, type GateResult } from "./runner";
@@ -426,11 +426,19 @@ export async function responderRecurso(submissionId: string, resposta: string): 
   if (!t) return { ok: false };
   const sub = await db.submission.findFirst({
     where: { id: submissionId, assignment: { course: cadeiraAcesso(prof.id) } },
+    include: { student: { select: { email: true } }, assignment: { select: { titulo: true } } },
   });
   const atual = sub?.recurso as Recurso | null;
   if (!sub || !atual) return { ok: false };
   const recurso: Recurso = { ...atual, estado: "respondido", resposta: t.slice(0, 2000), respondidoEm: new Date().toISOString() };
   await db.submission.update({ where: { id: sub.id }, data: { recurso: recurso as object } });
+  if (notificacoesAtivas) {
+    await notificar({
+      para: (sub.alunoEmail ?? sub.student?.email) ?? "",
+      assunto: `Resposta ao teu pedido de revisão — "${sub.assignment.titulo}"`,
+      corpo: `Olá ${sub.alunoNome},\n\nO teu pedido de revisão do trabalho "${sub.assignment.titulo}" foi respondido:\n\n${t}\n\n— Avalia`,
+    });
+  }
   revalidatePath(`/professor/trabalho/${sub.assignmentId}`);
   return { ok: true };
 }
