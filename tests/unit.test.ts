@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { notaTexto, aprovado20, escalaSufixo, escalaLabel } from "../lib/escala";
 import { calcularStats } from "../lib/stats";
 import { diffPalavras } from "../lib/diff";
-import { similaridadeComTexto, calcularSimilaridades, compararComArquivo, analisarIntegridade } from "../lib/similaridade";
+import { similaridadeComTexto, calcularSimilaridades, compararComArquivo, analisarIntegridade, frasesComuns } from "../lib/similaridade";
 import { parseTapJs, parseGoTest, parseRustTest } from "../lib/runner";
 
 // ── escala ────────────────────────────────────────────────────────────────────
@@ -102,6 +102,16 @@ test("compararComArquivo deteta reutilização de edição anterior", () => {
   assert.equal(m.get("atual")?.origem, "AED · 2023/2024");
   assert.equal(m.get("orig"), null);
 });
+test("frasesComuns extrai a passagem partilhada e ignora o resto", () => {
+  const partilhado = "a raposa castanha salta por cima do cao preguicoso todos os dias";
+  const A = `no inicio ${partilhado} e depois algo unico do aluno A aqui`;
+  const B = `outra abertura diferente ${partilhado} e um fecho proprio do B`;
+  const f = frasesComuns(A, B);
+  assert.ok(f.length >= 1);
+  assert.ok(f[0].includes("raposa castanha salta"));
+  assert.equal(frasesComuns("um dois tres quatro cinco", "seis sete oito nove dez").length, 0);
+});
+
 test("analisarIntegridade agrupa cópias em clusters", () => {
   const igual = "primeira segunda terceira quarta quinta sexta setima oitava";
   const r = analisarIntegridade([

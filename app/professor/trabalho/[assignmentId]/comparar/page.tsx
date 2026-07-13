@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { cadeiraAcesso } from "@/lib/acesso";
 import { notFound } from "next/navigation";
 import { diffPalavras } from "@/lib/diff";
-import { similaridadeComTexto } from "@/lib/similaridade";
+import { similaridadeComTexto, frasesComuns } from "@/lib/similaridade";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +69,7 @@ export default async function CompararPage({
   );
   const cor = score >= 60 ? "#9f1d1d" : score >= 40 ? "#b45309" : "#0f766e";
 
+  const frases = frasesComuns(subA.conteudoExtraido ?? "", subB.conteudoExtraido ?? "");
   const { segs } = diffPalavras(subA.conteudoExtraido ?? "", subB.conteudoExtraido ?? "");
   // Coluna A: segmentos que existem em A (igual + rem). Coluna B: (igual + add).
   // "igual" = partilhado → destacado.
@@ -111,6 +112,16 @@ export default async function CompararPage({
         <div style={{ background: "rgba(180,83,9,0.09)", border: "1px solid rgba(180,83,9,0.2)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "rgba(29,26,19,0.75)", marginBottom: 18 }}>
           As passagens <span style={{ background: "rgba(180,83,9,0.18)", borderRadius: 3, padding: "0 4px" }}>realçadas</span> aparecem em ambas as submissões. É um indício — confirma a autoria com as perguntas de defesa antes de decidir.
         </div>
+        {frases.length > 0 && (
+          <details style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.12)", borderRadius: 12, padding: "14px 18px", marginBottom: 18 }}>
+            <summary style={{ fontSize: 14, fontWeight: 600, cursor: "pointer" }}>{frases.length} frase{frases.length === 1 ? "" : "s"} exata{frases.length === 1 ? "" : "s"} em comum</summary>
+            <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+              {frases.map((f, i) => (
+                <div key={i} style={{ fontSize: 13, lineHeight: 1.5, padding: "8px 12px", borderRadius: 8, background: "rgba(159,29,29,0.06)", border: "1px solid rgba(159,29,29,0.14)", color: "rgba(29,26,19,0.8)" }}>“{f}”</div>
+              ))}
+            </div>
+          </details>
+        )}
         <div style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
           <Col sub={subA} parts={colA} />
           <Col sub={subB} parts={colB} />

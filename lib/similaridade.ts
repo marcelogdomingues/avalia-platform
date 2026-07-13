@@ -1,17 +1,39 @@
 // Deteção de similaridade entre submissões (indício de plágio/cópia).
 // Offline: shingles de palavras (n-gramas) + índice de Jaccard. Sem serviços externos.
 
-function shingles(texto: string, n = 5): Set<string> {
-  const palavras = (texto || "")
+function palavras(texto: string): string[] {
+  return (texto || "")
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .split(/\s+/)
     .filter(Boolean);
+}
+
+function shingles(texto: string, n = 5): Set<string> {
+  const ps = palavras(texto);
   const set = new Set<string>();
-  for (let i = 0; i + n <= palavras.length; i++) {
-    set.add(palavras.slice(i, i + n).join(" "));
+  for (let i = 0; i + n <= ps.length; i++) {
+    set.add(ps.slice(i, i + n).join(" "));
   }
   return set;
+}
+
+// Frases exatas partilhadas por dois textos (n-gramas comuns fundidos em
+// sequências mais longas). Base da vista "comparar lado a lado".
+export function frasesComuns(a: string, b: string, n = 5, max = 10): string[] {
+  const wa = palavras(a);
+  const shB = shingles(b, n);
+  const frases: string[] = [];
+  let i = 0;
+  while (i + n <= wa.length) {
+    if (shB.has(wa.slice(i, i + n).join(" "))) {
+      let fim = i + n;
+      while (fim < wa.length && shB.has(wa.slice(fim - n + 1, fim + 1).join(" "))) fim++;
+      frases.push(wa.slice(i, fim).join(" "));
+      i = fim;
+    } else i++;
+  }
+  return frases.sort((x, y) => y.length - x.length).slice(0, max);
 }
 
 function jaccard(a: Set<string>, b: Set<string>): number {

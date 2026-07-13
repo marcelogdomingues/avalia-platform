@@ -683,6 +683,9 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                               {sel.simScore >= 0.35 && <>Semelhança de {Math.round(sel.simScore * 100)}% com a submissão de {anon && sel.simId ? anonNome.get(sel.simId) ?? "outro aluno" : sel.simNome}. </>}
                               É contexto, não um veredicto — confirma com as perguntas de defesa.
                             </div>
+                            {sel.simScore >= 0.35 && sel.simId && (
+                              <a href={`/professor/trabalho/${assignment.id}/comparar?a=${sel.id}&b=${sel.simId}`} className="btn ghost sm" style={{ marginTop: 10, display: "inline-block" }}>⇄ Comparar lado a lado</a>
+                            )}
                           </div>
                         </div>
                       )}
