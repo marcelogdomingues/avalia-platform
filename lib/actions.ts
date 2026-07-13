@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "./db";
 import { cadeiraAcesso, registarAtividade } from "./acesso";
+import { notificarNota } from "./notify";
+import { notaTexto, escalaSufixo, type Escala } from "./escala";
 import { processarSubmissao, aprovarAvaliacao } from "./pipeline";
 import { runTests, avaliarGate, extrairCodigo, collectTests, runnerAtivo, LANG_LABELS, EXT, type Lang, type TestFile, type GateResult } from "./runner";
 import {
@@ -733,6 +735,7 @@ export async function aprovarTodas(formData: FormData) {
   const assignmentId = String(formData.get("assignmentId"));
   const evals = await db.evaluation.findMany({
     where: { estado: "RASCUNHO", submission: { assignmentId } },
+    include: { submission: { select: { alunoNome: true, alunoEmail: true, student: { select: { email: true } } } } },
   });
   for (const ev of evals) {
     await db.evaluation.update({
@@ -741,8 +744,17 @@ export async function aprovarTodas(formData: FormData) {
     });
   }
   if (evals.length > 0) {
-    const a = await db.assignment.findUnique({ where: { id: assignmentId }, select: { courseId: true, titulo: true } });
+    const a = await db.assignment.findUnique({ where: { id: assignmentId }, select: { courseId: true, titulo: true, escala: true } });
     await registarAtividade(a?.courseId, prof.nome, "aprovou", `${evals.length} de "${a?.titulo ?? ""}"`);
+    const escala = (a?.escala ?? "vinte") as Escala;
+    for (const ev of evals) {
+      await notificarNota({
+        para: ev.submission.alunoEmail ?? ev.submission.student?.email,
+        aluno: ev.submission.alunoNome,
+        trabalho: a?.titulo ?? "trabalho",
+        nota: ev.notaIA != null ? `${notaTexto(ev.notaIA, escala)}${escalaSufixo(escala)}` : "disponível",
+      });
+    }
   }
   revalidatePath(`/professor/trabalho/${assignmentId}`);
 }
@@ -761,10 +773,18 @@ export async function aprovar(formData: FormData) {
   });
   const ev = await db.evaluation.findUnique({
     where: { id: evaluationId },
-    include: { submission: { include: { assignment: { select: { courseId: true } } } } },
+    include: { submission: { include: { student: { select: { email: true } }, assignment: { select: { courseId: true, titulo: true, escala: true } } } } },
   });
   if (ev) {
     await registarAtividade(ev.submission.assignment.courseId, prof.nome, "aprovou", ev.submission.alunoNome);
+    const escala = (ev.submission.assignment.escala ?? "vinte") as Escala;
+    const n = ev.notaFinal ?? ev.notaIA;
+    await notificarNota({
+      para: ev.submission.alunoEmail ?? ev.submission.student?.email,
+      aluno: ev.submission.alunoNome,
+      trabalho: ev.submission.assignment.titulo,
+      nota: n != null ? `${notaTexto(n, escala)}${escalaSufixo(escala)}` : "disponível",
+    });
     revalidatePath(`/professor/trabalho/${ev.submission.assignmentId}`);
   }
 }

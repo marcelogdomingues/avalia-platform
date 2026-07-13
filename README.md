@@ -116,6 +116,13 @@ devolve o código dos testes). Inclui **CLI** (bom para CI, sai 0/1 conforme o g
 AVALIA_TOKEN=<token-do-trabalho> node editor/avalia-cli.mjs solucao.py
 ```
 
+## Notificações por email (opcional)
+
+Quando o docente publica uma nota, o aluno pode ser avisado por email. Pluggable
+como o runner: `NOTIFY_MODE=off|log|webhook`. Em `log` escreve no stdout do
+servidor (dev/CI); em `webhook` faz `POST { para, assunto, corpo }` a `NOTIFY_URL`
+(liga a SendGrid/SES/…). Best-effort — nunca bloqueia a publicação da nota.
+
 ## Avaliação real (opcional)
 
 Modo demo usa uma heurística. Para avaliação real com modelo open-source, mete uma chave
