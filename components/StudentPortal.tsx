@@ -50,6 +50,7 @@ export default function StudentPortal({
   newCount,
   temLLM,
   progresso = [],
+  pontosFracos = [],
 }: {
   works: Work[];
   studentName: string;
@@ -57,6 +58,7 @@ export default function StudentPortal({
   newCount: number;
   temLLM: boolean;
   progresso?: { label: string; nota: number }[];
+  pontosFracos?: { nome: string; pct: number; n: number }[];
 }) {
   const [view, setView] = useState<"work" | "grades">("work");
   const [selId, setSelId] = useState<string | null>(works[0]?.id ?? null);
@@ -591,6 +593,25 @@ export default function StudentPortal({
                 {progresso.length >= 2 && (
                   <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "20px 22px", marginBottom: 18 }}>
                     <GraficoProgresso pontos={progresso} titulo="Evolução das notas" />
+                  </div>
+                )}
+                {pontosFracos.length > 0 && (
+                  <div style={{ background: "#fff", border: "1px solid rgba(180,83,9,0.25)", borderRadius: 16, padding: "20px 22px", marginBottom: 18 }}>
+                    <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "#b45309", marginBottom: 12 }}>Onde focar</div>
+                    <p style={{ fontSize: 13.5, color: "rgba(29,26,19,0.7)", marginTop: 0, marginBottom: 14 }}>Critérios onde tens tido menos pontos, ao longo dos teus trabalhos. Foca aqui para subir mais depressa.</p>
+                    <div style={{ display: "grid", gap: 12 }}>
+                      {pontosFracos.map((c) => (
+                        <div key={c.nome}>
+                          <div className="row-between" style={{ fontSize: 13.5, marginBottom: 5 }}>
+                            <span style={{ fontWeight: 500 }}>{c.nome} <span style={{ color: "rgba(29,26,19,0.45)" }}>· {c.n} trabalho{c.n === 1 ? "" : "s"}</span></span>
+                            <span style={{ fontWeight: 700, color: c.pct < 50 ? "#9f1d1d" : "#b45309" }}>{c.pct}%</span>
+                          </div>
+                          <div style={{ height: 7, borderRadius: 4, background: "rgba(29,26,19,0.08)", overflow: "hidden" }}>
+                            <div style={{ width: `${c.pct}%`, height: "100%", background: c.pct < 50 ? "#9f1d1d" : "#b45309", borderRadius: 4 }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, overflow: "hidden" }}>

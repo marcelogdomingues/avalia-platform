@@ -82,5 +82,19 @@ export default async function AlunoDashboard() {
   // Progresso cronológico (works vêm desc → inverter) das notas publicadas.
   const progresso = [...works].reverse().filter((w) => w.score != null).map((w) => ({ label: w.name, nota: w.score as number }));
 
-  return <StudentPortal works={works} studentName={aluno.nome} courses={courses} newCount={newCount} temLLM={temLLM} progresso={progresso} />;
+  // Pontos fracos: agrega o desempenho por critério (nome) ao longo dos trabalhos.
+  const acc = new Map<string, { v: number; max: number; n: number }>();
+  for (const w of works) for (const b of w.bars) {
+    const r = acc.get(b.label) ?? { v: 0, max: 0, n: 0 };
+    r.v += b.v; r.max += b.max; r.n += 1;
+    acc.set(b.label, r);
+  }
+  const pontosFracos = [...acc.entries()]
+    .filter(([, r]) => r.max > 0 && r.n >= 1)
+    .map(([nome, r]) => ({ nome, pct: Math.round((r.v / r.max) * 100), n: r.n }))
+    .filter((c) => c.pct < 70)
+    .sort((a, b) => a.pct - b.pct)
+    .slice(0, 3);
+
+  return <StudentPortal works={works} studentName={aluno.nome} courses={courses} newCount={newCount} temLLM={temLLM} progresso={progresso} pontosFracos={pontosFracos} />;
 }
