@@ -6,3 +6,6 @@ node_modules/
 .DS_Store
 /prisma/*.db
 next-env.d.ts
+
+# Build artifacts
+tsconfig.tsbuildinfo
