@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { criarTrabalho, analisarEnunciadoAction, gerarRubricaAction, gerarEnunciadoAction, guardarRubricaModelo, type RubricaModelo } from "@/lib/actions";
+import { criarTrabalho, analisarEnunciadoAction, reforcarEnunciadoAction, gerarRubricaAction, gerarEnunciadoAction, guardarRubricaModelo, type RubricaModelo } from "@/lib/actions";
 import TestSuiteEditor from "./TestSuiteEditor";
 import type { AnaliseEnunciado } from "@/lib/evaluate";
 import { ESCALAS } from "@/lib/escala";
@@ -38,10 +38,20 @@ export default function CriarTrabalho({ courseId, modelos = [] }: { courseId: st
   const [analise, setAnalise] = useState<AnaliseEnunciado | null>(null);
   const [aLoading, setALoading] = useState(false);
   const [aTentou, setATentou] = useState(false);
+  const [reforcando, setReforcando] = useState(false);
+  const [reforcado, setReforcado] = useState(false);
 
   // Gerar enunciado / rubrica com IA
   const [enunLoading, setEnunLoading] = useState(false);
   const [rubLoading, setRubLoading] = useState(false);
+
+  // Escreve texto no textarea do enunciado disparando o evento que o React ouve.
+  function setEnunciado(texto: string) {
+    if (!enunciadoRef.current) return;
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")!.set!;
+    setter.call(enunciadoRef.current, texto);
+    enunciadoRef.current.dispatchEvent(new Event("input", { bubbles: true }));
+  }
 
   async function gerarEnun() {
     const titulo = tituloRef.current?.value?.trim() ?? "";
@@ -49,13 +59,27 @@ export default function CriarTrabalho({ courseId, modelos = [] }: { courseId: st
     setEnunLoading(true);
     try {
       const texto = await gerarEnunciadoAction(titulo);
-      if (texto && enunciadoRef.current) {
-        const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")!.set!;
-        setter.call(enunciadoRef.current, texto);
-        enunciadoRef.current.dispatchEvent(new Event("input", { bubbles: true }));
-      }
+      if (texto) setEnunciado(texto);
     } finally {
       setEnunLoading(false);
+    }
+  }
+
+  // A IA reescreve o enunciado incorporando as sugestões de resistência à IA.
+  async function aplicarSugestoes() {
+    const enun = enunciadoRef.current?.value?.trim() ?? "";
+    if (!enun || !analise?.sugestoes.length || reforcando) return;
+    setReforcando(true);
+    try {
+      const texto = await reforcarEnunciadoAction(enun, analise.sugestoes);
+      if (texto) {
+        setEnunciado(texto);
+        setReforcado(true);
+        setAnalise(null); // limpa a análise antiga — o enunciado mudou; reanalisa para a nova pontuação
+        setATentou(false); // não mostrar "análise indisponível" — foi uma limpeza intencional
+      }
+    } finally {
+      setReforcando(false);
     }
   }
 
@@ -78,6 +102,7 @@ export default function CriarTrabalho({ courseId, modelos = [] }: { courseId: st
     if (!enun) return;
     setALoading(true);
     setATentou(true);
+    setReforcado(false);
     try {
       setAnalise(await analisarEnunciadoAction(enun));
     } catch {
@@ -183,9 +208,23 @@ export default function CriarTrabalho({ courseId, modelos = [] }: { courseId: st
                     <li key={i} style={{ marginBottom: 5 }}>{s}</li>
                   ))}
                 </ul>
+                <div className="btn-row" style={{ marginTop: 12, alignItems: "center" }}>
+                  <button type="button" className="btn secondary sm" onClick={aplicarSugestoes} disabled={reforcando} title="A IA reescreve o enunciado incorporando estas sugestões">
+                    {reforcando ? "✨ A aplicar…" : "✨ Aplicar sugestões ao enunciado (IA)"}
+                  </button>
+                  <span className="faint" style={{ fontSize: 12 }}>
+                    A IA reescreve o enunciado a incorporar estas sugestões.
+                  </span>
+                </div>
               </>
             )}
           </div>
+        )}
+
+        {reforcado && (
+          <p className="hint" style={{ marginTop: 10 }}>
+            ✓ Enunciado reforçado com as sugestões. Analisa de novo para veres a nova pontuação de resistência.
+          </p>
         )}
       </div>
 

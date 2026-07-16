@@ -219,6 +219,44 @@ export async function analisarResistenciaIA(p: {
   };
 }
 
+// Reescreve o enunciado incorporando as sugestões de resistência à IA. Mantém o
+// objetivo e a linguagem originais; devolve só o enunciado reforçado (sem preâmbulos).
+export async function reforcarEnunciado(p: {
+  enunciado: string;
+  instrucoes?: string | null;
+  sugestoes: string[];
+}): Promise<string | null> {
+  if (!temLLM || !p.enunciado.trim()) return null;
+  const sugestoes = p.sugestoes.filter(Boolean).map(String);
+  if (sugestoes.length === 0) return null;
+
+  const system = [
+    "És professor do ensino superior a reforçar um enunciado de trabalho para o tornar",
+    "resistente a IA. Recebes o enunciado original e uma lista de sugestões concretas.",
+    "Reescreve o enunciado incorporando essas sugestões de forma natural e coesa — sem as",
+    "listar mecanicamente. PRESERVA o objetivo, o tema e o tom originais; mantém o mesmo",
+    "idioma; não inventes requisitos que contradigam o original. Podes acrescentar uma secção",
+    "curta com os novos requisitos se ajudar à clareza. Responde SÓ com o enunciado final,",
+    "sem preâmbulos, comentários ou marcas de formatação como ```.",
+  ].join("\n");
+
+  const user = [
+    `Enunciado original:\n${p.enunciado}`,
+    p.instrucoes ? `\nInstruções extra: ${p.instrucoes}` : "",
+    `\nSugestões a incorporar:\n${sugestoes.map((s, i) => `${i + 1}. ${s}`).join("\n")}`,
+  ].join("");
+
+  const completion = await llm.chat.completions.create({
+    model: AVALIADOR_MODEL,
+    temperature: 0.4,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+  });
+  return completion.choices[0]?.message?.content?.trim() || null;
+}
+
 // ── Insights da turma (resumo dos erros comuns) ──────────────────────────────
 export interface InsightsTurma {
   resumo: string;

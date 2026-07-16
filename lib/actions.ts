@@ -13,6 +13,7 @@ import {
   avaliarSubmissao,
   gerarRespostaIA,
   analisarResistenciaIA,
+  reforcarEnunciado,
   gerarRubrica,
   gerarEnunciado,
   gerarInsightsTurma,
@@ -256,6 +257,17 @@ export async function analisarEnunciadoAction(
   await requireProfessor();
   if (!enunciado.trim()) return null;
   return analisarResistenciaIA({ enunciado, instrucoes: instrucoes || null });
+}
+
+// Reescreve o enunciado incorporando as sugestões de resistência à IA (builder).
+export async function reforcarEnunciadoAction(
+  enunciado: string,
+  sugestoes: string[],
+  instrucoes?: string,
+): Promise<string | null> {
+  await requireProfessor();
+  if (!enunciado.trim() || !Array.isArray(sugestoes) || sugestoes.length === 0) return null;
+  return reforcarEnunciado({ enunciado, sugestoes, instrucoes: instrucoes || null });
 }
 
 // Gera uma rubrica sugerida a partir do enunciado (chamada pelo builder).
