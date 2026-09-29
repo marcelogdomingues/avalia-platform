@@ -31,13 +31,14 @@ Trade-offs do tier gratuito hospedado:
 
 ## Qualidade — o que esperar
 
-Ordem aproximada de qualidade nas justificações: Opus 4.8 (proprietário) >
-Llama 3.3 70B ≈ Qwen2.5 72B > modelos 14–32B. Os melhores open-source ficam **um degrau
+Ordem aproximada de qualidade nas justificações: modelos proprietários de topo >
+gpt-oss-120b ≈ Llama 3.3 70B ≈ Qwen2.5 72B > modelos 14–32B. Os melhores open-source ficam **um degrau
 abaixo** do topo proprietário, mas como a tool tem **validação humana obrigatória**, o
 trade-off é muito aceitável — e ganha-se custo zero + on-prem.
 
 Se em algum momento quiseres máxima qualidade num caso difícil, o motor agnóstico permite
-apontar a um modelo proprietário (ex: Claude) só para esses casos — sem reescrever nada.
+apontar a um modelo proprietário (via endpoint compatível com OpenAI) só para esses casos —
+sem reescrever nada.
 
 ## Onde controlar no código
 

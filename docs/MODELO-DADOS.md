@@ -62,7 +62,7 @@ Exemplo completo de `rubrica`:
   acontece no worker antes da avaliação:
   - PDF/DOCX → texto
   - ZIP de código → árvore de ficheiros concatenada com marcadores por ficheiro
-  - imagem/slides → (Fase 2) visão do Claude
+  - imagem/slides → imagens enviadas a um modelo com visão (ex.: Qwen2.5-VL)
 
 ## Multi-tenant e RGPD
 

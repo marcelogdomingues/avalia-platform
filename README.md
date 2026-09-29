@@ -1,5 +1,14 @@
 # Avalia — Plataforma de Avaliação Automática
 
+[![CI](https://github.com/marcelogdomingues/avalia-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/marcelogdomingues/avalia-platform/actions/workflows/ci.yml)
+[![Licença: MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue.svg)](LICENSE)
+
+> **English summary:** Avalia is an open-source, multi-tenant platform for AI-assisted
+> grading of student work. Teachers define rubrics, students submit, an LLM pre-grades
+> each criterion with a justification, and the teacher always reviews and approves.
+> Includes a sandboxed autograder (12 languages), academic-integrity tools and a
+> provider-agnostic LLM engine (free open-source models or fully on-prem).
+
 Pré-avaliação de trabalhos académicos com IA e validação humana obrigatória.
 Genérica e multi-tenant: qualquer professor regista-se, cria cadeiras e trabalhos com
 rubrica própria, os alunos submetem, a IA pré-avalia por critério, e o professor revê,
@@ -8,12 +17,20 @@ aprova e exporta as notas.
 Motor **agnóstico de fornecedor** (API compatível com OpenAI): POC com modelo
 open-source gratuito (Groq/OpenRouter), produção on-prem (vLLM/Ollama) sem mudar código.
 
+## Stack
+
+Next.js 16 (App Router) · React 19 · TypeScript · Prisma 7 (SQLite em dev, Postgres em
+produção) · SDK `openai` (qualquer endpoint compatível) · Docker (autograder).
+
 ## Arranque (zero configuração)
 
-SQLite (sem BD a instalar) e **modo demo** sem chave de API. Três comandos:
+Requisitos: **Node.js 20.19+** (recomendado 22 LTS). Docker só é preciso para o autograder.
+
+SQLite (sem BD a instalar) e **modo demo** sem chave de API. Quatro comandos:
 
 ```bash
 npm install
+cp .env.example .env              # sem chave de LLM → modo demo
 npm run db:push && npm run seed   # BD SQLite + dados de exemplo
 npm run dev                       # http://localhost:3000
 ```
@@ -92,17 +109,12 @@ a nota mas não bloqueiam. Tempo de execução (total e por-teste) mostrado no U
 - **Pluggable para produção**: `RUNNER_MODE=docker|remote|off`. Vercel não corre Docker → usa
   `remote` com um grader externo (ver [`grader/README.md`](grader/README.md)).
 
-Construir as imagens (uma vez):
+Construir as imagens (uma vez — todas, ou só as linguagens que usas):
 
 ```bash
+bash scripts/build-runners.sh
+# ou uma a uma, ex.:
 docker build -t avalia-runner-python -f runner/Dockerfile.python runner
-docker build -t avalia-runner-java   -f runner/Dockerfile.java   runner
-docker build -t avalia-runner-node   -f runner/Dockerfile.node   runner
-docker build -t avalia-runner-ts     -f runner/Dockerfile.typescript runner
-docker build -t avalia-runner-go     -f runner/Dockerfile.go     runner
-docker build -t avalia-runner-ruby   -f runner/Dockerfile.ruby   runner
-docker build -t avalia-runner-c      -f runner/Dockerfile.c      runner
-docker build -t avalia-runner-cpp    -f runner/Dockerfile.cpp    runner
 ```
 
 ## Testar do editor (VSCode, IntelliJ, CLI)
@@ -126,13 +138,15 @@ servidor (dev/CI); em `webhook` faz `POST { para, assunto, corpo }` a `NOTIFY_UR
 ## Avaliação real (opcional)
 
 Modo demo usa uma heurística. Para avaliação real com modelo open-source, mete uma chave
-grátis no `.env` (ver `.env.example`) e reinicia:
+grátis no `.env` (ver `.env.example` para alternativas e on-prem) e reinicia:
 
 ```bash
 LLM_BASE_URL=https://api.groq.com/openai/v1
 LLM_API_KEY=gsk_...            # grátis em https://console.groq.com/keys
-LLM_MODEL=llama-3.3-70b-versatile
+LLM_MODEL=openai/gpt-oss-120b  # ou llama-3.3-70b-versatile, qwen/qwen3-32b
 ```
+
+On-prem (dados nunca saem da instituição): aponta `LLM_BASE_URL` a um vLLM ou Ollama local.
 
 ## Estrutura
 
@@ -156,13 +170,16 @@ lib/
   auth.ts                              # sessão, hashing (scrypt)
   actions.ts                           # server actions
   llm.ts · evaluate.ts                 # avaliador + IA (deteção, defesa, tutor, insights)
-  runner.ts                            # autograder (Docker), 6 linguagens, gate, deteção exata
+  runner.ts                            # autograder (Docker), 12 linguagens, gate, deteção exata
   similaridade.ts · diff.ts · stats.ts # integridade, diff palavra-a-palavra, estatísticas
   extract.ts · pipeline.ts · db.ts     # extração, orquestração, Prisma
-runner/Dockerfile.<lang>               # imagens do autograder (python/java/node/ts/go/ruby)
+runner/Dockerfile.<lang>               # imagens do autograder (uma por linguagem)
 grader/                                # grader remoto (RUNNER_MODE=remote) + README
 prisma/schema.prisma                   # Professor, Course, Assignment, Submission, Evaluation, …
-scripts/                               # seed.ts (dados ricos + autograder real), smoke.mjs
+prisma.config.ts                       # configuração do Prisma CLI (URL da BD)
+editor/                                # CLI, extensão VSCode, esqueleto IntelliJ
+scripts/                               # seed.ts (dados ricos + autograder real), smoke.mjs, build-runners.sh
+tests/                                 # testes unitários (node:test)
 docs/                                  # PROJETO, MODELO-DADOS, CUSTOS
 ```
 
@@ -184,13 +201,26 @@ docs/                                  # PROJETO, MODELO-DADOS, CUSTOS
 ## Testes
 
 ```bash
+npm test             # testes unitários
 npm run dev          # noutro terminal
 npm run smoke        # verifica rotas-chave (público/professor/aluno) via cookies assinados
 ```
 
+A CI (GitHub Actions) corre type-check, testes unitários e build em cada push/PR.
+
 ## Estado
 
-Fluxo completo funcional e verificado (`npm run build` + `npm run smoke`). Feito face ao roadmap
-original: **execução de código em sandbox** (6 linguagens), **analytics** (turma e cadeira),
-**visão/imagens** no caminho LLM. Por fazer: integração LTI/API com o Moodle, mais linguagens
-(Dart/Kotlin/C), autenticação SSO institucional.
+Fluxo completo funcional e verificado (`npm run build` + `npm test` + `npm run smoke`). Feito face
+ao roadmap original: **execução de código em sandbox** (12 linguagens), **analytics** (turma e
+cadeira), **visão/imagens** no caminho LLM. Por fazer: integração LTI 1.3 com o Moodle, autenticação
+SSO institucional, fila de avaliação com workers, e medição sistemática da concordância IA–docente.
+Ver [`CHANGELOG.md`](CHANGELOG.md).
+
+## Contribuir
+
+Contribuições são bem-vindas — ver [`CONTRIBUTING.md`](CONTRIBUTING.md). Para reportar uma
+vulnerabilidade, segue [`SECURITY.md`](SECURITY.md) (não abras issue pública).
+
+## Licença
+
+[MIT](LICENSE) © 2026 Marcelo Domingues

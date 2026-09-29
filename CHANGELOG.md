@@ -9,6 +9,27 @@ e o projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 _Nada por lançar de momento._
 
+## [0.2.0] — 2026-09-29
+
+Preparação para repositório público e atualização da stack.
+
+### Alterado
+- **Next.js 15 → 16**, React 19.3, TypeScript 7.
+- **Prisma 6 → 7**: URL da BD passa para `prisma.config.ts`; ligação via driver adapter
+  (`@prisma/adapter-better-sqlite3` em dev). A BD SQLite de dev fica em `prisma/dev.db`.
+- **SDK `openai` 4 → 7**; o modo demo (sem chave) continua a funcionar.
+- **`pdf-parse` 1 → 2** (nova API `PDFParse`, sem marcadores de página no texto extraído);
+  `adm-zip` 0.6, `mammoth` 1.13.
+- Documentação alinhada com o estado real (12 linguagens no autograder, stack, requisitos
+  Node 20.19+) e neutra quanto a fornecedor de LLM.
+
+### Adicionado
+- Licença **MIT**, `CONTRIBUTING.md`, `SECURITY.md` (reporte privado de vulnerabilidades).
+- **CI** em GitHub Actions: type-check, testes unitários e build em cada push/PR.
+
+### Segurança
+- Dependências atualizadas; vulnerabilidades de runtime corrigidas (`npm audit`).
+
 ## [0.1.0] — 2026-07-16
 
 Primeira release registada. Marca a plataforma Avalia end-to-end: submissão,
@@ -61,5 +82,6 @@ de 13 fluxos).
 - Seed showcase (`npm run seed`), smoke-test de 13 fluxos e testes unitários.
 - Documentação de segurança (sandbox, isolamento, checklist de produção).
 
-[Não lançado]: https://github.com/marcelogdomingues/avalia-platform/compare/v0.1.0...HEAD
+[Não lançado]: https://github.com/marcelogdomingues/avalia-platform/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/marcelogdomingues/avalia-platform/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/marcelogdomingues/avalia-platform/releases/tag/v0.1.0
