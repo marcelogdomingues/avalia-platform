@@ -3,7 +3,7 @@
 
 import mammoth from "mammoth";
 import AdmZip from "adm-zip";
-import pdfParse from "pdf-parse/lib/pdf-parse.js";
+import { PDFParse } from "pdf-parse";
 
 export interface FicheiroSubmissao {
   nome: string;
@@ -55,7 +55,13 @@ export async function extrairConteudo(ficheiros: FicheiroSubmissao[]): Promise<C
 }
 
 async function extrairPdf(buffer: Buffer): Promise<string> {
-  return (await pdfParse(buffer)).text.trim();
+  const parser = new PDFParse({ data: buffer });
+  try {
+    // pageJoiner vazio: sem marcadores "-- 1 of N --" no texto dado ao avaliador.
+    return (await parser.getText({ pageJoiner: "" })).text.trim();
+  } finally {
+    await parser.destroy();
+  }
 }
 async function extrairDocx(buffer: Buffer): Promise<string> {
   return (await mammoth.extractRawText({ buffer })).value.trim();

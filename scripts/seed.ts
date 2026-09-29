@@ -7,6 +7,7 @@
 //   Professor: prof@exemplo.pt
 //   Alunos:    aluno@exemplo.pt (Ana) + outros abaixo
 
+import "dotenv/config";
 import { randomBytes, scryptSync } from "crypto";
 import { db } from "../lib/db";
 import { runTests, avaliarGate, runnerAtivo } from "../lib/runner";

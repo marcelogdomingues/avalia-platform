@@ -11,7 +11,9 @@ import OpenAI from "openai";
 
 export const llm = new OpenAI({
   baseURL: process.env.LLM_BASE_URL ?? "https://api.groq.com/openai/v1",
-  apiKey: process.env.LLM_API_KEY ?? "",
+  // Sem chave (modo demo) o cliente nunca é chamado — ver temLLM em evaluate.ts —
+  // mas o SDK recusa construir-se sem apiKey, daí o placeholder.
+  apiKey: process.env.LLM_API_KEY || "sem-chave",
 });
 
 // Modelo open-source default (Groq). Ver .env.example para alternativas

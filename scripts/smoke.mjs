@@ -7,13 +7,17 @@
 // Sai com código 1 se algum check falhar (útil em CI/pre-push).
 
 import { createHmac } from "crypto";
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
 const BASE = process.env.BASE || "http://localhost:3000";
 const SECRET = process.env.AUTH_SECRET || "avalia-dev-secret-troca-em-producao";
 const sign = (v) => `${v}.${createHmac("sha256", SECRET).update(v).digest("base64url")}`;
 
-const db = new PrismaClient();
+const db = new PrismaClient({
+  adapter: new PrismaBetterSqlite3({ url: process.env.DATABASE_URL ?? "file:./prisma/dev.db" }),
+});
 let falhas = 0;
 
 async function check(nome, url, { cookie, marcadores = [], status = 200 } = {}) {

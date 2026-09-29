@@ -1,5 +1,6 @@
 // Avalia — schema de dados (Prisma).
-// POC: SQLite (zero configuração). Migrar para Postgres = trocar provider + url;
+// POC: SQLite (zero configuração). Migrar para Postgres = trocar provider aqui,
+// DATABASE_URL no .env e o driver adapter em lib/db.ts;
 // os tipos usados (String, Json, Float, DateTime) são portáveis para ambos.
 // Multi-tenant: tudo pende de Professor. Isolamento por professorId/courseId.
 
@@ -9,7 +10,6 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
 }
 
 model Professor {

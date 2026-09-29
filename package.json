@@ -1,7 +1,17 @@
 {
   "name": "avalia-platform",
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "description": "Plataforma open-source de avaliação de trabalhos assistida por IA, com validação humana obrigatória.",
+  "license": "MIT",
+  "author": "Marcelo Domingues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marcelogdomingues/avalia-platform.git"
+  },
   "private": true,
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -14,22 +24,28 @@
     "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.2.0",
-    "adm-zip": "^0.5.16",
-    "mammoth": "^1.9.0",
-    "next": "^15.1.0",
-    "openai": "^4.77.0",
-    "pdf-parse": "^1.1.1",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "@prisma/adapter-better-sqlite3": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "adm-zip": "^0.6.1",
+    "dotenv": "^18.0.4",
+    "mammoth": "^1.13.0",
+    "next": "^16.3.7",
+    "openai": "^7.23.0",
+    "pdf-parse": "^2.4.5",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
-    "@types/adm-zip": "^0.5.7",
-    "@types/node": "^22.10.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.2.3",
-    "prisma": "^6.2.0",
-    "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "@types/adm-zip": "^0.5.8",
+    "@types/node": "^22.20.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "prisma": "^7.10.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "overrides": {
+    "mysql2": "^3.24.0",
+    "deepmerge-ts": "^8.0.0"
   }
 }
