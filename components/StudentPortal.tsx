@@ -32,7 +32,7 @@ export type Work = {
 const TEAL = "#0f766e";
 const INK = "#1d1a13";
 const CREAM = "#faf7f1";
-const SAND = "#efe8da";
+const SAND = "rgba(239,232,218,0.72)";
 
 function Mark({ size = 26 }: { size?: number }) {
   return (
@@ -264,7 +264,7 @@ export default function StudentPortal({
                           key={w.id}
                           onClick={() => pick(w.id)}
                           className="prow"
-                          style={{ background: on ? "#fff" : "none", boxShadow: on ? `inset 3px 0 0 ${TEAL}, 0 1px 3px rgba(29,26,19,0.06)` : "none" }}
+                          style={{ background: on ? "rgba(255,255,255,0.8)" : "none", boxShadow: on ? `inset 3px 0 0 ${TEAL}, 0 1px 3px rgba(29,26,19,0.06)` : "none" }}
                         >
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 14, fontWeight: 500 }}>{w.name}</div>
@@ -291,7 +291,7 @@ export default function StudentPortal({
 
                       {/* Testes automáticos (autograder) */}
                       {sel.testResult && (
-                        <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 14, padding: "16px 20px", marginBottom: 26 }}>
+                        <div className="lg-card" style={{ borderRadius: 14, padding: "16px 20px", marginBottom: 26 }}>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
                             <span style={{ fontSize: 14.5, fontWeight: 600 }}>🧪 Testes automáticos</span>
                             <span className="mono" style={{ fontSize: 12.5, fontWeight: 600, color: TEAL }}>
@@ -326,7 +326,7 @@ export default function StudentPortal({
 
                       {/* Avaliação por pares — avaliar o trabalho de um colega */}
                       {sel.parPorAvaliar && (
-                        <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.12)", borderRadius: 14, padding: "18px 20px", marginBottom: 26 }}>
+                        <div className="lg-card" style={{ borderRadius: 14, padding: "18px 20px", marginBottom: 26 }}>
                           <div style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 4 }}>👥 Avaliar um colega</div>
                           {parFeito[sel.id] ? (
                             <div style={{ fontSize: 13.5, color: TEAL }}>✓ Avaliação enviada. Obrigado!</div>
@@ -353,7 +353,7 @@ export default function StudentPortal({
                         const respMap = new Map(sel.defesaRespostas.map((r) => [r.pergunta, r.resposta]));
                         const rascunho = defRascunho[sel.id] ?? sel.defesaPerguntas.map(() => "");
                         return (
-                          <div style={{ background: jaRespondeu ? "rgba(15,118,110,0.06)" : "#fff", border: `1px solid ${jaRespondeu ? "rgba(15,118,110,0.22)" : "rgba(29,26,19,0.12)"}`, borderRadius: 16, padding: "20px 22px", marginBottom: 26 }}>
+                          <div style={{ background: jaRespondeu ? "rgba(15,118,110,0.06)" : "rgba(255,255,255,0.55)", border: `1px solid ${jaRespondeu ? "rgba(15,118,110,0.22)" : "rgba(29,26,19,0.12)"}`, borderRadius: 16, padding: "20px 22px", marginBottom: 26 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 6 }}>
                               <span style={{ fontSize: 16 }}>🎤</span>
                               <span style={{ fontSize: 14.5, fontWeight: 600 }}>Defesa do trabalho</span>
@@ -393,7 +393,7 @@ export default function StudentPortal({
                         <>
                           {/* Nota + supervisão */}
                           <div style={{ display: "flex", gap: 24, alignItems: "stretch", marginBottom: 26, flexWrap: "wrap" }}>
-                            <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "22px 26px", display: "flex", alignItems: "center", gap: 22 }}>
+                            <div className="lg-card" style={{ borderRadius: 16, padding: "22px 26px", display: "flex", alignItems: "center", gap: 22 }}>
                               <div>
                                 <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 5 }}>A tua nota</div>
                                 <div className="serif" style={{ fontSize: 52, fontWeight: 500, lineHeight: 1 }}>{notaTexto(sel.score, sel.escala)}<span style={{ fontSize: 24, color: "rgba(29,26,19,0.4)" }}> {escalaSufixo(sel.escala)}</span></div>
@@ -448,7 +448,7 @@ export default function StudentPortal({
                           {sel.feedback && (
                             <>
                               <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 10 }}>Feedback do teu professor</div>
-                              <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 14, padding: "20px 22px", fontSize: 15, lineHeight: 1.65, color: "rgba(29,26,19,0.82)", marginBottom: sel.anotacoes.length ? 16 : 28 }}>{sel.feedback}</div>
+                              <div className="lg-card" style={{ borderRadius: 14, padding: "20px 22px", fontSize: 15, lineHeight: 1.65, color: "rgba(29,26,19,0.82)", marginBottom: sel.anotacoes.length ? 16 : 28 }}>{sel.feedback}</div>
                             </>
                           )}
 
@@ -457,7 +457,7 @@ export default function StudentPortal({
                               <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 10 }}>Comentários ao teu texto</div>
                               <div style={{ display: "grid", gap: 10, marginBottom: 28 }}>
                                 {sel.anotacoes.map((an, i) => (
-                                  <div key={i} style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 12, padding: "14px 18px", borderLeft: "3px solid rgba(180,83,9,0.5)" }}>
+                                  <div key={i} className="lg-card" style={{ borderRadius: 12, padding: "14px 18px", borderLeft: "3px solid rgba(180,83,9,0.5)" }}>
                                     <div style={{ color: "rgba(29,26,19,0.55)", fontStyle: "italic", fontSize: 13.5, marginBottom: 4 }}>“{an.trecho}”</div>
                                     <div style={{ fontSize: 14.5, color: "rgba(29,26,19,0.85)" }}>💬 {an.comentario}</div>
                                   </div>
@@ -470,7 +470,7 @@ export default function StudentPortal({
                           {temLLM && (
                             <div style={{ marginBottom: 28 }}>
                               <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 10 }}>Tutor de estudo · IA</div>
-                              <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 14, padding: "18px 20px" }}>
+                              <div className="lg-card" style={{ borderRadius: 14, padding: "18px 20px" }}>
                                 <div style={{ fontSize: 13.5, lineHeight: 1.55, color: "rgba(29,26,19,0.65)", marginBottom: msgs.length ? 16 : 12 }}>
                                   Faz perguntas para perceberes como melhorar. O tutor <strong>orienta-te com pistas — nunca faz o trabalho por ti</strong>.
                                 </div>
@@ -583,7 +583,7 @@ export default function StudentPortal({
                       ["Publicados", `${graded.length}`, ""],
                     ];
                     return cards.map(([label, n, suf]) => (
-                      <div key={label} style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 14, padding: 22 }}>
+                      <div key={label} className="lg-card" style={{ borderRadius: 14, padding: 22 }}>
                         <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 12 }}>{label}</div>
                         <div className="serif" style={{ fontSize: 38, fontWeight: 500, lineHeight: 1 }}>{n}<span style={{ fontSize: 17, color: "rgba(29,26,19,0.45)" }}> {suf}</span></div>
                       </div>
@@ -591,12 +591,12 @@ export default function StudentPortal({
                   })()}
                 </div>
                 {progresso.length >= 2 && (
-                  <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "20px 22px", marginBottom: 18 }}>
+                  <div className="lg-card" style={{ borderRadius: 16, padding: "20px 22px", marginBottom: 18 }}>
                     <GraficoProgresso pontos={progresso} titulo="Evolução das notas" />
                   </div>
                 )}
                 {pontosFracos.length > 0 && (
-                  <div style={{ background: "#fff", border: "1px solid rgba(180,83,9,0.25)", borderRadius: 16, padding: "20px 22px", marginBottom: 18 }}>
+                  <div className="lg-card" style={{ border: "1px solid rgba(180,83,9,0.25)", borderRadius: 16, padding: "20px 22px", marginBottom: 18 }}>
                     <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "#b45309", marginBottom: 12 }}>Onde focar</div>
                     <p style={{ fontSize: 13.5, color: "rgba(29,26,19,0.7)", marginTop: 0, marginBottom: 14 }}>Critérios onde tens tido menos pontos, ao longo dos teus trabalhos. Foca aqui para subir mais depressa.</p>
                     <div style={{ display: "grid", gap: 12 }}>
@@ -614,7 +614,7 @@ export default function StudentPortal({
                     </div>
                   </div>
                 )}
-                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, overflow: "hidden" }}>
+                <div className="lg-card" style={{ borderRadius: 16, overflow: "hidden" }}>
                   {works.map((w, i) => (
                     <div key={w.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "17px 22px", borderBottom: i < works.length - 1 ? "1px solid rgba(29,26,19,0.08)" : "none" }}>
                       <div>

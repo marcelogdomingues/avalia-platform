@@ -1,5 +1,6 @@
 import "./globals.css";
 import { Inter, Newsreader } from "next/font/google";
+import LiquidBackdrop from "@/components/LiquidBackdrop";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 const newsreader = Newsreader({
@@ -17,7 +18,10 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt" className={`${inter.variable} ${newsreader.variable}`} data-theme="light" data-look="warm">
-      <body>{children}</body>
+      <body>
+        <LiquidBackdrop />
+        {children}
+      </body>
     </html>
   );
 }

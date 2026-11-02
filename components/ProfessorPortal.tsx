@@ -15,7 +15,7 @@ const LANG_NOME: Record<string, string> = {
   go: "Go", ruby: "Ruby", c: "C", cpp: "C++", php: "PHP", rust: "Rust",
 };
 const CREAM = "#faf7f1";
-const SAND = "#efe8da";
+const SAND = "rgba(239,232,218,0.72)";
 const AMBER = "#b45309";
 
 type Crit = { nome: string; pontos: number; pontosMax: number; justificacao: string };
@@ -461,25 +461,25 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                   <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
                     <div style={{ fontSize: 13.5, color: "rgba(29,26,19,0.6)" }}><strong style={{ color: INK }}>{stats.aprovadas}</strong> de {subs.length} publicadas</div>
                     <button onClick={() => setAnon((a) => !a)} title="Esconde os nomes durante a correção (blind marking)"
-                      style={{ fontFamily: "inherit", fontSize: 11.5, fontWeight: 500, padding: "5px 10px", borderRadius: 99, border: `1px solid ${anon ? TEAL : "rgba(29,26,19,0.18)"}`, background: anon ? TEAL : "#fff", color: anon ? CREAM : "rgba(29,26,19,0.6)", cursor: "pointer" }}>
+                      style={{ fontFamily: "inherit", fontSize: 11.5, fontWeight: 500, padding: "5px 10px", borderRadius: 99, border: `1px solid ${anon ? TEAL : "rgba(29,26,19,0.18)"}`, background: anon ? TEAL : "rgba(255,255,255,0.55)", color: anon ? CREAM : "rgba(29,26,19,0.6)", cursor: "pointer" }}>
                       {anon ? "🕶️ Anónima" : "Correção anónima"}
                     </button>
                   </div>
-                  <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="🔍 Procurar aluno ou nº…" style={{ width: "100%", fontSize: 13, padding: "7px 11px", marginBottom: 10, borderRadius: 8, border: "1px solid rgba(29,26,19,0.15)", background: "#fff" }} />
+                  <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="🔍 Procurar aluno ou nº…" style={{ width: "100%", fontSize: 13, padding: "7px 11px", marginBottom: 10, borderRadius: 12 }} />
                   <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
                     {([["todas", "Todas"], ["rever", `Por rever ${porRever}`], ["publicadas", "Publicadas"], ...(recursosAbertos > 0 ? [["recursos", `⚖️ Recursos ${recursosAbertos}`] as const] : [])] as const).map(([k, label]) => {
                       const on = filtro === k;
                       return (
-                        <button key={k} onClick={() => setFiltro(k)} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 500, padding: "6px 11px", borderRadius: 99, border: `1px solid ${on ? TEAL : "rgba(29,26,19,0.18)"}`, background: on ? TEAL : "#fff", color: on ? CREAM : "rgba(29,26,19,0.7)", cursor: "pointer" }}>{label}</button>
+                        <button key={k} onClick={() => setFiltro(k)} style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 500, padding: "6px 11px", borderRadius: 99, border: `1px solid ${on ? TEAL : "rgba(29,26,19,0.18)"}`, background: on ? TEAL : "rgba(255,255,255,0.55)", color: on ? CREAM : "rgba(29,26,19,0.7)", cursor: "pointer" }}>{label}</button>
                       );
                     })}
                     {turmas.length > 0 && (
-                      <select value={turmaFiltro} onChange={(e) => setTurmaFiltro(e.target.value)} style={{ fontFamily: "inherit", fontSize: 12, padding: "6px 8px", borderRadius: 99, border: `1px solid ${turmaFiltro ? TEAL : "rgba(29,26,19,0.18)"}`, background: turmaFiltro ? "rgba(15,118,110,0.1)" : "#fff", color: turmaFiltro ? TEAL : "rgba(29,26,19,0.7)", cursor: "pointer" }}>
+                      <select value={turmaFiltro} onChange={(e) => setTurmaFiltro(e.target.value)} style={{ fontFamily: "inherit", fontSize: 12, padding: "6px 8px", borderRadius: 99, border: `1px solid ${turmaFiltro ? TEAL : "rgba(29,26,19,0.18)"}`, background: turmaFiltro ? "rgba(15,118,110,0.1)" : "rgba(255,255,255,0.55)", color: turmaFiltro ? TEAL : "rgba(29,26,19,0.7)", cursor: "pointer" }}>
                         <option value="">Todas as turmas</option>
                         {turmas.map((t) => <option key={t} value={t}>Turma {t}</option>)}
                       </select>
                     )}
-                    <select value={ordem} onChange={(e) => setOrdem(e.target.value as typeof ordem)} title="Ordenar" style={{ fontFamily: "inherit", fontSize: 12, padding: "6px 8px", borderRadius: 99, border: "1px solid rgba(29,26,19,0.18)", background: "#fff", color: "rgba(29,26,19,0.7)", cursor: "pointer" }}>
+                    <select value={ordem} onChange={(e) => setOrdem(e.target.value as typeof ordem)} title="Ordenar" style={{ fontFamily: "inherit", fontSize: 12, padding: "6px 8px", borderRadius: 99, border: "1px solid rgba(29,26,19,0.18)", background: "rgba(255,255,255,0.55)", color: "rgba(29,26,19,0.7)", cursor: "pointer" }}>
                       <option value="data">↕ Data</option>
                       <option value="notaDesc">↓ Nota ↑</option>
                       <option value="notaAsc">↑ Nota ↓</option>
@@ -493,7 +493,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                   ) : visiveis.map((s) => {
                     const on = s.id === selId; const st = statusOf(s);
                     return (
-                      <button key={s.id} onClick={() => setSelId(s.id)} className="prow" style={{ background: on ? "#fff" : "none", boxShadow: on ? `inset 3px 0 0 ${TEAL}, 0 1px 3px rgba(29,26,19,0.06)` : "none" }}>
+                      <button key={s.id} onClick={() => setSelId(s.id)} className="prow" style={{ background: on ? "rgba(255,255,255,0.8)" : "none", boxShadow: on ? `inset 3px 0 0 ${TEAL}, 0 1px 3px rgba(29,26,19,0.06)` : "none" }}>
                         <div style={{ width: 36, height: 36, borderRadius: "50%", background: SAND, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.5, fontWeight: 600, color: "rgba(29,26,19,0.7)", flex: "none" }}>{iniciaisDe(s)}</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 14, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
@@ -814,7 +814,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
 
                       {/* Ressubmissão: o que mudou desde a versão anterior */}
                       {sel.ressubmissao && (
-                        <div style={{ marginBottom: 20, background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 12, padding: "14px 16px" }}>
+                        <div className="lg-card" style={{ marginBottom: 20, borderRadius: 12, padding: "14px 16px" }}>
                           <button type="button" onClick={() => setDiffOpen((o) => !o)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
                             <span style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5, fontWeight: 600 }}>
                               ♺ Ressubmissão · alterações desde {sel.ressubmissao.anteriorData}
@@ -936,13 +936,13 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
             <div style={{ padding: "34px 40px 48px", maxWidth: 1000 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18, marginBottom: 32 }}>
                 {[["Submissões", `${stats.total}`], ["Média /20", stats.media != null ? `${stats.media}` : "—"], ["Publicadas", `${stats.aprovadas}`], ["Mín–Máx", `${stats.min ?? "—"}–${stats.max ?? "—"}`]].map(([l, n]) => (
-                  <div key={l} style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 14, padding: 22 }}>
+                  <div key={l} className="lg-card" style={{ borderRadius: 14, padding: 22 }}>
                     <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 12 }}>{l}</div>
                     <div className="serif" style={{ fontSize: 38, fontWeight: 500, lineHeight: 1 }}>{n}</div>
                   </div>
                 ))}
               </div>
-              <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px" }}>
+              <div className="lg-card" style={{ borderRadius: 16, padding: "26px 28px" }}>
                 <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 22 }}>Distribuição de notas</div>
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 16, height: 180 }}>
                   {stats.distribuicao.map((d) => {
@@ -959,7 +959,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
 
               {/* Simulador de curva de notas */}
               {mediaAtual != null && (
-                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
+                <div className="lg-card" style={{ borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Simulador de curva</div>
                   <div style={{ fontSize: 13, color: "rgba(29,26,19,0.5)", marginBottom: 16 }}>Média atual <b>{mediaAtual.toFixed(1)}</b>. Escolhe uma média-alvo para ver o efeito de uma deslocação linear (só pré-visualização).</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -978,7 +978,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
 
               {/* Estatísticas por turma */}
               {turmaStats.length > 0 && (
-                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
+                <div className="lg-card" style={{ borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Desempenho por turma</div>
                   <div style={{ fontSize: 13, color: "rgba(29,26,19,0.5)", marginBottom: 18 }}>Média e nº de submissões por turma/turno.</div>
                   <div style={{ display: "grid", gap: 12 }}>
@@ -998,7 +998,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
 
               {/* Autograder: testes mais falhados */}
               {comTestes.length > 0 && (
-                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
+                <div className="lg-card" style={{ borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
                   <div className="row-between" style={{ marginBottom: 4 }}>
                     <div style={{ fontSize: 15, fontWeight: 600 }}>🧪 Autograder · testes mais falhados</div>
                     {durMedia != null && <span className="mono" style={{ fontSize: 12, color: "rgba(29,26,19,0.5)" }}>{(durMedia / 1000).toFixed(1)}s em média</span>}
@@ -1027,7 +1027,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
 
               {/* Calibração IA vs professor */}
               {calibPares.length > 0 && calibDelta != null && (
-                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
+                <div className="lg-card" style={{ borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Calibração da IA</div>
                   <div style={{ fontSize: 13, color: "rgba(29,26,19,0.5)", marginBottom: 18 }}>Diferença entre a nota da IA e a nota que publicaste, nas {calibPares.length} submissões já publicadas.</div>
                   {(() => {
@@ -1047,7 +1047,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
 
               {/* Critérios mais fracos */}
               {criteriosFracos.length > 0 && (
-                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
+                <div className="lg-card" style={{ borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Critérios mais fracos da turma</div>
                   <div style={{ fontSize: 13, color: "rgba(29,26,19,0.5)", marginBottom: 18 }}>Média por critério (em /20) — onde a turma precisa de mais apoio.</div>
                   <div style={{ display: "grid", gap: 12 }}>
@@ -1067,7 +1067,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
 
               {/* Heatmap aluno × critério */}
               {heatRows.length > 0 && heatCols.length > 0 && (
-                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
+                <div className="lg-card" style={{ borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Mapa de calor · aluno × critério</div>
                   <div style={{ fontSize: 13, color: "rgba(29,26,19,0.5)", marginBottom: 18 }}>Desempenho de cada aluno em cada critério (/20). Vermelho = fraco, verde = forte — vê padrões num relance.</div>
                   <div style={{ overflowX: "auto" }}>
@@ -1107,7 +1107,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
 
               {/* Alunos em risco */}
               {emRisco.length > 0 && (
-                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
+                <div className="lg-card" style={{ borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Alunos a acompanhar</div>
                   <div style={{ fontSize: 13, color: "rgba(29,26,19,0.5)", marginBottom: 18 }}>{emRisco.length} submissões com sinais de alerta — nota baixa, indício de IA, semelhança ou testes falhados.</div>
                   <div style={{ display: "grid", gap: 10 }}>
@@ -1133,7 +1133,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
 
               {/* Insights da turma (IA) */}
               {temLLM && (
-                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
+                <div className="lg-card" style={{ borderRadius: 16, padding: "26px 28px", marginTop: 24 }}>
                   <div className="row-between" style={{ marginBottom: insights ? 18 : 0 }}>
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 600 }}>✨ Insights da turma</div>
@@ -1183,7 +1183,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                   ["Grupos de cópia", `${integridade.clusters.length}`, "submissões ligadas entre si"],
                   ["Perto da IA", `${integridade.proximidadeIA.filter((p) => p.score >= 0.12).length}`, "acima do limiar de alerta"],
                 ].map(([l, n, sub]) => (
-                  <div key={l} style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 14, padding: 22 }}>
+                  <div key={l} className="lg-card" style={{ borderRadius: 14, padding: 22 }}>
                     <div className="mono" style={{ fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(29,26,19,0.5)", marginBottom: 12 }}>{l}</div>
                     <div className="serif" style={{ fontSize: 38, fontWeight: 500, lineHeight: 1 }}>{n}</div>
                     <div style={{ fontSize: 12, color: "rgba(29,26,19,0.5)", marginTop: 6 }}>{sub}</div>
@@ -1192,7 +1192,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
               </div>
 
               {integridade.pares.length === 0 && integridade.clusters.length === 0 && integridade.proximidadeIA.filter((p) => p.score >= 0.12).length === 0 ? (
-                <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "40px 28px", textAlign: "center", color: "rgba(29,26,19,0.6)" }}>
+                <div className="lg-card" style={{ borderRadius: 16, padding: "40px 28px", textAlign: "center", color: "rgba(29,26,19,0.6)" }}>
                   <div style={{ fontSize: 30, marginBottom: 8 }}>✓</div>
                   Sem sinais de cópia ou de proximidade à IA nesta turma.
                 </div>
@@ -1200,7 +1200,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
                 <div style={{ display: "grid", gap: 24 }}>
                   {/* grupos de cópia */}
                   {integridade.clusters.length > 0 && (
-                    <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "24px 26px" }}>
+                    <div className="lg-card" style={{ borderRadius: 16, padding: "24px 26px" }}>
                       <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>◈ Grupos de submissões parecidas</div>
                       <div style={{ fontSize: 12.5, color: "rgba(29,26,19,0.5)", marginBottom: 18 }}>Cada grupo liga alunos cujas submissões se parecem acima do limiar — bom ponto de partida para investigar.</div>
                       <div style={{ display: "grid", gap: 12 }}>
@@ -1224,7 +1224,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
 
                   {/* ranking de pares */}
                   {integridade.pares.length > 0 && (
-                    <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "24px 26px" }}>
+                    <div className="lg-card" style={{ borderRadius: 16, padding: "24px 26px" }}>
                       <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 18 }}>Pares mais parecidos</div>
                       <div style={{ display: "grid", gap: 12 }}>
                         {integridade.pares.slice(0, 12).map((p, i) => {
@@ -1244,7 +1244,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
 
                   {/* proximidade à IA */}
                   {integridade.proximidadeIA.filter((p) => p.score >= 0.08).length > 0 && (
-                    <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, padding: "24px 26px" }}>
+                    <div className="lg-card" style={{ borderRadius: 16, padding: "24px 26px" }}>
                       <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Proximidade à resposta-tipo de IA</div>
                       <div style={{ fontSize: 12.5, color: "rgba(29,26,19,0.5)", marginBottom: 18 }}>
                         {assignment.temBaseline ? "Comparado com a linha-base de IA gerada para este enunciado." : "Gera a linha-base de IA (botão ↻ Linha-base) para ativar esta comparação."}
@@ -1272,7 +1272,7 @@ export default function ProfessorPortal({ prof, courses, assignment, subs, stats
             <div style={{ padding: "34px 40px 48px", maxWidth: 760 }}>
               <h2 className="serif" style={{ fontWeight: 500, fontSize: 26, margin: "0 0 4px", color: INK }}>Rubrica · {assignment.titulo}</h2>
               <div style={{ fontSize: 13.5, color: "rgba(29,26,19,0.55)", marginBottom: 22 }}>{assignment.rubrica.length} critérios</div>
-              <div style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.1)", borderRadius: 16, overflow: "hidden" }}>
+              <div className="lg-card" style={{ borderRadius: 16, overflow: "hidden" }}>
                 {assignment.rubrica.map((c, i) => (
                   <div key={c.nome} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px", borderBottom: i < assignment.rubrica.length - 1 ? "1px solid rgba(29,26,19,0.08)" : "none" }}>
                     <div><div style={{ fontSize: 15, fontWeight: 500, marginBottom: 3 }}>{c.nome} <span className="mono" style={{ fontSize: 12, color: "rgba(29,26,19,0.45)" }}>· peso {c.peso}%</span></div><div style={{ fontSize: 13, color: "rgba(29,26,19,0.55)" }}>{c.descricao || "—"}</div></div>

@@ -79,7 +79,7 @@ export default async function RelatorioPage({ params }: { params: Promise<{ assi
   return (
     <div className="rel-root">
       <style>{`
-        .rel-root { background: #f4f2ec; min-height: 100vh; padding: 32px 20px; color: #1d1a13; font-family: var(--font-inter, system-ui), sans-serif; }
+        .rel-root { background: transparent; min-height: 100vh; padding: 32px 20px; color: #1d1a13; font-family: var(--font-inter, system-ui), sans-serif; }
         .rel-page { max-width: 820px; margin: 0 auto; background: #fff; border-radius: 14px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); padding: 48px 56px; }
         .rel-toolbar { max-width: 820px; margin: 0 auto 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
         .rel-h1 { font-family: var(--font-newsreader, Georgia), serif; font-size: 30px; font-weight: 500; margin: 0 0 4px; }

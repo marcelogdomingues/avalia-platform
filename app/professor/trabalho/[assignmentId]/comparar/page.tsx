@@ -81,7 +81,7 @@ export default async function CompararPage({
     ));
 
   const Col = ({ sub, parts }: { sub: typeof subA; parts: typeof segs }) => (
-    <div style={{ flex: 1, minWidth: 0, background: "#fff", border: "1px solid rgba(29,26,19,0.12)", borderRadius: 14, padding: "20px 22px" }}>
+    <div className="lg-card" style={{ flex: 1, minWidth: 0, borderRadius: 14, padding: "20px 22px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, paddingBottom: 12, borderBottom: "1px solid rgba(29,26,19,0.08)" }}>
         <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#efe8da", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600 }}>
           {sub!.alunoNome.split(/\s+/).map((x) => x[0]).slice(0, 2).join("").toUpperCase()}
@@ -96,7 +96,7 @@ export default async function CompararPage({
   );
 
   return (
-    <div style={{ background: "#f4f2ec", minHeight: "100vh", padding: "28px 24px", fontFamily: "var(--font-inter, system-ui), sans-serif", color: "#1d1a13" }}>
+    <div style={{ background: "transparent", minHeight: "100vh", padding: "28px 24px", fontFamily: "var(--font-inter, system-ui), sans-serif", color: "#1d1a13" }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 18, flexWrap: "wrap" }}>
           <div>
@@ -113,7 +113,7 @@ export default async function CompararPage({
           As passagens <span style={{ background: "rgba(180,83,9,0.18)", borderRadius: 3, padding: "0 4px" }}>realçadas</span> aparecem em ambas as submissões. É um indício — confirma a autoria com as perguntas de defesa antes de decidir.
         </div>
         {frases.length > 0 && (
-          <details style={{ background: "#fff", border: "1px solid rgba(29,26,19,0.12)", borderRadius: 12, padding: "14px 18px", marginBottom: 18 }}>
+          <details className="lg-card" style={{ borderRadius: 12, padding: "14px 18px", marginBottom: 18 }}>
             <summary style={{ fontSize: 14, fontWeight: 600, cursor: "pointer" }}>{frases.length} frase{frases.length === 1 ? "" : "s"} exata{frases.length === 1 ? "" : "s"} em comum</summary>
             <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
               {frases.map((f, i) => (
