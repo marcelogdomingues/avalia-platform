@@ -24,28 +24,35 @@
     "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
-    "@prisma/adapter-better-sqlite3": "^7.10.0",
-    "@prisma/client": "^7.10.0",
+    "@prisma/adapter-better-sqlite3": "^7.10.1",
+    "@prisma/client": "^7.10.1",
     "adm-zip": "^0.6.1",
-    "dotenv": "^18.0.4",
+    "dotenv": "^18.0.9",
     "mammoth": "^1.13.0",
-    "next": "^16.3.7",
-    "openai": "^7.23.0",
+    "next": "^16.4.4",
+    "openai": "^7.47.0",
     "pdf-parse": "^2.4.5",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
-    "@types/adm-zip": "^0.5.8",
-    "@types/node": "^22.20.4",
+    "@types/adm-zip": "^0.6.0",
+    "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "prisma": "^7.10.0",
+    "prisma": "^7.10.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
   "overrides": {
     "mysql2": "^3.24.0",
     "deepmerge-ts": "^8.0.0"
+  },
+  "allowScripts": {
+    "prisma@7.10.1": true,
+    "@prisma/engines@7.10.1": true,
+    "better-sqlite3@12.11.1": true,
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true
   }
 }
